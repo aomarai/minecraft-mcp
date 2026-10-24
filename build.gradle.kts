@@ -7,6 +7,14 @@ import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
     base
+    id("org.sonarqube") version "7.5.0.8588"
+}
+
+sonar {
+    properties {
+        property("sonar.projectKey", "aomarai_minecraft-mcp_f6130f7f-7b1b-4688-9c1f-23c464302442")
+        property("sonar.projectName", "minecraft-mcp")
+    }
 }
 
 allprojects {
