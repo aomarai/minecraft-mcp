@@ -83,6 +83,11 @@ Requirements: JDK 21+ (JDK 25 for 26.x adapter nodes, added later).
 
 The Gradle wrapper is committed. CI runs the same build on every push and pull request.
 
+## Roadmap
+
+Phases, sequencing, and label conventions live in [docs/roadmap.md](docs/roadmap.md). Live status is
+tracked in GitHub Milestones and the epic issues.
+
 ## Contributing
 
 PR-only workflow. One issue per PR where practical. See [CONTRIBUTING.md](CONTRIBUTING.md) and
