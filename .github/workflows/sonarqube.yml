@@ -26,8 +26,8 @@ jobs:
     runs-on: minecraft-mcp-runners
     # ARC's Kubernetes container mode sets ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER=true,
     # so the job MUST declare a container. The actions-runner image brings git,
-    # curl, sudo and apt; the step below adds the JRE plus gpg/dirmngr, and
-    # actions/setup-java provides the JDK 21 toolchain the build needs.
+    # curl, sudo and apt; the step below adds gpg/dirmngr, and actions/setup-java
+    # provides the JDK 21 toolchain the build and the Gradle Sonar plugin need.
     container:
       image: ghcr.io/actions/actions-runner:latest
     env:
@@ -36,15 +36,16 @@ jobs:
       SONAR_HOST_URL: http://sonarqube-sonarqube.sonarqube.svc.cluster.local:9000
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           # Full history gives the scanner accurate new-code and blame data.
           fetch-depth: 0
 
       - name: Ensure scanner prerequisites (gpg, dirmngr)
-        # The actions-runner image ships no JRE and no gpg/dirmngr. The scanner
-        # needs a JRE on the host and the action verifies the scanner's GPG
-        # signature. default-jre-headless is OpenJDK 21 on Ubuntu 24.04.
+        # The actions-runner image ships no JRE and no gpg/dirmngr. The Gradle
+        # Sonar plugin resolves and runs the scanner, and gpg/dirmngr are needed
+        # if the plugin verifies downloaded artifacts. default-jre-headless is
+        # OpenJDK 21 on Ubuntu 24.04; setup-java below provides the build JDK.
         run: |
           if ! command -v java >/dev/null 2>&1 \
              || ! command -v gpg >/dev/null 2>&1 \
@@ -56,26 +57,38 @@ jobs:
           java -version
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           distribution: temurin
           java-version: "21"
 
-      - name: Build and generate coverage
-        # `build` compiles and runs the tests; `jacocoTestReport` turns the
-        # execution data into the XML report named in sonar-project.properties.
-        # The scan job runs on the same runner as the build, so the report is on
-        # disk when the scanner runs.
-        run: ./gradlew build jacocoTestReport --no-daemon
+      - name: Cache SonarQube packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
-      - name: SonarQube scan
-        # Pinned to an immutable commit SHA: the v8.3.0 tag is movable. The
-        # project key comes from sonar-project.properties; no PR parameters are
-        # passed because Community Build does not support pull-request analysis.
-        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9
+      - name: Cache Gradle packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Build and analyze
+        # The org.sonarqube Gradle plugin runs the scan in-process. `build`
+        # compiles and runs the tests; `jacocoTestReport` turns the execution
+        # data into the XML report named in sonar-project.properties. The scan
+        # job runs on the same runner as the build, so the report is on disk
+        # when the scanner reads it.
+        #
+        # SONAR_TOKEN is picked up from the environment by the scanner. The host
+        # URL is passed as a system property because the Gradle plugin does not
+        # map the SONAR_HOST_URL environment variable to sonar.host.url.
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          # Bound the scanner engine's JVM heap. The job container in ARC's
-          # Kubernetes mode cannot declare resource limits, so the engine sizes
-          # its default heap from the node's RAM and its footprint is unbounded.
-          SONAR_SCANNER_JAVA_OPTS: "-Xmx512m"
+        run: >-
+          ./gradlew build jacocoTestReport sonar
+          -Dsonar.host.url="$SONAR_HOST_URL"
+          --info
