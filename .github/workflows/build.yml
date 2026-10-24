@@ -18,4 +18,10 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Dependency verification compares downloaded artifacts against the
+          # committed metadata. A restored cache from the base branch can contain
+          # artifacts resolved before the metadata changed, which then fail
+          # verification. Disable caching so every run verifies fresh downloads.
+          cache-disabled: true
       - run: ./gradlew build --no-daemon --refresh-dependencies
