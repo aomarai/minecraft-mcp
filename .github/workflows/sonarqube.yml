@@ -1,0 +1,81 @@
+name: SonarQube
+
+# Analysis runs on the self-hosted ARC runners in the homelab, because that is
+# the only place that can reach the in-cluster SonarQube Service.
+#
+# Push to main only. This SonarQube is Community Build, which does not support
+# pull-request analysis: passing sonar.pullrequest.* aborts the scan with
+# "To use the property sonar.pullrequest.key and analyze pull requests,
+# Developer Edition or above is required", so a PR trigger can only ever produce
+# a red check here.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonarqube-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    # Selected by `runnerScaleSetName: minecraft-mcp-runners` in the homelab repo
+    # (apps/arc-runners-minecraft-mcp/values.yaml).
+    runs-on: minecraft-mcp-runners
+    # ARC's Kubernetes container mode sets ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER=true,
+    # so the job MUST declare a container. The actions-runner image brings git,
+    # curl, sudo and apt; the step below adds the JRE plus gpg/dirmngr, and
+    # actions/setup-java provides the JDK 21 toolchain the build needs.
+    container:
+      image: ghcr.io/actions/actions-runner:latest
+    env:
+      # In-cluster Service DNS. The sq.homelab.local name is LAN-only and signed
+      # by the private homelab CA, so CI cannot resolve or trust it.
+      SONAR_HOST_URL: http://sonarqube-sonarqube.sonarqube.svc.cluster.local:9000
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # Full history gives the scanner accurate new-code and blame data.
+          fetch-depth: 0
+
+      - name: Ensure scanner prerequisites (gpg, dirmngr)
+        # The actions-runner image ships no JRE and no gpg/dirmngr. The scanner
+        # needs a JRE on the host and the action verifies the scanner's GPG
+        # signature. default-jre-headless is OpenJDK 21 on Ubuntu 24.04.
+        run: |
+          if ! command -v java >/dev/null 2>&1 \
+             || ! command -v gpg >/dev/null 2>&1 \
+             || ! command -v dirmngr >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends \
+              gpg dirmngr default-jre-headless
+          fi
+          java -version
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build and generate coverage
+        # `build` compiles and runs the tests; `jacocoTestReport` turns the
+        # execution data into the XML report named in sonar-project.properties.
+        # The scan job runs on the same runner as the build, so the report is on
+        # disk when the scanner runs.
+        run: ./gradlew build jacocoTestReport --no-daemon
+
+      - name: SonarQube scan
+        # Pinned to an immutable commit SHA: the v8.3.0 tag is movable. The
+        # project key comes from sonar-project.properties; no PR parameters are
+        # passed because Community Build does not support pull-request analysis.
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # Bound the scanner engine's JVM heap. The job container in ARC's
+          # Kubernetes mode cannot declare resource limits, so the engine sizes
+          # its default heap from the node's RAM and its footprint is unbounded.
+          SONAR_SCANNER_JAVA_OPTS: "-Xmx512m"
