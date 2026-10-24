@@ -1,9 +1,8 @@
 package dev.aomarai.minecraftmcp.core;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class ToolPolicyTest {
 
@@ -32,6 +31,6 @@ class ToolPolicyTest {
     @Test
     void computesBlockQueryVolume() {
         BlockQuery query = new BlockQuery("minecraft:overworld", 0, 0, 0, 1, 1, 1, 8);
-        assertTrue(query.volume() == 8);
+        assertEquals(8, query.volume());
     }
 }
