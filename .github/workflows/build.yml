@@ -17,7 +17,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         with:
           # Dependency verification compares downloaded artifacts against the
           # committed metadata. A restored cache from the base branch can contain
