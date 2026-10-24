@@ -1,11 +1,49 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Dependabot version updates.
+#
+# This repository has Gradle dependency verification enabled
+# (gradle/verification-metadata.xml). A version bump changes artifact
+# checksums, so a Dependabot PR cannot pass `build-and-test` until the metadata
+# is regenerated. .github/workflows/dependabot-metadata.yml does that
+# automatically on Dependabot's branch pushes.
 
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # Gradle dependencies and plugins (build.gradle.kts, core/build.gradle.kts).
+  - package-ecosystem: "gradle"
+    directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "area:ci"
+      - "priority:p2"
+    groups:
+      gradle-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Actions used by the workflows in .github/workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "area:ci"
+      - "priority:p2"
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"
