@@ -30,7 +30,7 @@ jobs:
     if: github.actor == 'dependabot[bot]'
     steps:
       - name: Check out the Dependabot branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
