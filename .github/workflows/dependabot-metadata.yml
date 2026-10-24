@@ -30,19 +30,19 @@ jobs:
     if: github.actor == 'dependabot[bot]'
     steps:
       - name: Check out the Dependabot branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           # The restored cache can hold artifacts resolved before the metadata
           # changed, which then fail verification. Resolve fresh.
