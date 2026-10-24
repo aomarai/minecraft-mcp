@@ -1,5 +1,5 @@
 dependencies {
-    api("io.modelcontextprotocol.sdk:mcp:2.0.1")
+    api("io.modelcontextprotocol.sdk:mcp:2.1.0")
 
     // The MCP SDK's Streamable HTTP server transport is servlet-based and
     // compiled against Jakarta Servlet 6.1. Jetty 12.1 EE11 provides that
@@ -10,5 +10,5 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.16")
+    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.20")
 }
