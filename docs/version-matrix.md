@@ -18,7 +18,7 @@ here as planned. Current state:
 |---|---|
 | Fabric 1.21.1, 26.2, 26.3 | Supported (nodes `adapters/fabric/versions/<minecraft>`). CI starts a real headless server in Docker with each jar and runs the same ~115 checks: loading, auth, reads, writes, the policy refusals, audit and shutdown (`scripts/smoke/run-in-docker.sh`). Fake-player game tests (joins, chat, deaths) run on 1.21.1 only |
 | NeoForge 1.21.1, 26.2, 26.3 | Supported (nodes `adapters/neoforge/versions/<minecraft>`, [docs/neoforge.md](neoforge.md)), with the same Docker smoke test per jar |
-| Universal (vanilla and Paper 1.21.1) | Supported ([universal.md](universal.md)). CI starts a real vanilla server and a real Paper server with no mod in Docker, runs the standalone jar next to each, and checks protocol, tools, reads, writes, policy refusals, admin and typed tools, the audit log and shutdown (`scripts/smoke/run-in-docker.sh vanilla|paper`). Other servers that speak RCON (modded, other forks) are expected to work but are not tested |
+| Universal (vanilla, Paper and Fabric 1.21.1) | Supported ([universal.md](universal.md)). CI starts a real vanilla server, a real Paper server and a real Fabric server (a modded one) without this project's mod in Docker, runs the standalone jar next to each, and checks protocol, tools, reads, writes, policy refusals, admin and typed tools, the audit log and shutdown (`scripts/smoke/run-in-docker.sh vanilla|paper`). Other servers that speak RCON (Forge, NeoForge, other forks) are expected to work but are not tested |
 
 ## Targets
 

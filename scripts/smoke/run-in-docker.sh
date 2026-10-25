@@ -4,14 +4,15 @@
 # container.
 #
 #   scripts/smoke/run-in-docker.sh <fabric|neoforge> <path-to-mod-jar> [node-gradle.properties]
-#   scripts/smoke/run-in-docker.sh <vanilla|paper> <path-to-universal-jar>
+#   scripts/smoke/run-in-docker.sh <vanilla|paper|fabric-server> <path-to-universal-jar>
 #
 # For a mod, the node (its Minecraft, loader and Java versions) defaults to the loader's 1.21.1 node, and the
-# container's Java is the node's java_version. The universal tier runs on Java 21 against an unmodded server.
+# container's Java is the node's java_version. The universal tier runs on Java 21 against a server without this
+# project's mod (vanilla, Paper, or a Fabric server, which is a modded one).
 # The repository is mounted read-only. The smoke script does everything else inside the container.
 set -eu
 
-KIND="${1:?usage: run-in-docker.sh <fabric|neoforge|vanilla|paper> <jar> [node-gradle.properties]}"
+KIND="${1:?usage: run-in-docker.sh <fabric|neoforge|vanilla|paper|fabric-server> <jar> [node-gradle.properties]}"
 JAR="${2:?usage: run-in-docker.sh <fabric|neoforge|vanilla|paper> <jar> [node-gradle.properties]}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 [ -f "$JAR" ] || { echo "jar not found: $JAR" >&2; exit 2; }
@@ -19,19 +20,21 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 case "$KIND" in
   fabric|neoforge)
     SCRIPT=smoke.sh
+    WHAT="$KIND"
     NODE="${3:-adapters/$KIND/versions/1.21.1/gradle.properties}"
     [ -f "$ROOT/$NODE" ] || { echo "node properties not found: $ROOT/$NODE" >&2; exit 2; }
     JAVA="$(sed -n 's/^java_version=//p' "$ROOT/$NODE" | tr -d '\r')"
     [ -n "$JAVA" ] || { echo "no java_version in $NODE" >&2; exit 2; }
     EXTRA="/work/$NODE"
     ;;
-  vanilla|paper)
+  vanilla|paper|fabric-server)
     SCRIPT=universal-smoke.sh
+    WHAT="${KIND%-server}"
     JAVA=21
     EXTRA=""
     ;;
   *)
-    echo "unknown kind '$KIND' (fabric, neoforge, vanilla or paper)" >&2
+    echo "unknown kind '$KIND' (fabric, neoforge, vanilla, paper or fabric-server)" >&2
     exit 2
     ;;
 esac
@@ -48,4 +51,4 @@ exec docker run --rm \
   --workdir /work \
   --memory 3g \
   "eclipse-temurin:$JAVA-jre-noble" \
-  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends curl >/dev/null && bash "scripts/smoke/$1" "$2" "$3" ${4:+"$4"}' _ "$SCRIPT" "$KIND" "$JAR_IN_CONTAINER" "$EXTRA"
+  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends curl >/dev/null && bash "scripts/smoke/$1" "$2" "$3" ${4:+"$4"}' _ "$SCRIPT" "$WHAT" "$JAR_IN_CONTAINER" "$EXTRA"
