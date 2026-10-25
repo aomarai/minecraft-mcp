@@ -18,7 +18,8 @@ import java.util.Map;
  * <p>Secrets passed to the constructor are replaced by {@code [redacted]} in
  * every string of every entry, and long strings are truncated, so a pasted
  * token or a huge command cannot leak into or flood the log. Each entry is
- * written with a single append under a lock, so lines never interleave.</p>
+ * written with a single append under a lock, so lines never interleave. The file is
+ * owner-only (see {@link OwnerOnlyFile}).</p>
  */
 public final class JsonlAuditLog implements AuditLog {
 
@@ -43,7 +44,7 @@ public final class JsonlAuditLog implements AuditLog {
         line.put("decision", entry.decision());
         line.put("detail", clean(entry.detail()));
         try {
-            Files.createDirectories(file.toAbsolutePath().getParent());
+            OwnerOnlyFile.prepare(file);
             Files.writeString(file, McpJsonDefaults.getMapper().writeValueAsString(line) + "\n",
                     StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {

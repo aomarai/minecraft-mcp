@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class JsonlAuditLogTest {
 
@@ -54,6 +55,21 @@ class JsonlAuditLogTest {
         assertEquals("ok", lines.get(0).get("detail"));
         assertEquals("result", lines.get(1).get("phase"));
         assertEquals("deny", lines.get(1).get("decision"));
+    }
+
+    @Test
+    void theAuditFileIsOwnerOnlyAndStaysSoWhenLoosened() throws IOException {
+        Path file = dir.resolve("logs").resolve("audit.jsonl");
+        JsonlAuditLog log = new JsonlAuditLog(file, List.of());
+
+        log.record(entry(Map.of(), "first"));
+        assumeTrue(OwnerOnlyFileTest.posix());
+        assertEquals("rw-------", OwnerOnlyFileTest.mode(file));
+
+        Files.setPosixFilePermissions(file, java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
+        log.record(entry(Map.of(), "second"));
+        assertEquals("rw-------", OwnerOnlyFileTest.mode(file));
+        assertEquals(2, lines(file).size());
     }
 
     @Test
