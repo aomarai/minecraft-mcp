@@ -16,7 +16,7 @@ here as planned. Current state:
 
 | Target | State |
 |---|---|
-| Fabric 1.21.1 | Supported. CI starts a real headless server in Docker with the jar and checks loading, auth, reads, a write, the policy refusals, audit and shutdown (`scripts/smoke/run-in-docker.sh`) |
+| Fabric 1.21.1 | Supported (node `adapters/fabric/versions/1.21.1`). CI starts a real headless server in Docker with the jar and checks loading, auth, reads, a write, the policy refusals, audit and shutdown (`scripts/smoke/run-in-docker.sh`) |
 | Everything else | Planned |
 
 ## Initial targets
@@ -36,8 +36,16 @@ best-effort.
 
 ## Build tooling
 
-- **Stonecutter** for multi-version source conditionals.
-- **Modstitch** for one-codebase Fabric + NeoForge builds with per-loader source sets.
+- **Stonecutter** (0.9.x) builds every Minecraft version of a loader from one source tree, with
+  `//? if` comments for the few places versions differ. One *controller* per loader
+  (`adapters/<loader>/`: `stonecutter.gradle.kts`, the shared `src/` and `build.gradle.kts`) and one
+  *node* per version (`adapters/<loader>/versions/<minecraft>/gradle.properties`).
+- **First-party loader tooling per loader** (Fabric Loom, and ModDevGradle for NeoForge), not a wrapper
+  plugin. The original plan named Modstitch, an abstraction over those two. It is still marked
+  unstable and does not state 26.x support; the first-party tools are what every version of the game
+  is supported through first, so a wrapper would be one more thing to wait for on each new Minecraft
+  release. The shared code is already shared where it matters: `core/` has no loader code at all, and
+  each adapter is a few small classes.
 - Gradle toolchains: Java 21 for 1.21.x nodes, Java 25 for 26.x nodes.
 - Mappings: Mojang official names on 26.x; Yarn or Mojmap on 1.21.x.
 
@@ -51,7 +59,9 @@ best-effort.
 
 ## Adding a target
 
-1. Add a Stonecutter/Modstitch node with its Minecraft, loader, and Java versions.
+1. Add a node: one `version("<minecraft>")` line in `settings.gradle.kts` and one
+   `adapters/<loader>/versions/<minecraft>/gradle.properties` with its Minecraft, loader, API and Java
+   versions (copy the 1.21.1 file). The build script is shared, so nothing else is copied.
 2. Add a Docker smoke test that starts a headless server and exercises one read and one write.
 3. Add the artifact to the release matrix and document it.
 4. Update this table and the README.

@@ -23,7 +23,9 @@ allprojects {
     version = "0.1.0-SNAPSHOT"
 }
 
-subprojects {
+// A Stonecutter controller (it has a stonecutter.gradle.kts) only holds the shared sources and build
+// script; its version nodes below it do the building, so it gets no Java plugins of its own.
+subprojects.filter { !it.file("stonecutter.gradle.kts").exists() }.forEach { subproject -> subproject.run {
     apply(plugin = "java-library")
     apply(plugin = "jacoco")
 
@@ -76,4 +78,4 @@ subprojects {
     tasks.named("check") {
         dependsOn(tasks.withType<JacocoCoverageVerification>())
     }
-}
+} }

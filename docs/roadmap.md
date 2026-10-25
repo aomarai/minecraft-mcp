@@ -20,7 +20,7 @@ source of truth for status.
 1. **E1 first.** Every adapter depends on the `GamePort` capability ports, tool schemas, and policy engine.
 2. **Fabric before NeoForge.** Smaller loader surface and faster CI loop; the Fabric adapter
    proves the threading and registry model.
-3. **Build wiring before more adapters.** Stonecutter + Modstitch should land before the version
+3. **Build wiring before more adapters.** Stonecutter should land before the version
    matrix grows, or every later change doubles.
 4. **Universal tier in parallel.** It shares the core and gives servers without mod support a
    usable path.

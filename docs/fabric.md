@@ -68,10 +68,10 @@ cannot stall the server.
 ## Build
 
 ```bash
-./gradlew :adapters:fabric:build
+./gradlew :adapters:fabric:1.21.1:build
 ```
 
-The loadable jar is `adapters/fabric/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar`. It is
+The loadable jar is `adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar`. It is
 the remapped, shaded jar; the other jars in that folder are intermediate and will not load.
 
 - **Shading:** the core and its libraries (MCP SDK, Jackson, Jetty, Reactor, ...) are packed into
@@ -99,7 +99,7 @@ for this module. The classes are kept tiny, the logic lives in `core` (where the
 jar:
 
 ```bash
-scripts/smoke/fabric-smoke.sh adapters/fabric/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
+scripts/smoke/fabric-smoke.sh adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
 ```
 
 It needs bash, curl, Java 21 and network access, works in a throwaway directory, and checks:
@@ -112,14 +112,14 @@ CI runs the same script in a clean container so the host needs nothing but Docke
 world and EULA acceptance disappear with the container:
 
 ```bash
-scripts/smoke/run-in-docker.sh adapters/fabric/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
+scripts/smoke/run-in-docker.sh adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
 ```
 
 Fake players cannot join a headless server from outside, so they are tested in-process with Fabric's
 game test framework (`adapters/fabric/src/gametest`):
 
 ```bash
-./gradlew :adapters:fabric:runGameTest
+./gradlew :adapters:fabric:1.21.1:runGameTest
 ```
 
 It starts a real dedicated server with the mod loaded and places a fake player through the player list
@@ -130,4 +130,4 @@ development server only. CI runs it before the Docker smoke test.
 
 The smoke test takes about two minutes. It fails if the mod does not load (it gives up 30 seconds after
 the game reports it is ready) or if any check fails, and prints the server log. The server versions
-in the script must match `adapters/fabric/build.gradle.kts`.
+come from the node's `adapters/fabric/versions/1.21.1/gradle.properties`, which the script reads.
