@@ -32,6 +32,17 @@ record ToolArgs(Map<String, Object> values) {
         return flag;
     }
 
+    long optionalLong(String name, long fallback) {
+        Object value = values.get(name);
+        if (value == null) {
+            return fallback;
+        }
+        if (!(value instanceof Number number) || number.doubleValue() != number.longValue()) {
+            throw new IllegalArgumentException(name + " must be an integer");
+        }
+        return number.longValue();
+    }
+
     int integer(String name) {
         if (!(values.get(name) instanceof Number number) || number.doubleValue() != number.intValue()) {
             throw new IllegalArgumentException(name + " must be an integer");

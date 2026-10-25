@@ -60,6 +60,16 @@ class ToolArgsTest {
     }
 
     @Test
+    void optionalLongsFallBackOnlyWhenAbsentAndKeepTheirWholeRange() {
+        assertEquals(-1L, args().optionalLong("a", -1));
+        assertEquals(-1L, args("a", null).optionalLong("a", -1));
+        assertEquals(5_000_000_000L, args("a", 5_000_000_000L).optionalLong("a", -1));
+        assertEquals(0L, args("a", 0).optionalLong("a", -1));
+        assertEquals("a must be an integer", failure(() -> args("a", "3").optionalLong("a", -1)));
+        assertEquals("a must be an integer", failure(() -> args("a", 1.5).optionalLong("a", -1)));
+    }
+
+    @Test
     void optionalBooleansFallBackOnlyWhenAbsent() {
         assertTrue(args().optionalBoolean("a", true));
         assertFalse(args().optionalBoolean("a", false));

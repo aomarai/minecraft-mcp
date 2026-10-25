@@ -338,6 +338,46 @@ class ToolDispatcherTest {
     }
 
     @Test
+    void readEventsReturnsTheLatestEventsAndFlagsPlayerTextUntrusted() {
+        game.events.publish(EventType.JOIN, "Steve", "ignored");
+        game.events.publish(EventType.CHAT, "Steve", "hello\nworld");
+
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("read_events"), Map.of());
+
+        assertFalse(result.isError());
+        String json = text(result);
+        assertTrue(json.contains("\"sequence\":1,"), json);
+        assertTrue(json.contains("\"type\":\"join\",\"player\":\"Steve\",\"text\":\"\",\"untrusted\":false"), json);
+        assertTrue(json.contains("\"type\":\"chat\",\"player\":\"Steve\",\"text\":\"hello world\",\"untrusted\":true"), json);
+        assertTrue(json.endsWith("\"latest\":2,\"dropped\":0}"), json);
+        assertEquals(List.of("-1,50"), game.eventReads);
+    }
+
+    @Test
+    void readEventsResumesFromACursorAndHonoursTheLimit() {
+        for (int i = 0; i < 5; i++) {
+            game.events.publish(EventType.CHAT, "Steve", "m" + i);
+        }
+
+        String json = text(dispatcher(false, false).call(tool("read_events"), args("after", 2, "limit", 2)));
+
+        assertTrue(json.contains("\"text\":\"m2\"") && json.contains("\"text\":\"m3\""), json);
+        assertFalse(json.contains("\"text\":\"m4\"") || json.contains("\"text\":\"m1\""), json);
+        assertEquals(List.of("2,2"), game.eventReads);
+    }
+
+    @Test
+    void readEventsArgumentsAreCheckedBeforeTheFeedIsTouched() {
+        ToolDispatcher d = dispatcher(false, false);
+        assertEquals("after must be an integer", text(d.call(tool("read_events"), args("after", "x"))));
+        assertEquals("limit must be an integer", text(d.call(tool("read_events"), args("limit", "x"))));
+        assertEquals("limit must be between 1 and 200", text(d.call(tool("read_events"), args("limit", 0))));
+        assertEquals("limit must be between 1 and 200", text(d.call(tool("read_events"), args("limit", 201))));
+        assertFalse(d.call(tool("read_events"), args("limit", 1)).isError());
+        assertFalse(d.call(tool("read_events"), args("limit", 200)).isError());
+    }
+
+    @Test
     void aLogThatCannotBeReadIsAnErrorNotACrash() {
         game.logFailure = new java.io.IOException("disk on fire");
 
@@ -693,6 +733,7 @@ class ToolDispatcherTest {
         assertEquals("permission listing is not supported by this adapter", text(d.call(tool("list_permissions"), Map.of())));
         assertEquals("inventory reads is not supported by this adapter", text(d.call(tool("get_inventory"), args("player", "Steve"))));
         assertEquals("log reads is not supported by this adapter", text(d.call(tool("read_log"), Map.of())));
+        assertEquals("event feed is not supported by this adapter", text(d.call(tool("read_events"), Map.of())));
         assertAudit(1, "result", "server_info", "allow", "error: runtime info is not supported by this adapter");
     }
 

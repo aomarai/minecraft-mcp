@@ -43,12 +43,19 @@ loopback by default. Rotating the token requires a restart of the transport.
 
 ## Untrusted text in tool results
 
-Some read tools return text that players control: entity names (`list_entities`), and the whole
-server log (`read_log`). The core never lets such text influence a decision: the policy looks only at
+Some read tools return text that players control: entity names (`list_entities`), the whole
+server log (`read_log`), and chat and death messages (`read_events`, and the `minecraft://events`
+resource). The core never lets such text influence a decision: the policy looks only at
 the tool, its arguments and the configuration. The tools mark it anyway, so a client can treat it as
 data: the `read_log` result carries `"untrusted": true`, and the descriptions of `list_entities` and
 `read_log` say so. `get_inventory` leaves item names out entirely. `read_log` also masks IPv4
 addresses and cuts very long lines, so it does not leak players' addresses or flood the client.
+Event text is cleaned (control characters, including line breaks, become spaces) and cut at 256
+characters before it is stored, and every event is marked `untrusted` when it carries player text.
+
+Reading the `minecraft://events` resource does not pass through the policy gate or the audit log
+(`read_events`, the same data as a tool, does). That is acceptable because it is read-only, bounded and
+shows nothing `read_events` does not; if resources ever expose more, they must be gated first.
 
 ## Policy gate and audit
 

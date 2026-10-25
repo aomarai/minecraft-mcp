@@ -21,14 +21,14 @@ class ToolCatalogTest {
     void defaultsAreGroupedByScope() {
         ToolCatalog catalog = ToolCatalog.defaults();
         assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities",
-                        "get_world_state", "list_permissions", "get_inventory", "read_log", "take_screenshot"),
+                        "get_world_state", "list_permissions", "get_inventory", "read_log", "read_events", "take_screenshot"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
         assertEquals(List.of("fill_blocks", "teleport", "give_item", "send_message", "run_command"),
                 names(catalog.byScope(ToolPolicy.Scope.ACT)));
         assertEquals(List.of("kick_player", "ban_player", "save_world", "stop_server", "run_admin_command"),
                 names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
         assertEquals(ToolCatalog.defaults().tools().size(), catalog.tools().size());
-        assertEquals(20, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
+        assertEquals(21, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
     }
 
     @Test
@@ -169,6 +169,7 @@ class ToolCatalogTest {
                 java.util.Map.entry("list_permissions", Capability.PERMISSIONS),
                 java.util.Map.entry("get_inventory", Capability.INVENTORIES),
                 java.util.Map.entry("read_log", Capability.LOGS),
+                java.util.Map.entry("read_events", Capability.EVENTS),
                 java.util.Map.entry("run_command", Capability.COMMANDS),
                 java.util.Map.entry("run_admin_command", Capability.COMMANDS),
                 java.util.Map.entry("fill_blocks", Capability.COMMANDS),

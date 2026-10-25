@@ -1,6 +1,7 @@
 package dev.aomarai.minecraftmcp.fabric;
 
 import dev.aomarai.minecraftmcp.core.ConfigException;
+import dev.aomarai.minecraftmcp.core.EventBuffer;
 import dev.aomarai.minecraftmcp.core.FileLogReader;
 import dev.aomarai.minecraftmcp.core.GameServices;
 import dev.aomarai.minecraftmcp.core.McpConfig;
@@ -35,6 +36,9 @@ public final class McpFabricMod implements ModInitializer {
     /** Vanilla permission level 4: everything, including /stop. */
     private static final int ADMIN_LEVEL = 4;
 
+    /** Recent events kept for clients to read; older ones are dropped. */
+    private static final int EVENT_CAPACITY = 500;
+
     /** Runs the {@code /mcp} commands off the game thread. Daemon, so it can never block JVM exit. */
     private final ExecutorService background = Executors.newSingleThreadExecutor(task -> {
         Thread thread = new Thread(task, "minecraft-mcp-control");
@@ -42,12 +46,16 @@ public final class McpFabricMod implements ModInitializer {
         return thread;
     });
 
+    /** Owned here, not by the controller, so events survive a reload or a token rotation. */
+    private final EventBuffer events = new EventBuffer(EVENT_CAPACITY);
+
     private volatile McpController controller;
 
     @Override
     public void onInitialize() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 McpCommand.register(dispatcher, () -> controller, background));
+        FabricEventPublisher.register(events);
         ServerLifecycleEvents.SERVER_STARTED.register(this::start);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> stop());
     }
@@ -55,7 +63,7 @@ public final class McpFabricMod implements ModInitializer {
     private void start(MinecraftServer server) {
         Path configDir = FabricLoader.getInstance().getConfigDir();
         McpController created = new McpController(configDir.resolve("minecraft-mcp.json"),
-                configDir.resolve("minecraft-mcp-audit.jsonl"), config -> servicesFor(server, config), System.getenv());
+                configDir.resolve("minecraft-mcp-audit.jsonl"), config -> servicesFor(server, config, events), System.getenv());
         controller = created;
         try {
             created.start();
@@ -67,7 +75,7 @@ public final class McpFabricMod implements ModInitializer {
         }
     }
 
-    private static GameServices servicesFor(MinecraftServer server, McpConfig config) {
+    private static GameServices servicesFor(MinecraftServer server, McpConfig config, EventBuffer events) {
         // Commands run at the lowest level that fits what is enabled, so the game itself refuses
         // admin commands unless admin access is on. The core's policy has already decided by then.
         int commandLevel = config.allowAdmin() ? ADMIN_LEVEL : GAMEMASTER_LEVEL;
@@ -81,6 +89,7 @@ public final class McpFabricMod implements ModInitializer {
                 new FabricPermissionReader(server),
                 new FabricInventoryReader(server),
                 new FileLogReader(FabricLoader.getInstance().getGameDir().resolve("logs").resolve("latest.log")),
+                events,
                 new FabricCommandRunner(server, commandLevel));
     }
 

@@ -40,6 +40,7 @@ final class ToolHandlers {
                 entry("list_permissions", args -> listPermissions()),
                 entry("get_inventory", this::getInventory),
                 entry("read_log", this::readLog),
+                entry("read_events", this::readEvents),
                 entry("fill_blocks", this::fillBlocks),
                 entry("teleport", this::teleport),
                 entry("give_item", this::giveItem),
@@ -213,6 +214,13 @@ final class ToolHandlers {
         out.put("untrusted", true);
         out.put("lines", tail.stream().map(LogRedaction::redact).toList());
         return json(out);
+    }
+
+    private String readEvents(ToolArgs args) throws Exception {
+        // An in-memory read of a bounded buffer: no game state, nothing to wait for.
+        EventPage page = port(EventFeed.class, "event feed")
+                .read(args.optionalLong("after", -1), args.optionalInteger("limit", 50));
+        return EventJson.of(page, McpJsonDefaults.getMapper());
     }
 
     private String runCommand(ToolArgs args) throws Exception {
