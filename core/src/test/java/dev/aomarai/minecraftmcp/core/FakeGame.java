@@ -20,6 +20,8 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     CommandResult commandResult = CommandResult.ok("done");
     /** When set, returned instead of a completed future, e.g. one that never completes. */
     CompletableFuture<CommandResult> pendingCommand;
+    CompletableFuture<List<PlayerInfo>> pendingPlayers;
+    CompletableFuture<WorldSnapshot> pendingSnapshot;
 
     GameServices services() {
         return new GameServices(this, this, this, this);
@@ -38,13 +40,13 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     @Override
     public CompletableFuture<List<PlayerInfo>> listPlayers() {
         playerCalls++;
-        return CompletableFuture.completedFuture(players);
+        return pendingPlayers != null ? pendingPlayers : CompletableFuture.completedFuture(players);
     }
 
     @Override
     public CompletableFuture<WorldSnapshot> snapshot(BlockQuery query) {
         queries.add(query);
-        return CompletableFuture.completedFuture(snapshot);
+        return pendingSnapshot != null ? pendingSnapshot : CompletableFuture.completedFuture(snapshot);
     }
 
     @Override

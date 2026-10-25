@@ -9,10 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Runs catalog tools behind the policy gate.
@@ -27,9 +23,8 @@ import java.util.concurrent.TimeoutException;
  * the operator's OP. Destructive commands through {@code run_command} are
  * refused and must use {@code run_admin_command} with {@code confirm=true}.</p>
  *
- * <p>Calls wait for a port at most {@link McpConfig#callTimeout()} and cancel
- * the pending future when it expires. A shared timeout and cancellation helper
- * is tracked in issue #12.</p>
+ * <p>Calls wait for a port at most {@link McpConfig#callTimeout()}; see
+ * {@link CallAwaiter} for timeout, cancellation and side-effect semantics.</p>
  */
 public final class ToolDispatcher implements ToolInvoker {
 
@@ -138,7 +133,8 @@ public final class ToolDispatcher implements ToolInvoker {
     }
 
     private String listPlayers() throws Exception {
-        List<PlayerInfo> players = await(require(services.players(), "player listing").listPlayers());
+        List<PlayerInfo> players = CallAwaiter.await(
+                require(services.players(), "player listing").listPlayers(), config.callTimeout(), false);
         List<Map<String, Object>> items = new ArrayList<>();
         for (PlayerInfo player : players) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -164,7 +160,8 @@ public final class ToolDispatcher implements ToolInvoker {
             throw new IllegalArgumentException(
                     "volume " + query.volume() + " exceeds maxBlockVolume " + config.maxBlockVolume());
         }
-        WorldSnapshot snapshot = await(require(services.world(), "block queries").snapshot(query));
+        WorldSnapshot snapshot = CallAwaiter.await(
+                require(services.world(), "block queries").snapshot(query), config.callTimeout(), false);
         List<Map<String, Object>> blocks = new ArrayList<>();
         for (WorldSnapshot.BlockState block : snapshot.blocks()) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -182,28 +179,12 @@ public final class ToolDispatcher implements ToolInvoker {
     }
 
     private String runCommand(Map<String, Object> args) throws Exception {
-        CommandResult result = await(require(services.commands(), "command execution")
-                .runCommand(commandText(args), config.callTimeout()));
+        CommandResult result = CallAwaiter.await(require(services.commands(), "command execution")
+                .runCommand(commandText(args), config.callTimeout()), config.callTimeout(), true);
         if (!result.success()) {
             throw new IllegalStateException(String.join("; ", result.feedback()));
         }
         return result.output();
-    }
-
-    private <T> T await(CompletableFuture<T> future) throws Exception {
-        long millis = config.callTimeout().toMillis();
-        try {
-            return future.get(millis, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException e) {
-            future.cancel(true);
-            throw new TimeoutException("timed out after " + millis + " ms");
-        } catch (InterruptedException e) {
-            future.cancel(true);
-            Thread.currentThread().interrupt();
-            throw e;
-        } catch (ExecutionException e) {
-            throw new IllegalStateException(describe(e.getCause()), e.getCause());
-        }
     }
 
     private static <T> T require(T port, String what) {
