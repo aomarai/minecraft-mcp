@@ -1,5 +1,6 @@
 package dev.aomarai.minecraftmcp.core;
 
+import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
@@ -12,6 +13,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 
 import java.util.EnumSet;
+import java.util.Optional;
 
 /**
  * Minimal Streamable HTTP bootstrap for the MCP core.
@@ -37,6 +39,7 @@ public final class McpCore implements AutoCloseable {
     private final McpSyncServer mcp;
     private final Server jetty;
     private final ServerConnector connector;
+    private final Optional<EventNotifier> notifier;
 
     public McpCore() {
         this(DEFAULT_HOST, 0);
@@ -56,6 +59,15 @@ public final class McpCore implements AutoCloseable {
      *              {@value ConfigLoader#MIN_TOKEN_LENGTH} characters. There is no unauthenticated mode.
      */
     public McpCore(String host, int port, ToolCatalog catalog, ToolInvoker invoker, String token) {
+        this(host, port, catalog, invoker, token, Optional.empty());
+    }
+
+    /**
+     * @param events when present, clients can subscribe to {@value EventResource#URI} to be told that
+     *               new game events are available
+     */
+    public McpCore(String host, int port, ToolCatalog catalog, ToolInvoker invoker, String token,
+                   Optional<EventFeed> events) {
         DaemonSchedulers.install();
         this.token = token;
         this.host = host;
@@ -65,13 +77,18 @@ public final class McpCore implements AutoCloseable {
                 .mcpEndpoint(DEFAULT_ENDPOINT)
                 .build();
 
-        this.mcp = McpServer.sync(transport)
+        McpServer.SyncSpecification<?> builder = McpServer.sync(transport)
                 .serverInfo("minecraft-mcp", "0.1.0")
-                .capabilities(McpSchema.ServerCapabilities.builder()
-                        .tools(false)
-                        .build())
-                .tools(catalog.specs(invoker))
-                .build();
+                .tools(catalog.specs(invoker));
+        McpSchema.ServerCapabilities.Builder capabilities = McpSchema.ServerCapabilities.builder().tools(false);
+        if (events.isPresent()) {
+            builder.resources(EventResource.specification(events.get(), McpJsonDefaults.getMapper()));
+            capabilities.resources(true, false);
+        }
+        this.mcp = builder.capabilities(capabilities.build()).build();
+        McpSyncServer server = this.mcp;
+        this.notifier = events.map(feed -> EventNotifier.onDaemonThread(feed,
+                () -> server.notifyResourcesUpdated(new McpSchema.ResourcesUpdatedNotification(EventResource.URI))));
 
         this.jetty = new Server();
         this.connector = new ServerConnector(jetty);
@@ -119,6 +136,7 @@ public final class McpCore implements AutoCloseable {
     @Override
     public void close() throws Exception {
         try {
+            notifier.ifPresent(EventNotifier::close);
             mcp.closeGracefully();
         } finally {
             jetty.stop();

@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 
 /** In-memory game for tests: records every call so tests can prove what did and did not reach it. */
 final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandRunner, RegistryReader, EntityReader,
-        WorldStateReader, PermissionReader, InventoryReader, LogReader {
+        WorldStateReader, PermissionReader, InventoryReader, LogReader, EventFeed {
 
     final List<String> commands = new ArrayList<>();
     final List<Duration> commandTimeouts = new ArrayList<>();
@@ -41,6 +41,8 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     List<String> logLines = List.of("[12:00:00] [Server thread/INFO]: Done (1.2s)!",
             "[12:00:01] [Server thread/INFO]: Steve[/192.168.1.5:54321] logged in", "<Steve> hello");
     IOException logFailure;
+    final EventBuffer events = new EventBuffer(100);
+    final List<String> eventReads = new ArrayList<>();
     /** When set, returned instead of a completed future, e.g. one that never completes. */
     CompletableFuture<CommandResult> pendingCommand;
     CompletableFuture<List<PlayerInfo>> pendingPlayers;
@@ -72,6 +74,17 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
                 case PERMISSIONS -> (PermissionReader) this::permissions;
                 case INVENTORIES -> (InventoryReader) this::inventoryOf;
                 case LOGS -> (LogReader) this::tail;
+                case EVENTS -> new EventFeed() {
+                    @Override
+                    public EventPage read(long after, int limit) {
+                        return FakeGame.this.read(after, limit);
+                    }
+
+                    @Override
+                    public Runnable onPublish(Runnable listener) {
+                        return FakeGame.this.onPublish(listener);
+                    }
+                };
                 case SCREENSHOTS -> new ScreenshotCapture() {
                 };
             });
@@ -81,7 +94,7 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
 
     int totalCalls() {
         return infoCalls + playerCalls + commands.size() + queries.size() + registryQueries.size() + entityQueries.size()
-                + stateQueries.size() + permissionCalls + inventoryQueries.size() + logQueries.size();
+                + stateQueries.size() + permissionCalls + inventoryQueries.size() + logQueries.size() + eventReads.size();
     }
 
     @Override
@@ -137,6 +150,17 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     public CompletableFuture<Inventory> inventoryOf(String player) {
         inventoryQueries.add(player);
         return pendingInventory != null ? pendingInventory : CompletableFuture.completedFuture(inventory);
+    }
+
+    @Override
+    public EventPage read(long after, int limit) {
+        eventReads.add(after + "," + limit);
+        return events.read(after, limit);
+    }
+
+    @Override
+    public Runnable onPublish(Runnable listener) {
+        return events.onPublish(listener);
     }
 
     @Override

@@ -12,6 +12,7 @@ public enum Capability {
     PERMISSIONS(PermissionReader.class),
     INVENTORIES(InventoryReader.class),
     LOGS(LogReader.class),
+    EVENTS(EventFeed.class),
     /** Client side only. */
     SCREENSHOTS(ScreenshotCapture.class);
 

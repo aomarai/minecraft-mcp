@@ -53,7 +53,8 @@ public final class McpService implements AutoCloseable {
         ToolDispatcher dispatcher = new ToolDispatcher(config, ports,
                 new JsonlAuditLog(auditFile, List.of(loaded.token())));
         ToolCatalog catalog = ToolCatalog.defaults().availableFor(ports);
-        McpCore core = new McpCore(config.host(), config.port(), catalog, dispatcher, loaded.token());
+        McpCore core = new McpCore(config.host(), config.port(), catalog, dispatcher, loaded.token(),
+                ports.find(EventFeed.class));
         core.start();
         return new McpService(core, new Status(config.host(), core.port(), config.allowWrites(),
                 config.allowAdmin(), catalog.tools().size()));

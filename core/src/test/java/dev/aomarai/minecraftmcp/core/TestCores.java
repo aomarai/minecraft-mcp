@@ -15,6 +15,7 @@ final class TestCores {
         McpConfig config = new McpConfig("127.0.0.1", 25599, false, false, 32768, Duration.ofSeconds(5));
         GameServices services = game.services();
         return new McpCore("127.0.0.1", 0, ToolCatalog.defaults().availableFor(services),
-                new ToolDispatcher(config, services, AuditLog.discarding()), TOKEN);
+                new ToolDispatcher(config, services, AuditLog.discarding()), TOKEN,
+                services.find(EventFeed.class));
     }
 }

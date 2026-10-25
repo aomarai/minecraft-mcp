@@ -137,7 +137,7 @@ start_session
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 TOOL_COUNT="$(printf '%s' "$TOOLS" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
-for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions get_inventory read_log fill_blocks teleport give_item send_message kick_player ban_player save_world stop_server run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
+for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions get_inventory read_log read_events fill_blocks teleport give_item send_message kick_player ban_player save_world stop_server run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
 
 refute "a dedicated server does not offer the client-only screenshot tool" "$TOOLS" '"name":"take_screenshot"'
 
@@ -203,6 +203,15 @@ expect "IP addresses in it are masked" "$LOG" '[ip]'
 refute "and the raw address never appears" "$LOG" '127.0.0.1:25599'
 expect "the line count is bounded" "$(call 53 read_log '{"lines":201}')" 'must have a maximum value of 200'
 expect "read_log defaults to a short tail" "$(call 54 read_log '{}')" '\"lines\":['
+
+EVENTS="$(call 55 read_events '{}')"
+expect "read_events reports the feed, which is empty before anyone joins" "$EVENTS" '\"events\":[],\"latest\":0,\"dropped\":0'
+expect "read_events takes a cursor" "$(call 56 read_events '{"after":0,"limit":5}')" '\"latest\":0'
+expect "the event page size is bounded" "$(call 57 read_events '{"limit":201}')" 'must have a maximum value of 200'
+RESOURCES="$(mcp '{"jsonrpc":"2.0","id":58,"method":"resources/list"}')"
+expect "the event feed is also a resource clients can subscribe to" "$RESOURCES" 'minecraft://events'
+expect "and reading it returns the same JSON" "$(mcp '{"jsonrpc":"2.0","id":59,"method":"resources/read","params":{"uri":"minecraft://events"}}')" '\"events\":[]'
+expect "subscribing to it is accepted" "$(mcp '{"jsonrpc":"2.0","id":60,"method":"resources/subscribe","params":{"uri":"minecraft://events"}}')" '"result":{}'
 
 echo "== typed write and admin tools"
 BOX='"dimension":"minecraft:overworld","min_x":10,"min_y":-58,"min_z":10,"max_x":11,"max_y":-57,"max_z":11,"block":"minecraft:emerald_block"'
