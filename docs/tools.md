@@ -17,9 +17,12 @@ result saying it is unsupported.
 ## Capabilities and sides
 
 Each tool declares the capability it needs (`RUNTIME_INFO`, `PLAYERS`, `WORLD`, `COMMANDS`,
-`REGISTRIES`, `ENTITIES`, `WORLD_STATE`, `PERMISSIONS`, `INVENTORIES`, `LOGS`; one per port in `core/`) and the side it runs on (`SERVER` or `CLIENT`). `ToolCatalog.availableFor`
+`REGISTRIES`, `ENTITIES`, `WORLD_STATE`, `PERMISSIONS`, `INVENTORIES`, `LOGS`, `SCREENSHOTS`; one per
+port in `core/`) and the side it runs on (`SERVER` or `CLIENT`). `ToolCatalog.availableFor`
 builds the catalog for a given `GameServices`, so `tools/list` only contains tools the adapter can
-serve. A core with no game attached advertises no tools; an RCON-style adapter with only runtime
+serve. A tool on the other side is never offered: a dedicated server's `tools/list` has no client-only
+tool (such as `take_screenshot`) even if an adapter wrongly claimed the capability, and a client offers
+only its own tools. A core with no game attached advertises no tools; an RCON-style adapter with only runtime
 info and commands advertises `server_info`, `run_command` and `run_admin_command`.
 
 ## Typed tools and `run_command`
@@ -84,5 +87,6 @@ read-only tools); they are not enforcement. The policy gate decides what actuall
 | `ban_player` | ADMIN | `player`, optional `reason`, `confirm` |
 | `save_world` | ADMIN | `confirm` (flushes pending world data to disk) |
 | `stop_server` | ADMIN | `confirm` |
+| `take_screenshot` | OBSERVE | none. **Client only**, and not served by any adapter yet (the client adapter is post-v1, issue #38). It exists so the contract is visible; a dedicated server never offers it |
 | `run_command` | ACT | `command` |
 | `run_admin_command` | ADMIN | `command`, `confirm` (must be true) |

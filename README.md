@@ -49,6 +49,12 @@ and adapter design. See [docs/security.md](docs/security.md) for the threat mode
 The matrix is intentionally narrow at the start. Widening to every 1.21.x patch is tracked as
 an issue, not promised here.
 
+## Server and client tools
+
+Tools are tied to a side. A dedicated server offers server tools (reading the world, running
+commands, administration) and never client-only ones such as `take_screenshot`; a game client would
+offer only its own. See [docs/tools.md](docs/tools.md) and [docs/architecture.md](docs/architecture.md).
+
 ## Security defaults
 
 - Bind to `127.0.0.1` only.

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class McpControllerTest {
 
     /** Every default tool, since the fake game provides every port. */
-    private static final int TOOLS = ToolCatalog.defaults().tools().size();
+    private static final int TOOLS = ToolCatalog.defaults().onSide(Side.SERVER).tools().size();
 
     @TempDir
     Path dir;

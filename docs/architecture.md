@@ -37,6 +37,16 @@ Adapters depend on `core`, never the reverse.
 - Configuration parsing and token generation.
 - Capability advertisement per side (server vs client).
 
+## Server and client sides
+
+Every tool runs on one side, `SERVER` (a dedicated or integrated server) or `CLIENT` (a game client),
+and needs one capability. `ToolCatalog.availableFor` offers a tool only when it is on the adapter's
+side *and* the adapter provides its capability, so a dedicated server never advertises screenshot or
+UI tools and a client never advertises server administration. The Fabric mod asks the loader which
+environment it is in and today loads on dedicated servers only (`fabric.mod.json`:
+`"environment": "server"`). The client adapter, and with it the first tools that actually run on a
+client, is the post-v1 epic (#7).
+
 ## Adapter responsibilities
 
 - Implement the capability ports (`CommandRunner`, `PlayerReader`, `WorldReader`,

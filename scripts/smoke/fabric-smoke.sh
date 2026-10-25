@@ -139,6 +139,8 @@ TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 TOOL_COUNT="$(printf '%s' "$TOOLS" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
 for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions get_inventory read_log fill_blocks teleport give_item send_message kick_player ban_player save_world stop_server run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
 
+refute "a dedicated server does not offer the client-only screenshot tool" "$TOOLS" '"name":"take_screenshot"'
+
 echo "== reads"
 expect "server_info describes Fabric and Minecraft" "$(call 3 server_info '{}')" "Fabric $FABRIC_LOADER_VERSION / Minecraft $MINECRAFT_VERSION / server"
 expect "list_players on an empty server" "$(call 4 list_players '{}')" '{\"players\":[]}'
