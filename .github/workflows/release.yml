@@ -78,12 +78,25 @@ jobs:
             echo "the jars do not match the nodes in the repository" >&2; exit 1
           fi
           echo "$found"
+      - name: Release hygiene, version metadata and no Minecraft code in the jars
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          scripts/release/check-repo.sh
+          scripts/release/check-jars.sh dist "$VERSION"
       - name: Checksums
         run: cd dist && sha256sum minecraft-mcp-*.jar > SHA256SUMS && cat SHA256SUMS
       - uses: actions/upload-artifact@v7
         with:
           name: release-files
           path: dist/
+          retention-days: 7
+      - name: Release notes (matrix and known limitations)
+        run: scripts/release/notes.sh > release-notes.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: release-notes.md
           retention-days: 7
 
   publish:
@@ -98,9 +111,13 @@ jobs:
         with:
           name: release-files
           path: dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: notes
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-        run: gh release create "$TAG" dist/* --repo "$REPO" --title "$TAG" --generate-notes --verify-tag
+        run: gh release create "$TAG" dist/* --repo "$REPO" --title "$TAG" --generate-notes --notes-file notes/release-notes.md --verify-tag

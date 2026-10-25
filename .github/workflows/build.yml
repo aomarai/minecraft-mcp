@@ -27,6 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Release hygiene (MIT license, no jars or world data committed)
+        run: scripts/release/check-repo.sh
       - uses: ./.github/actions/setup-build
       - run: ./gradlew :core:build :stdio-shim:build :adapters:rcon:build --no-daemon --refresh-dependencies
       - run: ./gradlew :core:pitest :stdio-shim:pitest :adapters:rcon:pitest --no-daemon

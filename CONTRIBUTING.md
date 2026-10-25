@@ -7,6 +7,7 @@
 - Keep PRs small enough to review in one sitting. Split refactors from behavior changes.
 - Every PR must pass CI (`./gradlew build`) and include tests for behavior changes.
 - Do not commit secrets, tokens, server jars, or world data.
+- Releases follow the [release checklist](docs/release-checklist.md).
 
 ## Commit messages
 
