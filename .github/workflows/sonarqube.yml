@@ -76,27 +76,33 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Build and analyze
-        # The org.sonarqube Gradle plugin runs the scan in-process. `build`
-        # compiles and runs the tests; `jacocoTestReport` turns the execution
-        # data into the XML report named in sonar-project.properties. The scan
-        # job runs on the same runner as the build, so the report is on disk
-        # when the scanner reads it.
+      - name: Build and test
+        # Build and tests run in their own Gradle daemon so its heap is released
+        # before the scan starts. Keeping them in one invocation made the scan
+        # inherit the build's committed memory and pushed the container over its
+        # 1.5 GiB limit during "Indexing files..." (exit 137).
         #
-        # SONAR_TOKEN is picked up from the environment by the scanner. The host
-        # URL is passed as a system property because the Gradle plugin does not
-        # map the SONAR_HOST_URL environment variable to sonar.host.url.
+        # MEMORY BOUND: the ARC runner pod is limited to 1.5 GiB and shares a
+        # 5.79 GiB node with the media stack and SonarQube itself. 896m was still
+        # too high once the Gradle client (~100m) and the daemon's metaspace,
+        # code cache and thread stacks were counted; 704m leaves headroom.
+        # build-and-test on ubuntu-latest keeps its 2 GiB heap.
+        run: >-
+          ./gradlew build jacocoTestReport --no-daemon
+          -Dorg.gradle.jvmargs="-Xmx704m -XX:MaxMetaspaceSize=192m -Dfile.encoding=UTF-8"
+          --no-parallel --max-workers=2
+
+      - name: Analyze
+        # The org.sonarqube Gradle plugin runs the scan in-process. The scan job
+        # runs on the same runner as the build, so the coverage report is on disk
+        # when the scanner reads it. SONAR_TOKEN is picked up from the
+        # environment; the host URL is passed as a system property because the
+        # plugin does not map SONAR_HOST_URL to sonar.host.url.
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        # MEMORY BOUND: the ARC runner pod is limited to 1.5 GiB and shares a
-        # 5.79 GiB node with the media stack and SonarQube itself. The 2 GiB
-        # daemon heap in gradle.properties cannot fit; the scanner was SIGKILLed
-        # during "Indexing files..." (exit 137). Override the daemon heap for
-        # this job only, so build-and-test on ubuntu-latest keeps its 2 GiB.
-        # Gradle honors -Dorg.gradle.jvmargs on the command line (verified).
         run: >-
-          ./gradlew build jacocoTestReport sonar
+          ./gradlew sonar --no-daemon
           -Dsonar.host.url="$SONAR_HOST_URL"
-          -Dorg.gradle.jvmargs="-Xmx896m -XX:MaxMetaspaceSize=256m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx704m -XX:MaxMetaspaceSize=192m -Dfile.encoding=UTF-8"
           --no-parallel --max-workers=2
           --info
