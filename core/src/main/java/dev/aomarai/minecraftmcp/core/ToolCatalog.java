@@ -12,9 +12,9 @@ import java.util.Set;
 /**
  * The set of tools the server advertises, grouped by {@link ToolPolicy.Scope}.
  *
- * <p>This catalog defines names, schemas and annotations only. Call handlers
- * are wired by the policy gate and adapters in later issues; until then every
- * tool answers with a "not implemented" error result.</p>
+ * <p>This catalog defines names, schemas and annotations only. Calls are
+ * executed by a {@link ToolInvoker}, normally the policy-gated
+ * {@link ToolDispatcher}.</p>
  */
 public final class ToolCatalog {
 
@@ -76,15 +76,12 @@ public final class ToolCatalog {
         return tools.stream().filter(tool -> tool.scope() == scope).toList();
     }
 
-    /** SDK registrations whose handlers report that the tool is not implemented yet. */
-    public List<McpServerFeatures.SyncToolSpecification> specs() {
+    /** SDK registrations whose call handlers delegate to {@code invoker}. */
+    public List<McpServerFeatures.SyncToolSpecification> specs(ToolInvoker invoker) {
         return tools.stream()
                 .map(tool -> McpServerFeatures.SyncToolSpecification.builder()
                         .tool(tool.toTool())
-                        .callHandler((exchange, request) -> McpSchema.CallToolResult.builder()
-                                .addTextContent(tool.name() + " is not implemented yet")
-                                .isError(true)
-                                .build())
+                        .callHandler((exchange, request) -> invoker.call(tool, request.arguments()))
                         .build())
                 .toList();
     }

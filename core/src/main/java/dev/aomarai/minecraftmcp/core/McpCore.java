@@ -18,7 +18,8 @@ import org.eclipse.jetty.server.ServerConnector;
  * on a plain JVM.
  *
  * <p>The endpoint is {@code /mcp}. The server advertises the {@link ToolCatalog}
- * descriptors; call handlers and the policy gate are wired in issue #10.
+ * descriptors and routes calls through a {@link ToolInvoker}, normally the
+ * policy-gated {@link ToolDispatcher}.
  */
 public final class McpCore implements AutoCloseable {
 
@@ -36,11 +37,13 @@ public final class McpCore implements AutoCloseable {
         this(DEFAULT_HOST, 0);
     }
 
+    /** A core with no game attached and the secure defaults; every call reports the missing port. */
     public McpCore(String host, int port) {
-        this(host, port, ToolCatalog.defaults());
+        this(host, port, ToolCatalog.defaults(), new ToolDispatcher(
+                McpConfig.defaults(), GameServices.none(), AuditLog.discarding()));
     }
 
-    public McpCore(String host, int port, ToolCatalog catalog) {
+    public McpCore(String host, int port, ToolCatalog catalog, ToolInvoker invoker) {
         this.host = host;
         this.requestedPort = port;
 
@@ -53,7 +56,7 @@ public final class McpCore implements AutoCloseable {
                 .capabilities(McpSchema.ServerCapabilities.builder()
                         .tools(false)
                         .build())
-                .tools(catalog.specs())
+                .tools(catalog.specs(invoker))
                 .build();
 
         this.jetty = new Server();
