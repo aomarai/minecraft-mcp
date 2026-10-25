@@ -79,4 +79,15 @@ It needs bash, curl, Java 21 and network access, works in a throwaway directory,
 loading, the token, `initialize`/`tools/list`, reads, a write that takes effect, the policy
 refusals, the confirm flow, audit and file permissions, and a clean shutdown driven through MCP.
 Running it sets `eula=true` in that disposable server, which accepts the Minecraft EULA for the
-test only. Issue #20 wires it into CI in Docker.
+test only.
+
+CI runs the same script in a clean container so the host needs nothing but Docker; the server,
+world and EULA acceptance disappear with the container:
+
+```bash
+scripts/smoke/run-in-docker.sh adapters/fabric/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
+```
+
+It takes about two minutes. The test fails if the mod does not load (it gives up 30 seconds after
+the game reports it is ready) or if any check fails, and prints the server log. The server versions
+in the script must match `adapters/fabric/build.gradle.kts`.

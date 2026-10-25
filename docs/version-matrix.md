@@ -16,7 +16,7 @@ here as planned. Current state:
 
 | Target | State |
 |---|---|
-| Fabric 1.21.1 | Builds and loads on a headless server (verified by hand); CI smoke test pending (#20) |
+| Fabric 1.21.1 | Supported. CI starts a real headless server in Docker with the jar and checks loading, auth, reads, a write, the policy refusals, audit and shutdown (`scripts/smoke/run-in-docker.sh`) |
 | Everything else | Planned |
 
 ## Initial targets
