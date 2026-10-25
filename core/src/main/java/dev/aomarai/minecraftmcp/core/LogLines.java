@@ -15,7 +15,7 @@ public record LogLines(List<String> lines, boolean truncated) {
 
     public LogLines {
         lines = lines.stream()
-                .map(line -> line.length() > MAX_LINE_LENGTH ? line.substring(0, MAX_LINE_LENGTH) : line)
+                .map(line -> line.substring(0, Math.min(line.length(), MAX_LINE_LENGTH)))
                 .toList();
     }
 }
