@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Smoke test for the universal tier: start a real vanilla or Paper server with NO mod, start the standalone
+# Smoke test for the universal tier: start a real vanilla, Paper or (modded) Fabric server with NO MCP mod, start the standalone
 # jar next to it, and exercise it over MCP (RCON, Query and the log are the only ways it can reach the game).
 #
-#   scripts/smoke/universal-smoke.sh <vanilla|paper> <path-to-universal-jar>
+#   scripts/smoke/universal-smoke.sh <vanilla|paper|fabric> <path-to-universal-jar>
 #
 # Needs bash, curl, Java 21 and network access (Mojang or PaperMC for the server jar). Everything happens in a
 # throwaway directory that is removed on exit. Exits non-zero, with the logs, if the server or the jar does not
@@ -12,9 +12,9 @@
 # redistributed. The server jars are verified against the checksums published with them.
 set -u
 
-KIND="${1:?usage: universal-smoke.sh <vanilla|paper> <universal-jar>}"
-case "$KIND" in vanilla|paper) ;; *) echo "FAIL: unknown server '$KIND' (vanilla or paper)"; exit 2 ;; esac
-JAR="${2:?usage: universal-smoke.sh <vanilla|paper> <universal-jar>}"
+KIND="${1:?usage: universal-smoke.sh <vanilla|paper|fabric> <universal-jar>}"
+case "$KIND" in vanilla|paper|fabric) ;; *) echo "FAIL: unknown server '$KIND' (vanilla, paper or fabric)"; exit 2 ;; esac
+JAR="${2:?usage: universal-smoke.sh <vanilla|paper|fabric> <universal-jar>}"
 JAR="$(cd "$(dirname "$JAR")" && pwd)/$(basename "$JAR")"
 [ -f "$JAR" ] || { echo "FAIL: universal jar not found: $JAR"; exit 2; }
 
@@ -28,6 +28,7 @@ WRONG_PORT=25600
 RCON_PORT=25575
 QUERY_PORT=25565
 
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 WORK="$(mktemp -d)"
 SERVER_DIR="$WORK/server"
 MCP_DIR="$WORK/mcp"
@@ -62,7 +63,16 @@ wait_for() {
 
 echo "== preparing a $KIND server in $SERVER_DIR"
 mkdir -p "$SERVER_DIR" "$MCP_DIR" && cd "$SERVER_DIR" || exit 2
-if [ "$KIND" = "paper" ]; then
+if [ "$KIND" = "fabric" ]; then
+  # A modded server: Fabric with its API, the way a modpack runs, but without this project's mod. The versions
+  # are the ones the Fabric adapter is built for.
+  NODE_PROPERTIES="$REPO/adapters/fabric/versions/1.21.1/gradle.properties"
+  property() { sed -n "s/^$1=//p" "$NODE_PROPERTIES" | tr -d ''; }
+  LOADER_VERSION="$(property fabric_loader_version)"; API_VERSION="$(property fabric_api_version)"
+  [ -n "$LOADER_VERSION" ] && [ -n "$API_VERSION" ] || { echo "FAIL: cannot read the Fabric versions from $NODE_PROPERTIES"; exit 2; }
+  curl -fsSLo server.jar "https://meta.fabricmc.net/v2/versions/loader/$MINECRAFT_VERSION/$LOADER_VERSION/1.1.2/server/jar"     || { echo "FAIL: cannot download the Fabric server launcher"; exit 2; }
+  mkdir mods && curl -fsSLo mods/fabric-api.jar "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$API_VERSION/fabric-api-$API_VERSION.jar"     || { echo "FAIL: cannot download Fabric API"; exit 2; }
+elif [ "$KIND" = "paper" ]; then
   curl -fsSLo server.jar "$PAPER_URL" || { echo "FAIL: cannot download Paper"; exit 2; }
   [ "$(sha256sum server.jar | cut -d' ' -f1)" = "$PAPER_SHA256" ] || { echo "FAIL: Paper does not match its published checksum"; exit 2; }
 else

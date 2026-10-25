@@ -6,7 +6,8 @@ dependency and runs on Java 21 or later. It offers a reduced tool set (commands,
 events) with the same policy gate and audit log as the mods.
 
 Download `minecraft-mcp-<version>-universal.jar` from the release (check it with `sha256sum -c SHA256SUMS`).
-It is tested in CI against a real vanilla and a real Paper 1.21.1 server, with no mod on either.
+It is tested in CI against a real vanilla, a real Paper and a real Fabric (that is, modded) 1.21.1 server, with
+none of this project's mods on any of them.
 
 ## Installing it
 

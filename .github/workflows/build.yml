@@ -94,7 +94,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        server: [vanilla, paper]
+        server: [vanilla, paper, fabric-server]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
