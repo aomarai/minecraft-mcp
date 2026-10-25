@@ -39,9 +39,13 @@ the remapped, shaded jar; the other jars in that folder are intermediate and wil
   mods or the game. SLF4J is left out because the game provides it.
 - **Loom version:** Loom 1.17.x is the newest line that runs on JDK 21. Newer Loom needs JDK 25 and
   arrives with the 26.x nodes.
-- **Dependency verification:** Loom remaps Fabric API on each machine into a local repository
-  (`remapped.*`). That output differs per machine, so `gradle/verification-metadata.xml` trusts
-  that one generated group without a checksum; the original jars it is built from stay pinned.
+- **Dependency verification:** Loom builds three things on each machine from verified inputs:
+  Fabric API remapped to Mojang names (`remapped.*`), the layered Mojang mappings
+  (`loom:mappings`) and the merged Minecraft jar (`net.minecraft:minecraft-merged-*`). Their bytes
+  differ per machine, so `gradle/verification-metadata.xml` lists exactly those as
+  `trusted-artifacts`. Everything that is downloaded (Fabric API, Fabric Loader, Mojang's libraries,
+  every Maven dependency) stays pinned by checksum. Verify metadata changes on Linux with a fresh
+  Gradle home and `--refresh-dependencies`, which is what CI does.
 
 ## Testing
 
