@@ -40,6 +40,6 @@ final class NeoForgeEventPublisher {
     }
 
     private static String name(ServerPlayer player) {
-        return player.getGameProfile().getName();
+        return player.getName().getString();
     }
 }

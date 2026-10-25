@@ -18,8 +18,10 @@ java {
 }
 
 // Code that needs only vanilla Minecraft classes is shared by every loader adapter (adapters/common).
+// Whatever the game renamed between 1.21.x and 26.x is behind GameCompat; a node builds the side it names.
 sourceSets.main {
     java.srcDir(rootProject.file("adapters/common/src/main/java"))
+    java.srcDir(rootProject.file("adapters/common/src/compat/${property("compat")}/java"))
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -39,6 +41,11 @@ neoForge {
             programArguments.add("--nogui")
         }
     }
+}
+
+// The nodes prepare Minecraft one at a time (see the neoformRuntime service in the root build).
+tasks.named("createMinecraftArtifacts") {
+    usesService(gradle.sharedServices.registrations.getByName("neoformRuntime").service)
 }
 
 // Everything in `shade` is packed into the mod jar and relocated, so it cannot clash with

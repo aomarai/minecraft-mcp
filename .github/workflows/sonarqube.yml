@@ -56,11 +56,19 @@ jobs:
           fi
           java -version
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 and 25
+        # 21 runs Gradle and builds the 1.21.x nodes; the 26.x nodes need a Java 25 toolchain.
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: |
+            21
+            25
+
+      - name: Let Gradle find both JDKs
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64,JAVA_HOME_21_ARM64,JAVA_HOME_25_ARM64" >> ~/.gradle/gradle.properties
 
       - name: Cache SonarQube packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

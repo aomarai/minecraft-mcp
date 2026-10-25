@@ -19,6 +19,11 @@ NODE_PROPERTIES="${3:-$(cd "$(dirname "$0")/../.." && pwd)/adapters/$LOADER/vers
 property() { sed -n "s/^$1=//p" "$NODE_PROPERTIES" | tr -d '\r'; }
 MINECRAFT_VERSION="$(property minecraft_version)"
 [ -n "$MINECRAFT_VERSION" ] || { echo "FAIL: cannot read the versions from $NODE_PROPERTIES"; exit 2; }
+# Commands and game rules that Minecraft renamed between versions, so the same checks run on every node.
+GAME_RULE="$(property smoke_gamerule)"
+TIME_QUERY="$(property smoke_time_query)"
+TIME_EXPECT="$(property smoke_time_expect)"
+[ -n "$GAME_RULE" ] && [ -n "$TIME_QUERY" ] && [ -n "$TIME_EXPECT" ] || { echo "FAIL: smoke_gamerule, smoke_time_query or smoke_time_expect missing in $NODE_PROPERTIES"; exit 2; }
 START_TIMEOUT_SECONDS="${SMOKE_START_TIMEOUT:-300}"
 PORT=25599
 
@@ -125,7 +130,7 @@ case "$LOADER" in
 esac
 cp "$JAR" mods/minecraft-mcp.jar
 echo "eula=true" > eula.txt
-printf 'online-mode=false\nlevel-type=flat\ngenerate-structures=false\nview-distance=4\nsimulation-distance=4\n' > server.properties
+printf 'online-mode=false\nwhite-list=false\nlevel-type=flat\ngenerate-structures=false\nview-distance=4\nsimulation-distance=4\n' > server.properties
 
 echo "== starting server"
 mkfifo console
@@ -167,10 +172,11 @@ for tool in server_info list_players query_blocks list_registry list_entities ge
 refute "a dedicated server does not offer the client-only screenshot tool" "$TOOLS" '"name":"take_screenshot"'
 
 echo "== reads"
+# Newer versions do not keep the area around 0,0 loaded, and queries never load or generate chunks.
+expect "a chunk can be kept loaded for the tests" "$(call 2 run_admin_command '{"command":"forceload add 0 0","confirm":true}')" '"isError":false'
 expect "server_info describes the loader and Minecraft" "$(call 3 server_info '{}')" "$LOADER_LABEL / Minecraft $MINECRAFT_VERSION / server"
 expect "list_players on an empty server" "$(call 4 list_players '{}')" '{\"players\":[]}'
-FLAT="$(call 5 query_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":-64,"min_z":0,"max_x":0,"max_y":-64,"max_z":0,"limit":10}')"
-expect "query_blocks returns registry ids" "$FLAT" 'minecraft:bedrock'
+expect_eventually "query_blocks returns registry ids" 'minecraft:bedrock' 5 query_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":-64,"min_z":0,"max_x":0,"max_y":-64,"max_z":0,"limit":10}'
 expect "unknown dimension names the available ones" "$(call 6 query_blocks '{"dimension":"mod:nowhere","min_x":0,"min_y":0,"min_z":0,"max_x":0,"max_y":0,"max_z":0,"limit":1}')" 'available: minecraft:overworld'
 expect "a volume over the cap is refused" "$(call 7 query_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":0,"min_z":0,"max_x":999,"max_y":99,"max_z":99,"limit":10}')" 'exceeds maxBlockVolume'
 
@@ -178,7 +184,7 @@ echo "== policy-gated write"
 expect "run_command runs through Brigadier" "$(call 8 run_command '{"command":"say smoke test"}')" '"isError":false'
 expect "a write command takes effect" "$(call 9 run_command '{"command":"time set 6000"}')" '"isError":false'
 # The game ticks between the two commands, so allow a few ticks of drift: 6000 becomes 600x or 60xx.
-expect "and a read sees it" "$(call 10 run_command '{"command":"time query daytime"}')" 'The time is 60'
+expect "and a read sees it" "$(call 10 run_command "{\"command\":\"time query $TIME_QUERY\"}")" "$TIME_EXPECT"
 expect "an unrecognised command is not a plain write" "$(call 11 run_command '{"command":"nonsense"}')" 'this command needs admin access; use run_admin_command'
 
 echo "== policy refusals and confirmation"
@@ -208,10 +214,10 @@ expect "an unknown dimension is reported with the available ones" "$(call 31 lis
 echo "== world state and permissions"
 STATE="$(call 40 get_world_state '{"dimension":"minecraft:overworld"}')"
 expect "get_world_state reports the difficulty" "$STATE" '\"difficulty\":'
-expect "and every game rule, by name" "$STATE" '\"doDaylightCycle\":\"true\"'
+expect "and every game rule, by name" "$STATE" "\\\"$GAME_RULE\\\":\\\"true\\\""
 expect "and the time" "$STATE" '\"dayTime\":'
-expect "a game rule change by an admin command is visible to the read" "$(call 41 run_admin_command '{"command":"gamerule doDaylightCycle false","confirm":true}')" '"isError":false'
-expect "the new rule value is reported" "$(call 42 get_world_state '{"dimension":"minecraft:overworld"}')" '\"doDaylightCycle\":\"false\"'
+expect "a game rule change by an admin command is visible to the read" "$(call 41 run_admin_command "{\"command\":\"gamerule $GAME_RULE false\",\"confirm\":true}")" '"isError":false'
+expect "the new rule value is reported" "$(call 42 get_world_state '{"dimension":"minecraft:overworld"}')" "\\\"$GAME_RULE\\\":\\\"false\\\""
 expect "an unknown dimension names the available ones" "$(call 43 get_world_state '{"dimension":"mod:nowhere"}')" 'available: minecraft:overworld'
 expect "an unconfigured server has no operators" "$(call 44 list_permissions '{}')" '\"operators\":[]'
 expect "granting operator succeeds" "$(call 45 run_admin_command '{"command":"op Steve","confirm":true}')" '"isError":false'

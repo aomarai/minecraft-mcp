@@ -16,11 +16,11 @@ here as planned. Current state:
 
 | Target | State |
 |---|---|
-| Fabric 1.21.1 | Supported (node `adapters/fabric/versions/1.21.1`). CI starts a real headless server in Docker with the jar and checks loading, auth, reads, a write, the policy refusals, audit and shutdown (`scripts/smoke/run-in-docker.sh`) |
-| NeoForge 1.21.1 | Supported (node `adapters/neoforge/versions/1.21.1`, [docs/neoforge.md](neoforge.md)). CI runs the same Docker smoke test as Fabric against the NeoForge jar (`scripts/smoke/run-in-docker.sh neoforge`) |
-| Everything else | Planned |
+| Fabric 1.21.1, 26.2, 26.3 | Supported (nodes `adapters/fabric/versions/<minecraft>`). CI starts a real headless server in Docker with each jar and runs the same ~115 checks: loading, auth, reads, writes, the policy refusals, audit and shutdown (`scripts/smoke/run-in-docker.sh`). Fake-player game tests (joins, chat, deaths) run on 1.21.1 only |
+| NeoForge 1.21.1, 26.2, 26.3 | Supported (nodes `adapters/neoforge/versions/<minecraft>`, [docs/neoforge.md](neoforge.md)), with the same Docker smoke test per jar |
+| Universal | Planned |
 
-## Initial targets
+## Targets
 
 | Loader | Minecraft | Java | Artifact |
 |---|---|---|---|
@@ -37,18 +37,29 @@ best-effort.
 
 ## Build tooling
 
-- **Stonecutter** (0.9.x) builds every Minecraft version of a loader from one source tree, with
-  `//? if` comments for the few places versions differ. One *controller* per loader
-  (`adapters/<loader>/`: `stonecutter.gradle.kts`, the shared `src/` and `build.gradle.kts`) and one
-  *node* per version (`adapters/<loader>/versions/<minecraft>/gradle.properties`).
+- **Stonecutter** (0.9.x) builds every Minecraft version of a loader from one source tree. One
+  *controller* per loader (`adapters/<loader>/`: `stonecutter.gradle.kts`, the shared `src/` and
+  `build.gradle.kts`) and one *node* per version (`adapters/<loader>/versions/<minecraft>/gradle.properties`).
+- **Version differences live behind one seam, not in `//? if` comments.** Whatever Minecraft renamed or
+  reshaped between 1.21.x and 26.x (`ResourceLocation` became `Identifier`, game rules, permissions,
+  command sources, ...) is in `GameCompat`, with one implementation per generation:
+  `adapters/common/src/compat/legacy` (1.21.x) and `.../modern` (26.x). A node's `compat` property picks
+  which one is compiled in, so the readers in `adapters/common/src/main` never name a type that differs
+  and read the same on every version. A change in a later 26.x release goes in the `modern` side (or
+  becomes a third side) and the smoke test shows whether it worked. The Fabric build also chooses, per
+  node, Loom's remapping plugin (`remap=true`, 1.21.x) or its plain plugin (26.x is unobfuscated).
 - **First-party loader tooling per loader** (Fabric Loom, and ModDevGradle for NeoForge), not a wrapper
   plugin. The original plan named Modstitch, an abstraction over those two. It is still marked
   unstable and does not state 26.x support; the first-party tools are what every version of the game
   is supported through first, so a wrapper would be one more thing to wait for on each new Minecraft
   release. The shared code is already shared where it matters: `core/` has no loader code at all, and
   each adapter is a few small classes.
-- Gradle toolchains: Java 21 for 1.21.x nodes, Java 25 for 26.x nodes.
-- Mappings: Mojang official names on 26.x; Yarn or Mojmap on 1.21.x.
+- Gradle toolchains: Java 21 for 1.21.x nodes, Java 25 for 26.x nodes. Gradle itself runs on 21, so
+  building everything needs both JDKs installed (CI installs both; locally, Gradle finds them in the usual
+  places). Without a JDK 25 you can still build the 1.21.1 nodes by task, for example
+  `./gradlew :core:build :adapters:fabric:1.21.1:build`, but a plain `./gradlew build` includes the 26.x nodes.
+- Mappings: Mojang official names everywhere (1.21.x through Loom's `officialMojangMappings()`, ModDevGradle
+  for NeoForge, and nothing to map on 26.x).
 
 ## Compatibility rules
 
@@ -61,8 +72,11 @@ best-effort.
 ## Adding a target
 
 1. Add a node: one `version("<minecraft>")` line in `settings.gradle.kts` and one
-   `adapters/<loader>/versions/<minecraft>/gradle.properties` with its Minecraft, loader, API and Java
-   versions (copy the 1.21.1 file). The build script is shared, so nothing else is copied.
-2. Add a Docker smoke test that starts a headless server and exercises one read and one write.
-3. Add the artifact to the release matrix and document it.
-4. Update this table and the README.
+   `adapters/<loader>/versions/<minecraft>/gradle.properties` with its Minecraft, loader, API, Java and
+   `compat` values (copy the closest node's file; `smoke_*` entries name the commands and game rules the
+   smoke test uses where Minecraft renamed them). The build script is shared, so nothing else is copied.
+2. Build it. If a Minecraft API changed, fix it in the matching `GameCompat` (or add a new compat side for
+   a new generation); the smoke test says whether it worked.
+3. Add the node to the `smoke` matrix in `.github/workflows/build.yml`. A target counts as supported only
+   when that job passes.
+4. Document it here and in the README, and add the artifact to the release matrix.

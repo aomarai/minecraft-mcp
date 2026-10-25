@@ -32,6 +32,6 @@ final class FabricEventPublisher {
     }
 
     private static String name(ServerPlayer player) {
-        return player.getGameProfile().getName();
+        return player.getName().getString();
     }
 }

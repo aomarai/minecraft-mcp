@@ -1,7 +1,8 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    id("fabric-loom") version "1.17.21"
+    // Loom is applied below, because which of its two plugin ids a node needs depends on the node.
+    id("net.fabricmc.fabric-loom") version "1.17.21" apply false
     id("com.gradleup.shadow") version "9.6.1"
 }
 
@@ -11,14 +12,24 @@ val minecraftVersion = property("minecraft_version") as String
 val fabricLoaderVersion = property("fabric_loader_version") as String
 val fabricApiVersion = property("fabric_api_version") as String
 val javaVersion = (property("java_version") as String).toInt()
+val minecraftRange = property("minecraft_range") as String
+val javaRange = ">=$javaVersion"
+// Minecraft up to 1.21.x ships obfuscated and needs Loom's remapping plugin; 26.1 and later ship with
+// Mojang's names, so the plain plugin is used and there is nothing to remap.
+val remap = (property("remap") as String).toBoolean()
+val gameTests = (property("game_tests") as String).toBoolean()
+
+apply(plugin = if (remap) "fabric-loom" else "net.fabricmc.fabric-loom")
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(javaVersion))
 }
 
 // Code that needs only vanilla Minecraft classes is shared by every loader adapter (adapters/common).
+// Whatever the game renamed between 1.21.x and 26.x is behind GameCompat; a node builds the side it names.
 sourceSets.main {
     java.srcDir(rootProject.file("adapters/common/src/main/java"))
+    java.srcDir(rootProject.file("adapters/common/src/compat/${property("compat")}/java"))
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -29,11 +40,17 @@ tasks.withType<JavaCompile>().configureEach {
 // another mod or with libraries the game ships.
 val shade = configurations.create("shade")
 
+// The Loom plugin is applied by id above, so its configurations and extensions are reached by name.
+val loom = extensions.getByName("loom") as net.fabricmc.loom.api.LoomGradleExtensionAPI
+val game = if (remap) "modImplementation" else "implementation"
+
 dependencies {
-    minecraft("com.mojang:minecraft:$minecraftVersion")
-    mappings(loom.officialMojangMappings())
-    modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
+    add("minecraft", "com.mojang:minecraft:$minecraftVersion")
+    if (remap) {
+        add("mappings", loom.officialMojangMappings())
+    }
+    add(game, "net.fabricmc:fabric-loader:$fabricLoaderVersion")
+    add(game, "net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
 
     // The loader-agnostic core and everything it brings (MCP SDK, Jackson, Jetty, ...). The game
     // already provides SLF4J, so it stays out of the jar.
@@ -45,18 +62,21 @@ dependencies {
 
 // Game tests run in a real dedicated server with fake players (`./gradlew :adapters:fabric:1.21.1:runGameTest`).
 // `eula` accepts the Minecraft EULA for that disposable development server only.
-fabricApi {
-    configureTests {
-        createSourceSet = true
-        modId = "minecraft-mcp-gametest"
-        eula = true
+if (gameTests) {
+    extensions.configure<net.fabricmc.loom.api.fabricapi.FabricApiExtension>("fabricApi") {
+        configureTests {
+            createSourceSet = true
+            modId = "minecraft-mcp-gametest"
+            eula = true
+        }
     }
 }
 
 tasks.processResources {
-    inputs.property("version", project.version)
+    val values = mapOf("version" to project.version, "minecraft_range" to minecraftRange, "java_range" to javaRange)
+    inputs.properties(values)
     filesMatching("fabric.mod.json") {
-        expand("version" to project.version)
+        expand(values)
     }
 }
 
@@ -64,7 +84,14 @@ val relocationRoot = "dev.aomarai.minecraftmcp.shaded"
 
 val shadowJar = tasks.named<ShadowJar>("shadowJar") {
     configurations = listOf(shade)
-    archiveClassifier.set("dev-shaded")
+    // With nothing to remap, the shaded jar is the final one.
+    if (remap) {
+        archiveClassifier.set("dev-shaded")
+    } else {
+        archiveClassifier.set("")
+        archiveBaseName.set("minecraft-mcp")
+        archiveVersion.set("${project.version}+$minecraftVersion-fabric")
+    }
     // Service files with the same name exist in several libraries and must be merged, not dropped.
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
@@ -75,12 +102,18 @@ val shadowJar = tasks.named<ShadowJar>("shadowJar") {
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "module-info.class", "META-INF/versions/*/module-info.class")
 }
 
-tasks.remapJar {
-    dependsOn(shadowJar)
-    inputFile.set(shadowJar.flatMap { it.archiveFile })
-    // minecraft-mcp-<version>+<minecraft>-fabric.jar, as listed in docs/version-matrix.md
-    archiveBaseName.set("minecraft-mcp")
-    archiveVersion.set("${project.version}+$minecraftVersion-fabric")
+// minecraft-mcp-<version>+<minecraft>-fabric.jar, as listed in docs/version-matrix.md
+if (remap) {
+    tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {
+        dependsOn(shadowJar)
+        inputFile.set(shadowJar.flatMap { it.archiveFile })
+        archiveBaseName.set("minecraft-mcp")
+        archiveVersion.set("${project.version}+$minecraftVersion-fabric")
+    }
+} else {
+    tasks.assemble {
+        dependsOn(shadowJar)
+    }
 }
 
 // The plain jar is not loadable (its dependencies are missing); only the remapped, shaded one is.

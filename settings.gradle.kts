@@ -22,10 +22,14 @@ plugins {
 stonecutter {
     create(":adapters:fabric") {
         version("1.21.1")
+        version("26.2")
+        version("26.3")
         vcsVersion = "1.21.1"
     }
     create(":adapters:neoforge") {
         version("1.21.1")
+        version("26.2")
+        version("26.3")
         vcsVersion = "1.21.1"
     }
 }

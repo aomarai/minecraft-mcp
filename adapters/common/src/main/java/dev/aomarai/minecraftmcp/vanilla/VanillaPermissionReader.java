@@ -1,12 +1,9 @@
 package dev.aomarai.minecraftmcp.vanilla;
 
-import com.mojang.authlib.GameProfile;
 import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.PermissionReader;
 import dev.aomarai.minecraftmcp.core.Permissions;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.players.PlayerList;
-import net.minecraft.server.players.ServerOpListEntry;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,25 +32,21 @@ public final class VanillaPermissionReader implements PermissionReader {
     }
 
     private Permissions describe() {
-        PlayerList players = server.getPlayerList();
-        return new Permissions(operators(players), players.isUsingWhitelist(), whitelist(players));
+        return new Permissions(operators(), GameCompat.usingWhitelist(server), whitelist());
     }
 
-    private List<Permissions.Operator> operators(PlayerList players) {
-        // The names and the entries both come from the same map, so they line up one to one.
-        String[] names = players.getOpNames();
-        List<ServerOpListEntry> entries = new ArrayList<>(players.getOps().getEntries());
+    private List<Permissions.Operator> operators() {
         List<Permissions.Operator> operators = new ArrayList<>();
-        for (int i = 0; i < names.length; i++) {
-            operators.add(new Permissions.Operator(names[i], uuidOf(names[i]), entries.get(i).getLevel()));
+        for (GameCompat.Operator operator : GameCompat.operators(server)) {
+            operators.add(new Permissions.Operator(operator.name(), operator.uuid().orElse(UNKNOWN_UUID), operator.level()));
         }
         operators.sort(Comparator.comparing(Permissions.Operator::name));
         return operators;
     }
 
-    private List<Permissions.Whitelisted> whitelist(PlayerList players) {
+    private List<Permissions.Whitelisted> whitelist() {
         List<Permissions.Whitelisted> whitelisted = new ArrayList<>();
-        for (String name : players.getWhiteListNames()) {
+        for (String name : GameCompat.whitelistedNames(server)) {
             whitelisted.add(new Permissions.Whitelisted(name, uuidOf(name)));
         }
         whitelisted.sort(Comparator.comparing(Permissions.Whitelisted::name));
@@ -61,6 +54,6 @@ public final class VanillaPermissionReader implements PermissionReader {
     }
 
     private String uuidOf(String name) {
-        return server.getProfileCache().get(name).map(GameProfile::getId).map(Object::toString).orElse(UNKNOWN_UUID);
+        return GameCompat.uuidOfName(server, name).orElse(UNKNOWN_UUID);
     }
 }

@@ -47,6 +47,6 @@ public final class VanillaInventoryReader implements InventoryReader {
                 stacks.add(new Inventory.Stack(slot, BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getCount()));
             }
         }
-        return new Inventory(player.getGameProfile().getName(), stacks);
+        return new Inventory(player.getName().getString(), stacks);
     }
 }

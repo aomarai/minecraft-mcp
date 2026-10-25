@@ -81,7 +81,7 @@ docs/                 architecture, security, version matrix
 
 ## Development
 
-Requirements: JDK 21+ (JDK 25 for 26.x adapter nodes, added later).
+Requirements: JDK 21 and JDK 25 (25 builds the 26.x adapter nodes; Gradle runs on 21).
 
 ```bash
 ./gradlew build
