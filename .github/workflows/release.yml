@@ -71,7 +71,7 @@ jobs:
           expected=$( (for node in adapters/*/versions/*/; do
             loader=$(basename "$(dirname "$(dirname "$node")")"); mc=$(basename "$node")
             echo "minecraft-mcp-$VERSION+$mc-$loader.jar"
-          done; echo "minecraft-mcp-$VERSION-universal.jar") | sort)
+          done; echo "minecraft-mcp-$VERSION-universal.jar"; echo "minecraft-mcp-$VERSION-stdio-shim.jar") | sort)
           found=$(cd dist && ls minecraft-mcp-*.jar 2>/dev/null | sort)
           if [ "$expected" != "$found" ]; then
             echo "expected:"; echo "$expected"; echo "found:"; echo "$found"

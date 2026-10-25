@@ -29,9 +29,21 @@ Configuration errors stop the shim at start-up with a message naming the variabl
   hangs the host. Diagnostics go to stderr.
 - The token is never logged and never put in an error message.
 
+## The jar
+
+Releases include `minecraft-mcp-<version>-stdio-shim.jar`, a standalone jar that runs on Java 21 or later.
+A host launches it as a stdio server:
+
+```bash
+MINECRAFT_MCP_TOKEN='<the token>' java -jar minecraft-mcp-<version>-stdio-shim.jar
+```
+
+CI starts the universal jar and talks to it through this jar the way a stdio host does
+(`scripts/smoke/shim-smoke.sh`). The SDK has no logging backend here, so the first line on stderr is an
+SLF4J "no providers" notice; stdout carries only MCP messages. Host-specific snippets are in
+[install.md](install.md).
+
 ## Limits
 
 - The shim does not open the optional server-to-client SSE stream, so server-initiated requests are
   not relayed yet.
-- Packaging as a standalone jar and host-specific configuration snippets are tracked in the install
-  documentation issue (#34).
