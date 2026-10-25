@@ -3,8 +3,10 @@
 An MCP (Model Context Protocol) server for Minecraft: Java Edition that is designed to be
 **drop-in**, **mod-friendly**, and **as loader/version agnostic as possible**.
 
-> Status: **scaffold / pre-alpha**. The repo currently contains the protocol-independent core
-> interfaces, the build skeleton, and the roadmap. No runnable server is published yet.
+> Status: **pre-release**. Fabric and NeoForge mods (1.21.1, 26.2, 26.3) and the universal jar all run and
+> are tested against real servers in CI; no release has been published yet.
+
+**Install and connect a client: [docs/install.md](docs/install.md).**
 
 ## Why this exists
 
