@@ -27,7 +27,10 @@ moving), so use a dry run, not a real tag, to try the pipeline.
    named `minecraft-mcp-<version>+<minecraft>-<loader>.jar`, plus the universal jar,
    `minecraft-mcp-<version>-universal.jar`, and the stdio shim, `minecraft-mcp-<version>-stdio-shim.jar`. A
    missing or extra jar fails the release (it fails closed).
-   Then it writes `SHA256SUMS`.
+   It also runs the release hygiene checks (`scripts/release/`): MIT license, no committed jars or world data,
+   each jar's mod metadata says the release version, and no jar contains Minecraft classes. Then it writes
+   `SHA256SUMS`. The release notes are GitHub's generated changes plus the supported matrix and known
+   limitations from [version-matrix.md](version-matrix.md). The checklist is [release-checklist.md](release-checklist.md).
 4. **publish**: only for a real tag. Creates the GitHub release from the tag.
 
 Because the node list comes from `adapters/*/versions/*`, adding a node (see
@@ -42,4 +45,4 @@ sha256sum -c SHA256SUMS
 ## Not done yet
 
 - Modrinth and CurseForge upload (tokens, project ids, changelog format).
-- The wider checklist in issue #35: EULA wording, license check, changelog.
+- Changelog beyond GitHub's generated notes.

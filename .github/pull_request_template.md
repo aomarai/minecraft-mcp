@@ -22,3 +22,4 @@ Closes #
 - [ ] Tests cover the behavior change
 - [ ] No secrets, tokens, or world data committed
 - [ ] Docs updated when behavior or configuration changed
+- [ ] For release-related changes: [release checklist](../docs/release-checklist.md) still holds

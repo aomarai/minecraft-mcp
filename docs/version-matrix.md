@@ -35,6 +35,15 @@ here as planned. Current state:
 Quilt: expected to load the Fabric artifact; not separately tested at first. Documented as
 best-effort.
 
+## Known limitations
+
+- Fake-player game tests (joins, chat, deaths) run on Fabric 1.21.1 only. Player events on 26.x and on NeoForge are covered by the smoke tests but not yet with a real player.
+- The universal jar was tested against vanilla, Paper and a Fabric server. Other servers that speak RCON (Forge, NeoForge, other forks) are expected to work but are not tested.
+- The universal tier lists players only when a server directory is configured, and reports no TPS.
+- Quilt is expected to load the Fabric jar but is not tested.
+- The endpoint speaks plain HTTP on loopback. Remote access is by a TLS reverse proxy ([remote-access.md](remote-access.md)); the OAuth 2.1 flow is not implemented.
+- Nothing is published to Modrinth or CurseForge yet.
+
 ## Build tooling
 
 - **Stonecutter** (0.9.x) builds every Minecraft version of a loader from one source tree. One
