@@ -224,15 +224,11 @@ public final class ConfigLoader {
     }
 
     private static int integer(Map<String, Object> values, String key) {
-        Object value = values.get(key);
-        if (value instanceof Integer || value instanceof Long) {
-            long number = ((Number) value).longValue();
-            if (number < Integer.MIN_VALUE || number > Integer.MAX_VALUE) {
-                throw new ConfigException(key + " is out of range: " + number);
-            }
-            return (int) number;
+        long number = longValue(values, key);
+        if (number < Integer.MIN_VALUE || number > Integer.MAX_VALUE) {
+            throw new ConfigException(key + " is out of range: " + number);
         }
-        throw new ConfigException(key + " must be an integer");
+        return (int) number;
     }
 
     private static void write(McpJsonMapper mapper, Path file, Map<String, Object> values) throws IOException {

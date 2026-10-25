@@ -13,10 +13,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class McpCoreTest {
 
-    private static McpSyncClient client(McpCore core) {
-        return McpTestClients.client(core);
-    }
-
     @Test
     void initializesAndListsToolsOverStreamableHttp() throws Exception {
         try (McpCore core = TestCores.full(new FakeGame())) {
@@ -46,7 +42,7 @@ class McpCoreTest {
     void aCoreWithNoGameAdvertisesNoTools() throws Exception {
         try (McpCore core = new McpCore("127.0.0.1", 0)) {
             core.start();
-            try (McpSyncClient client = client(core)) {
+            try (McpSyncClient client = McpTestClients.client(core)) {
                 client.initialize();
                 assertTrue(client.listTools().tools().isEmpty());
             }

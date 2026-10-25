@@ -9,12 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -101,37 +96,17 @@ class ConfigLoaderTest {
 
     @Test
     void tokenNeverAppearsInLogsOrToString() throws IOException {
-        List<String> logged = new ArrayList<>();
-        Handler handler = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                Object[] params = record.getParameters();
-                logged.add(record.getMessage() + " " + (params == null ? "" : List.of(params)));
-            }
-
-            @Override
-            public void flush() {
-            }
-
-            @Override
-            public void close() {
-            }
-        };
-        Logger root = Logger.getLogger("");
-        root.addHandler(handler);
-        try {
+        try (LogCapture logs = new LogCapture()) {
             ConfigLoader.Loaded loaded = ConfigLoader.load(file(), Map.of());
             ConfigLoader.load(file(), Map.of("MINECRAFT_MCP_TOKEN", TOKEN));
 
-            assertFalse(logged.isEmpty(), "loading should log something");
-            for (String line : logged) {
+            assertFalse(logs.lines().isEmpty(), "loading should log something");
+            for (String line : logs.lines()) {
                 assertFalse(line.contains(loaded.token()), line);
                 assertFalse(line.contains(TOKEN), line);
             }
             assertFalse(loaded.toString().contains(loaded.token()));
             assertTrue(loaded.toString().contains("<redacted>"));
-        } finally {
-            root.removeHandler(handler);
         }
     }
 

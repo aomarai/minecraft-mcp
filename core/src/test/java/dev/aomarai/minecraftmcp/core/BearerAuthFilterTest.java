@@ -7,13 +7,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.lang.reflect.Proxy;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -228,25 +224,7 @@ class BearerAuthFilterTest {
 
     @Test
     void rejectionsAreLoggedWithTheRemoteAddressButNeverTheCredentials() throws Exception {
-        List<String> logged = new ArrayList<>();
-        Handler handler = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                Object[] params = record.getParameters();
-                logged.add(record.getMessage() + " " + (params == null ? "" : List.of(params)));
-            }
-
-            @Override
-            public void flush() {
-            }
-
-            @Override
-            public void close() {
-            }
-        };
-        Logger root = Logger.getLogger("");
-        root.addHandler(handler);
-        try {
+        try (LogCapture logs = new LogCapture()) {
             Map<String, String> headers = good();
             headers.put("Authorization", "Bearer leaked-secret-value-1234567890");
             run(filter(), headers);
@@ -255,6 +233,7 @@ class BearerAuthFilterTest {
             run(filter(), badHost);
             run(filter(), good());
 
+            List<String> logged = logs.lines();
             assertEquals(2, logged.size(), logged.toString());
             for (String line : logged) {
                 assertTrue(line.contains("203.0.113.9"), line);
@@ -263,38 +242,16 @@ class BearerAuthFilterTest {
             }
             assertTrue(logged.get(0).contains("missing or invalid bearer token"));
             assertTrue(logged.get(1).contains("unexpected Host header"));
-        } finally {
-            root.removeHandler(handler);
         }
     }
 
     @Test
     void anUnexpectedOriginIsLoggedAsSuch() throws Exception {
-        List<String> logged = new ArrayList<>();
-        Handler handler = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                Object[] params = record.getParameters();
-                logged.add(record.getMessage() + " " + (params == null ? "" : List.of(params)));
-            }
-
-            @Override
-            public void flush() {
-            }
-
-            @Override
-            public void close() {
-            }
-        };
-        Logger root = Logger.getLogger("");
-        root.addHandler(handler);
-        try {
+        try (LogCapture logs = new LogCapture()) {
             Map<String, String> headers = good();
             headers.put("Origin", "http://evil.example");
             run(filter(), headers);
-            assertTrue(logged.get(0).contains("unexpected Origin header"), logged.toString());
-        } finally {
-            root.removeHandler(handler);
+            assertTrue(logs.lines().get(0).contains("unexpected Origin header"), logs.lines().toString());
         }
     }
 }

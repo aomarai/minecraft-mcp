@@ -175,7 +175,7 @@ class ToolCatalogTest {
         for (McpServerFeatures.SyncToolSpecification spec : specs) {
             McpSchema.CallToolResult result = spec.callHandler()
                     .apply(null, new McpSchema.CallToolRequest(spec.tool().name(), Map.of("k", "v")));
-            assertEquals("via " + spec.tool().name(), ((McpSchema.TextContent) result.content().get(0)).text());
+            assertEquals("via " + spec.tool().name(), ToolResults.text(result));
         }
         assertEquals(names(ToolCatalog.defaults().tools()), called);
         assertEquals(Map.of("k", "v"), received.get(0));

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static dev.aomarai.minecraftmcp.core.ToolResults.text;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ToolDispatcherTest {
@@ -38,10 +39,6 @@ class ToolDispatcherTest {
 
     private static ToolDescriptor tool(String name) {
         return ToolCatalog.defaults().tools().stream().filter(t -> t.name().equals(name)).findFirst().orElseThrow();
-    }
-
-    private static String text(McpSchema.CallToolResult result) {
-        return ((McpSchema.TextContent) result.content().get(0)).text();
     }
 
     private static Map<String, Object> args(Object... kv) {
