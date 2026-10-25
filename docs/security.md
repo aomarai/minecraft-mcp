@@ -81,7 +81,9 @@ by `[redacted]` in every string, and strings over 256 characters are truncated.
   authenticated reverse proxy. Plain HTTP on a public interface is unsupported.
 - Destructive bulk tools (`fill`, `clone`, `setblock` loops) must validate volume and support a
   dry-run before applying.
-- Rotate the token with `/mcp rotate` and restart the MCP transport.
+- Rotate the token with `/mcp token rotate`. It writes a new token to the config file and restarts the
+  endpoint, which invalidates the old token at once. The token is never printed or logged. See
+  `docs/fabric.md`.
 
 ## Reporting
 

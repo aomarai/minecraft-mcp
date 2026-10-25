@@ -23,7 +23,8 @@ JAR="$(cd "$(dirname "$JAR")" && pwd)/$(basename "$JAR")"
 [ -f "$JAR" ] || { echo "FAIL: mod jar not found: $JAR"; exit 2; }
 
 WORK="$(mktemp -d)"
-TOKEN="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+TOKEN=""
+OLD_TOKENS=""
 FAILURES=0
 SERVER_PID=""
 
@@ -51,6 +52,28 @@ call() { # call <id> <tool> <arguments-json>
   mcp "{\"jsonrpc\":\"2.0\",\"id\":$1,\"method\":\"tools/call\",\"params\":{\"name\":\"$2\",\"arguments\":$3}}"
 }
 
+read_token() { sed -n 's/.*"token": *"\([^"]*\)".*/\1/p' config/minecraft-mcp.json; }
+
+# start_session: initialize and mark the client ready. A restarted endpoint has forgotten old sessions.
+start_session() {
+  SESSION=""
+  HEADERS="$(curl -s -D - -o /dev/null -X POST "http://127.0.0.1:$PORT/mcp" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}')"
+  SESSION="$(printf '%s' "$HEADERS" | grep -i '^mcp-session-id' | awk '{print $2}' | tr -d '\r')"
+  [ -n "$SESSION" ] && mcp '{"jsonrpc":"2.0","method":"notifications/initialized"}' > /dev/null
+}
+
+# console <command> <expected log text> <label>: type a command at the server console and look for its reply.
+console() {
+  local before; before=$(wc -l < server.log)
+  echo "$1" >&3
+  for _ in $(seq 1 30); do
+    if tail -n +$((before + 1)) server.log | grep -qF -- "$2"; then pass "$3"; return; fi
+    sleep 1
+  done
+  fail "$3 (expected in the log: $2)"
+}
+
 echo "== preparing server in $WORK"
 cd "$WORK" && mkdir mods || exit 2
 curl -fsSLo server.jar "https://meta.fabricmc.net/v2/versions/loader/$MINECRAFT_VERSION/$FABRIC_LOADER_VERSION/$FABRIC_INSTALLER_VERSION/server/jar" \
@@ -63,8 +86,9 @@ printf 'online-mode=false\nlevel-type=flat\ngenerate-structures=false\nview-dist
 
 echo "== starting server"
 mkfifo console
-# Writes, admin and the token come from the environment, which wins over the generated config file.
-MINECRAFT_MCP_ALLOW_WRITES=true MINECRAFT_MCP_ALLOW_ADMIN=true MINECRAFT_MCP_TOKEN="$TOKEN" \
+# Writes and admin come from the environment, which wins over the generated config file. The token is the
+# generated one from that file, so that rotating it can be tested.
+MINECRAFT_MCP_ALLOW_WRITES=true MINECRAFT_MCP_ALLOW_ADMIN=true \
   java -Xmx1G -jar server.jar nogui < console > server.log 2>&1 &
 SERVER_PID=$!
 exec 3>console
@@ -84,15 +108,14 @@ if ! grep -q "MCP server listening on port $PORT" server.log; then
   echo "FAIL: the mod did not start its endpoint. Server log:"; tail -n 60 server.log; exit 1
 fi
 pass "mod loaded and the endpoint is listening"
+TOKEN="$(read_token)"
+[ "${#TOKEN}" -ge 16 ] && pass "a token was generated into the config file" || fail "no token in config/minecraft-mcp.json"
 
 echo "== protocol"
 expect "no token is rejected (401)" "$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$PORT/mcp" -d '{}')" "401"
 expect "wrong token is rejected (401)" "$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$PORT/mcp" -H 'Authorization: Bearer not-the-token-not-the-token-1234' -d '{}')" "401"
-HEADERS="$(curl -s -D - -o /dev/null -X POST "http://127.0.0.1:$PORT/mcp" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}')"
-SESSION="$(printf '%s' "$HEADERS" | grep -i '^mcp-session-id' | awk '{print $2}' | tr -d '\r')"
+start_session
 [ -n "$SESSION" ] && pass "initialize returned a session" || fail "initialize returned no session id"
-mcp '{"jsonrpc":"2.0","method":"notifications/initialized"}' > /dev/null
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 for tool in server_info list_players query_blocks run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
@@ -120,11 +143,37 @@ kill -0 "$SERVER_PID" 2>/dev/null && pass "the server is still running: nothing 
 expect "a confirmed admin command runs" "$(call 14 run_admin_command '{"command":"setblock 3 -50 3 minecraft:gold_block","confirm":true}')" '"isError":false'
 expect "and the placed block is read back by registry id" "$(call 15 query_blocks '{"dimension":"minecraft:overworld","min_x":3,"min_y":-50,"min_z":3,"max_x":3,"max_y":-50,"max_z":3,"limit":1}')" 'minecraft:gold_block'
 
+echo "== operator commands (/mcp from the console)"
+console "mcp status" "MCP server is listening on 127.0.0.1:$PORT, writes and admin enabled, 5 tools" "/mcp status reports the endpoint and access"
+# A bad configuration must not take the working server down.
+cp config/minecraft-mcp.json config.good
+sed -i 's/"port": [0-9]*/"port": 99999999/' config/minecraft-mcp.json
+console "mcp reload" "Not changed:" "/mcp reload refuses an invalid configuration"
+cp config.good config/minecraft-mcp.json
+expect "and the server keeps serving after the refused reload" "$(call 17 server_info '{}')" '"isError":false'
+# A valid change is applied: a smaller volume cap.
+sed -i 's/"maxBlockVolume": [0-9]*/"maxBlockVolume": 8/' config/minecraft-mcp.json
+console "mcp reload" "MCP server reloaded" "/mcp reload applies a changed configuration"
+start_session
+expect "the new volume cap is in force" "$(call 18 query_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":0,"min_z":0,"max_x":2,"max_y":2,"max_z":2,"limit":10}')" 'exceeds maxBlockVolume 8'
+# Rotating the token: the old one stops working at once, the new one works, and neither is ever printed.
+OLD_TOKENS="$TOKEN"
+console "mcp token rotate" "MCP token rotated" "/mcp token rotate succeeds"
+TOKEN="$(read_token)"
+[ -n "$TOKEN" ] && [ "$TOKEN" != "$OLD_TOKENS" ] && pass "the config file holds a new token" || fail "the token did not change"
+expect "the old token is rejected" "$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$PORT/mcp" -H "Authorization: Bearer $OLD_TOKENS" -d '{}')" "401"
+start_session
+[ -n "$SESSION" ] && pass "the new token is accepted" || fail "the new token was rejected"
+OLD_TOKENS="$OLD_TOKENS $TOKEN"
+
 echo "== audit and files"
 AUDIT="config/minecraft-mcp-audit.jsonl"
 [ -s "$AUDIT" ] && pass "audit log written" || fail "audit log missing"
 expect "audit records a denied call" "$(cat "$AUDIT" 2>/dev/null)" '"decision":"deny"'
-if grep -qF "$TOKEN" "$AUDIT" server.log 2>/dev/null; then fail "the token appears in the audit log or server log"; else pass "the token appears in neither the audit log nor the server log"; fi
+for secret in $OLD_TOKENS; do
+  if grep -qF "$secret" "$AUDIT" server.log 2>/dev/null; then fail "a token appears in the audit log or server log"; fi
+done
+pass "neither the old nor the new token appears in the audit log or the server log"
 case "$(stat -c %a "$AUDIT" 2>/dev/null)" in 600) pass "audit log is owner-only";; *) fail "audit log permissions are $(stat -c %a "$AUDIT" 2>/dev/null)";; esac
 
 echo "== shutdown through MCP"

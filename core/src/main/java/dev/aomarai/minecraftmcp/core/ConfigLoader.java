@@ -44,6 +44,8 @@ public final class ConfigLoader {
     static final int MIN_TOKEN_LENGTH = 16;
     private static final int GENERATED_TOKEN_BYTES = 32;
     private static final String ENV_PREFIX = "MINECRAFT_MCP_";
+    /** The variable that, when set, supplies the token instead of the file. */
+    static final String TOKEN_ENV = ENV_PREFIX + "TOKEN";
     private static final System.Logger LOG = System.getLogger(ConfigLoader.class.getName());
     private static final TypeRef<Map<String, Object>> OBJECT = new TypeRef<>() {
     };
@@ -103,6 +105,18 @@ public final class ConfigLoader {
         McpConfig config = build(effective);
         LOG.log(System.Logger.Level.INFO, "Loaded configuration from {0}", file);
         return new Loaded(config, token, created);
+    }
+
+    /**
+     * Replaces the token in the config file with a fresh random one, keeping every other setting.
+     * The new token is deliberately not returned: it is read from the owner-only file, never
+     * printed or logged. A running server keeps the old token until it is restarted.
+     */
+    static void rotateToken(Path file) throws IOException {
+        McpJsonMapper mapper = McpJsonDefaults.getMapper();
+        Map<String, Object> values = Files.exists(file) ? readFile(mapper, file) : defaults();
+        values.put(TOKEN, generateToken());
+        write(mapper, file, values);
     }
 
     static String generateToken() {

@@ -42,6 +42,21 @@ All five tools in `docs/tools.md` are served.
 - **Not covered by a test mod:** that a block from another mod resolves is true by construction
   (the block registry is queried by id), but nothing in CI loads a third-party block yet.
 
+## Operator commands
+
+Three subcommands for operators. They need vanilla permission level 4 (the server console always has
+it); anyone else gets "You do not have permission to use /mcp (operator level 4 is required)".
+
+| Command | What it does |
+|---|---|
+| `/mcp status` | Host, port, access (`read-only`, `writes enabled`, `writes and admin enabled`) and the number of tools. Never the token |
+| `/mcp reload` | Re-reads `config/minecraft-mcp.json` and restarts the endpoint with it, so every setting applies, including the policy. The new configuration is checked first: an invalid one is refused with the reason and the running server is left alone. Current MCP sessions end and clients reconnect; the token is unchanged |
+| `/mcp token rotate` | Writes a fresh random token to the config file and restarts the endpoint. **The old token stops working immediately**, so clients must be updated. The new token is never printed or logged: read it from `config/minecraft-mcp.json` (owner-only) |
+
+If the token comes from `MINECRAFT_MCP_TOKEN`, the environment supplies it and rotation is refused
+with that explanation: change the variable instead. The work runs off the game thread, so a restart
+cannot stall the server.
+
 ## Build
 
 ```bash

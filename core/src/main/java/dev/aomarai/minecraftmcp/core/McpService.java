@@ -2,6 +2,7 @@ package dev.aomarai.minecraftmcp.core;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -15,10 +16,20 @@ import java.util.function.Function;
  */
 public final class McpService implements AutoCloseable {
 
-    private final McpCore core;
+    /** What an operator may see of a running server. Never includes the token. */
+    public record Status(String host, int port, boolean allowWrites, boolean allowAdmin, int toolCount) {
+        public String summary() {
+            String access = allowAdmin ? "writes and admin enabled" : allowWrites ? "writes enabled" : "read-only";
+            return "listening on " + host + ":" + port + ", " + access + ", " + toolCount + " tools";
+        }
+    }
 
-    private McpService(McpCore core) {
+    private final McpCore core;
+    private final Status status;
+
+    private McpService(McpCore core, Status status) {
         this.core = core;
+        this.status = status;
     }
 
     /**
@@ -30,20 +41,31 @@ public final class McpService implements AutoCloseable {
      */
     public static McpService start(Path configFile, Path auditFile, Function<McpConfig, GameServices> services)
             throws Exception {
-        ConfigLoader.Loaded loaded = ConfigLoader.load(configFile);
+        return start(configFile, auditFile, services, System.getenv());
+    }
+
+    /** As {@link #start(Path, Path, Function)}, with explicit environment overrides. */
+    public static McpService start(Path configFile, Path auditFile, Function<McpConfig, GameServices> services,
+                                   Map<String, String> env) throws Exception {
+        ConfigLoader.Loaded loaded = ConfigLoader.load(configFile, env);
         McpConfig config = loaded.config();
         GameServices ports = services.apply(config);
         ToolDispatcher dispatcher = new ToolDispatcher(config, ports,
                 new JsonlAuditLog(auditFile, List.of(loaded.token())));
-        McpCore core = new McpCore(config.host(), config.port(),
-                ToolCatalog.defaults().availableFor(ports), dispatcher, loaded.token());
+        ToolCatalog catalog = ToolCatalog.defaults().availableFor(ports);
+        McpCore core = new McpCore(config.host(), config.port(), catalog, dispatcher, loaded.token());
         core.start();
-        return new McpService(core);
+        return new McpService(core, new Status(config.host(), core.port(), config.allowWrites(),
+                config.allowAdmin(), catalog.tools().size()));
     }
 
     /** The port the endpoint is listening on. */
     public int port() {
         return core.port();
+    }
+
+    public Status status() {
+        return status;
     }
 
     @Override

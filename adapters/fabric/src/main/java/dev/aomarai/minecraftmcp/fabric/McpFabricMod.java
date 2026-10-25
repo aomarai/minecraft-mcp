@@ -3,9 +3,10 @@ package dev.aomarai.minecraftmcp.fabric;
 import dev.aomarai.minecraftmcp.core.ConfigException;
 import dev.aomarai.minecraftmcp.core.GameServices;
 import dev.aomarai.minecraftmcp.core.McpConfig;
-import dev.aomarai.minecraftmcp.core.McpService;
+import dev.aomarai.minecraftmcp.core.McpController;
 import dev.aomarai.minecraftmcp.core.Side;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.MinecraftServer;
@@ -13,10 +14,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Starts the MCP server when the game server is ready and stops it when the game server is
- * stopping. Keep this class thin: the logic lives in {@code core}.
+ * stopping, and offers the operator's {@code /mcp} command. Keep this class thin: the logic lives
+ * in {@code core}.
  *
  * <p>A configuration or start-up problem is logged and leaves the game server running without MCP.
  * It never crashes the game.</p>
@@ -29,20 +33,31 @@ public final class McpFabricMod implements ModInitializer {
     /** Vanilla permission level 4: everything, including /stop. */
     private static final int ADMIN_LEVEL = 4;
 
-    private McpService service;
+    /** Runs the {@code /mcp} commands off the game thread. Daemon, so it can never block JVM exit. */
+    private final ExecutorService background = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "minecraft-mcp-control");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    private volatile McpController controller;
 
     @Override
     public void onInitialize() {
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+                McpCommand.register(dispatcher, () -> controller, background));
         ServerLifecycleEvents.SERVER_STARTED.register(this::start);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> stop());
     }
 
     private void start(MinecraftServer server) {
         Path configDir = FabricLoader.getInstance().getConfigDir();
+        McpController created = new McpController(configDir.resolve("minecraft-mcp.json"),
+                configDir.resolve("minecraft-mcp-audit.jsonl"), config -> servicesFor(server, config), System.getenv());
+        controller = created;
         try {
-            service = McpService.start(configDir.resolve("minecraft-mcp.json"),
-                    configDir.resolve("minecraft-mcp-audit.jsonl"), config -> servicesFor(server, config));
-            LOG.info("MCP server listening on port {}", service.port());
+            created.start();
+            created.status().ifPresent(status -> LOG.info("MCP server listening on port {}", status.port()));
         } catch (ConfigException e) {
             LOG.error("MCP server not started: {}", e.getMessage());
         } catch (Exception e) {
@@ -63,16 +78,16 @@ public final class McpFabricMod implements ModInitializer {
     }
 
     private void stop() {
-        if (service == null) {
+        McpController stopping = controller;
+        controller = null;
+        if (stopping == null) {
             return;
         }
         try {
-            service.close();
+            stopping.close();
             LOG.info("MCP server stopped");
         } catch (Exception e) {
             LOG.error("MCP server did not stop cleanly", e);
-        } finally {
-            service = null;
         }
     }
 }
