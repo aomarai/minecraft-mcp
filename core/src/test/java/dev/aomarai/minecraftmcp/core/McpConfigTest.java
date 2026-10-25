@@ -29,7 +29,7 @@ class McpConfigTest {
     void commandListsDefaultToEmptyAndAreNormalized() {
         assertEquals(java.util.Set.of(), McpConfig.defaults().allowedCommands());
         assertEquals(java.util.Set.of(), McpConfig.defaults().destructiveCommands());
-        McpConfig config = new McpConfig("h", 1, false, false, 1, ONE_SECOND,
+        McpConfig config = new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND,
                 java.util.Set.of(" MyMod:Status ", "Minecraft:Say"), java.util.Set.of("MINECRAFT:KILL"));
         assertEquals(java.util.Set.of("mymod:status", "say"), config.allowedCommands());
         assertEquals(java.util.Set.of("kill"), config.destructiveCommands());
@@ -37,7 +37,7 @@ class McpConfigTest {
 
     @Test
     void nullCommandListsBecomeEmpty() {
-        McpConfig config = new McpConfig("h", 1, false, false, 1, ONE_SECOND, null, null);
+        McpConfig config = new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND, null, null);
         assertEquals(java.util.Set.of(), config.allowedCommands());
         assertEquals(java.util.Set.of(), config.destructiveCommands());
     }
@@ -46,10 +46,10 @@ class McpConfigTest {
     void commandNamesMustBeSingleWords() {
         for (String bad : new String[]{"", "  ", "two words", "/slash", "tab\there", "minecraft:"}) {
             IllegalArgumentException a = assertThrows(IllegalArgumentException.class, () ->
-                    new McpConfig("h", 1, false, false, 1, ONE_SECOND, java.util.Set.of(bad), java.util.Set.of()));
+                    new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND, java.util.Set.of(bad), java.util.Set.of()));
             assertTrue(a.getMessage().startsWith("allowedCommands must be single command names"), a.getMessage());
             IllegalArgumentException d = assertThrows(IllegalArgumentException.class, () ->
-                    new McpConfig("h", 1, false, false, 1, ONE_SECOND, java.util.Set.of(), java.util.Set.of(bad)));
+                    new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND, java.util.Set.of(), java.util.Set.of(bad)));
             assertTrue(d.getMessage().startsWith("destructiveCommands must be single command names"), d.getMessage());
         }
     }
@@ -71,13 +71,13 @@ class McpConfigTest {
 
     @Test
     void flagsArePreserved() {
-        McpConfig both = new McpConfig("h", 1, true, true, 1, ONE_SECOND);
+        McpConfig both = new McpConfig("127.0.0.1", 1, true, true, 1, ONE_SECOND);
         assertTrue(both.allowWrites());
         assertTrue(both.allowAdmin());
-        McpConfig adminOnly = new McpConfig("h", 1, false, true, 1, ONE_SECOND);
+        McpConfig adminOnly = new McpConfig("127.0.0.1", 1, false, true, 1, ONE_SECOND);
         assertFalse(adminOnly.allowWrites());
         assertTrue(adminOnly.allowAdmin());
-        McpConfig writesOnly = new McpConfig("h", 1, true, false, 1, ONE_SECOND);
+        McpConfig writesOnly = new McpConfig("127.0.0.1", 1, true, false, 1, ONE_SECOND);
         assertTrue(writesOnly.allowWrites());
         assertFalse(writesOnly.allowAdmin());
     }
@@ -96,6 +96,45 @@ class McpConfigTest {
         assertThrows(IllegalArgumentException.class, () -> config(1, 1_000_001, ONE_SECOND));
         assertEquals(1, config(1, 1, ONE_SECOND).maxBlockVolume());
         assertEquals(1_000_000, config(1, 1_000_000, ONE_SECOND).maxBlockVolume());
+    }
+
+    @Test
+    void loopbackHostsNeedNoPermission() {
+        for (String host : new String[]{"127.0.0.1", "127.0.0.2", "127.255.255.254", "localhost", "LOCALHOST", "::1", "[::1]",
+                "0:0:0:0:0:0:0:1"}) {
+            assertDoesNotThrow(() -> new McpConfig(host, 1, false, false, 1, ONE_SECOND), host);
+            assertTrue(McpConfig.isLoopback(host), host);
+        }
+    }
+
+    @Test
+    void everyOtherHostIsRefusedByDefaultAndNamedInTheMessage() {
+        for (String host : new String[]{"0.0.0.0", "::", "192.168.1.5", "10.0.0.1", "128.0.0.1", "126.255.255.255",
+                "example.com", "my-server", "mc.local", "[::]", "fe80::1", "999.1.1.1", "1.2.3", "localhost.example.com"}) {
+            IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
+                    () -> new McpConfig(host, 1, false, false, 1, ONE_SECOND), host);
+            assertTrue(refused.getMessage().startsWith("host '" + host + "' is not this machine"), refused.getMessage());
+            assertTrue(refused.getMessage().contains("allowRemote"));
+            assertFalse(McpConfig.isLoopback(host), host);
+        }
+    }
+
+    @Test
+    void allowRemotePermitsThemAndIsKept() {
+        McpConfig remote = new McpConfig("0.0.0.0", 1, false, false, 1, ONE_SECOND, java.util.Set.of(), java.util.Set.of(), true);
+
+        assertEquals("0.0.0.0", remote.host());
+        assertTrue(remote.allowRemote());
+        assertFalse(McpConfig.defaults().allowRemote());
+        assertFalse(new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND).allowRemote());
+        assertFalse(new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND, java.util.Set.of(), java.util.Set.of()).allowRemote());
+    }
+
+    @Test
+    void aHostNameIsNeverLookedUp() {
+        // A name that happens to resolve to loopback is still refused: deciding must not depend on DNS.
+        assertFalse(McpConfig.isLoopback("localtest.me"));
+        assertFalse(McpConfig.isLoopback("1.2.3.4.nip.io"));
     }
 
     @Test

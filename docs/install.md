@@ -120,7 +120,7 @@ All the settings: [configuration.md](configuration.md). What is protected and ho
 ## Connect a client
 
 Every client needs two things: the URL `http://127.0.0.1:25599/mcp` (the client must run on the same machine; plain
-HTTP to another machine is deliberately unsupported, see [security.md](security.md)) and the token as a bearer token. Below, `<TOKEN>` is the value
+HTTP to another machine is deliberately unsupported; for a client on another machine use the TLS proxy in [remote-access.md](remote-access.md)) and the token as a bearer token. Below, `<TOKEN>` is the value
 from `minecraft-mcp.json`. Do not paste a real token into a screenshot, a chat or a repository.
 
 ### Claude Code

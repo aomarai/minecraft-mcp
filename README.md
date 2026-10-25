@@ -66,8 +66,9 @@ offer only its own. See [docs/tools.md](docs/tools.md) and [docs/architecture.md
 - Every tool call is written to a JSONL audit log.
 - In-game chat is treated as untrusted input: it can never authorize a command.
 
-Do not expose the HTTP endpoint to the internet without TLS and an authenticated reverse proxy
-(or the OAuth 2.1 flow). See [docs/security.md](docs/security.md).
+Do not expose the HTTP endpoint to the internet. To reach it from another machine, put a TLS reverse
+proxy in front of it: [docs/remote-access.md](docs/remote-access.md). See also
+[docs/security.md](docs/security.md).
 
 ## Repository layout
 

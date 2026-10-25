@@ -92,6 +92,16 @@ class SecurityDefaultsTest {
     }
 
     @Test
+    void aNonLoopbackBindIsRejectedByDefaultInTheConfigurationAndInTheLoader() throws Exception {
+        assertThrows(IllegalArgumentException.class, () -> new McpConfig("0.0.0.0", 25599, false, false, 32768, Duration.ofSeconds(1)));
+        Path file = dir.resolve("minecraft-mcp.json");
+        Files.writeString(file, "{\"host\": \"0.0.0.0\", \"token\": \"" + TOKEN + "\"}");
+
+        assertThrows(ConfigException.class, () -> ConfigLoader.load(file, Map.of()));
+        assertThrows(ConfigException.class, () -> ConfigLoader.load(file, Map.of("MINECRAFT_MCP_HOST", "192.168.1.5")));
+    }
+
+    @Test
     void aFreshCoreListensOnLoopbackOnly() throws Exception {
         try (McpCore core = new McpCore()) {
             core.start();

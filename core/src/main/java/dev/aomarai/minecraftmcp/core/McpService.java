@@ -16,6 +16,8 @@ import java.util.function.Function;
  */
 public final class McpService implements AutoCloseable {
 
+    private static final System.Logger LOG = System.getLogger(McpService.class.getName());
+
     /** What an operator may see of a running server. Never includes the token. */
     public record Status(String host, int port, boolean allowWrites, boolean allowAdmin, int toolCount) {
         public String summary() {
@@ -49,6 +51,10 @@ public final class McpService implements AutoCloseable {
                                    Map<String, String> env) throws Exception {
         ConfigLoader.Loaded loaded = ConfigLoader.load(configFile, env);
         McpConfig config = loaded.config();
+        if (!McpConfig.isLoopback(config.host())) {
+            LOG.log(System.Logger.Level.WARNING, "Listening on {0}, which other machines can reach, over plain HTTP. "
+                    + "Put a TLS proxy in front and keep the port firewalled (docs/remote-access.md).", config.host());
+        }
         GameServices ports = services.apply(config);
         ToolDispatcher dispatcher = new ToolDispatcher(config, ports,
                 new JsonlAuditLog(auditFile, List.of(loaded.token())));

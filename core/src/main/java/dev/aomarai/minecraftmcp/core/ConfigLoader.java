@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>Environment variables: {@code MINECRAFT_MCP_HOST}, {@code _PORT},
- * {@code _ALLOW_WRITES}, {@code _ALLOW_ADMIN}, {@code _MAX_BLOCK_VOLUME},
+ * {@code _ALLOW_WRITES}, {@code _ALLOW_ADMIN}, {@code _ALLOW_REMOTE}, {@code _MAX_BLOCK_VOLUME},
  * {@code _CALL_TIMEOUT_MS}, {@code _TOKEN}.</p>
  */
 public final class ConfigLoader {
@@ -54,6 +54,7 @@ public final class ConfigLoader {
     private static final String PORT = "port";
     private static final String ALLOW_WRITES = "allowWrites";
     private static final String ALLOW_ADMIN = "allowAdmin";
+    private static final String ALLOW_REMOTE = "allowRemote";
     private static final String MAX_BLOCK_VOLUME = "maxBlockVolume";
     private static final String CALL_TIMEOUT_MS = "callTimeoutMillis";
     private static final String ALLOWED_COMMANDS = "allowedCommands";
@@ -62,7 +63,7 @@ public final class ConfigLoader {
     /** A section the universal tier reads for itself (see {@link #universalSection}); the core only checks its shape. */
     private static final String UNIVERSAL = "universal";
     private static final List<String> KEYS = List.of(
-            HOST, PORT, ALLOW_WRITES, ALLOW_ADMIN, MAX_BLOCK_VOLUME, CALL_TIMEOUT_MS, ALLOWED_COMMANDS,
+            HOST, PORT, ALLOW_WRITES, ALLOW_ADMIN, ALLOW_REMOTE, MAX_BLOCK_VOLUME, CALL_TIMEOUT_MS, ALLOWED_COMMANDS,
             DESTRUCTIVE_COMMANDS, TOKEN, UNIVERSAL);
 
     private ConfigLoader() {
@@ -152,6 +153,7 @@ public final class ConfigLoader {
         map.put(PORT, d.port());
         map.put(ALLOW_WRITES, d.allowWrites());
         map.put(ALLOW_ADMIN, d.allowAdmin());
+        map.put(ALLOW_REMOTE, d.allowRemote());
         map.put(MAX_BLOCK_VOLUME, d.maxBlockVolume());
         map.put(CALL_TIMEOUT_MS, d.callTimeout().toMillis());
         map.put(ALLOWED_COMMANDS, List.of());
@@ -185,6 +187,7 @@ public final class ConfigLoader {
         override(values, env, PORT, "PORT", Kind.NUMBER);
         override(values, env, ALLOW_WRITES, "ALLOW_WRITES", Kind.BOOLEAN);
         override(values, env, ALLOW_ADMIN, "ALLOW_ADMIN", Kind.BOOLEAN);
+        override(values, env, ALLOW_REMOTE, "ALLOW_REMOTE", Kind.BOOLEAN);
         override(values, env, MAX_BLOCK_VOLUME, "MAX_BLOCK_VOLUME", Kind.NUMBER);
         override(values, env, CALL_TIMEOUT_MS, "CALL_TIMEOUT_MS", Kind.NUMBER);
         override(values, env, ALLOWED_COMMANDS, "ALLOWED_COMMANDS", Kind.LIST);
@@ -238,7 +241,8 @@ public final class ConfigLoader {
                     integer(values, MAX_BLOCK_VOLUME),
                     Duration.ofMillis(longValue(values, CALL_TIMEOUT_MS)),
                     strings(values, ALLOWED_COMMANDS),
-                    strings(values, DESTRUCTIVE_COMMANDS));
+                    strings(values, DESTRUCTIVE_COMMANDS),
+                    bool(values, ALLOW_REMOTE));
         } catch (IllegalArgumentException e) {
             throw new ConfigException("invalid configuration: " + e.getMessage(), e);
         }

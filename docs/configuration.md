@@ -16,7 +16,8 @@ re-restricted on every load. On file systems without POSIX modes this is best ef
 
 | Key | Env override | Default | Notes |
 |---|---|---|---|
-| `host` | `MINECRAFT_MCP_HOST` | `127.0.0.1` | Loopback by default; see `docs/security.md` before changing |
+| `host` | `MINECRAFT_MCP_HOST` | `127.0.0.1` | Must be loopback unless `allowRemote` is set; see `docs/remote-access.md` |
+| `allowRemote` | `MINECRAFT_MCP_ALLOW_REMOTE` | `false` | `true` or `false`. Lets `host` be a non-loopback address (plain HTTP; logs a warning). Prefer a TLS proxy on loopback |
 | `port` | `MINECRAFT_MCP_PORT` | `25599` | 1-65535 |
 | `allowWrites` | `MINECRAFT_MCP_ALLOW_WRITES` | `false` | `true` or `false` |
 | `allowAdmin` | `MINECRAFT_MCP_ALLOW_ADMIN` | `false` | `true` or `false` |

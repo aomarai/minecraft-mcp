@@ -217,18 +217,58 @@ class ConfigLoaderTest {
                 "MINECRAFT_MCP_PORT", "5000",
                 "MINECRAFT_MCP_ALLOW_WRITES", "TRUE",
                 "MINECRAFT_MCP_ALLOW_ADMIN", " true ",
+                "MINECRAFT_MCP_ALLOW_REMOTE", "true",
                 "MINECRAFT_MCP_MAX_BLOCK_VOLUME", "100",
                 "MINECRAFT_MCP_CALL_TIMEOUT_MS", "1500",
                 "MINECRAFT_MCP_TOKEN", "env-token-env-token-1234");
 
         ConfigLoader.Loaded loaded = ConfigLoader.load(file(), env);
 
-        assertEquals(new McpConfig("0.0.0.0", 5000, true, true, 100, Duration.ofMillis(1500)), loaded.config());
+        assertEquals(new McpConfig("0.0.0.0", 5000, true, true, 100, Duration.ofMillis(1500), java.util.Set.of(),
+                java.util.Set.of(), true), loaded.config());
         assertEquals("env-token-env-token-1234", loaded.token());
         String json = Files.readString(file());
         assertTrue(json.contains("\"port\": 4000"));
         assertFalse(json.contains("env-token"));
         assertFalse(json.contains("0.0.0.0"));
+    }
+
+    @Test
+    void aNonLoopbackHostIsRefusedUnlessAllowRemoteIsSetOnPurpose() throws IOException {
+        writeConfig("{\"host\": \"0.0.0.0\", \"token\": \"" + TOKEN + "\"}");
+        assertEquals("invalid configuration: host '0.0.0.0' is not this machine, and the endpoint speaks plain HTTP; "
+                + "set allowRemote to bind it anyway, or keep loopback and put a TLS proxy in front (docs/remote-access.md)",
+                failure(file(), Map.of()).getMessage());
+
+        writeConfig("{\"host\": \"0.0.0.0\", \"allowRemote\": true, \"token\": \"" + TOKEN + "\"}");
+        McpConfig config = ConfigLoader.load(file(), Map.of()).config();
+        assertEquals("0.0.0.0", config.host());
+        assertTrue(config.allowRemote());
+    }
+
+    @Test
+    void allowRemoteIsOffByDefaultAndWrittenToANewFile() throws IOException {
+        ConfigLoader.Loaded loaded = ConfigLoader.load(file(), Map.of());
+
+        assertFalse(loaded.config().allowRemote());
+        assertTrue(Files.readString(file()).contains("\"allowRemote\": false"));
+    }
+
+    @Test
+    void theEnvironmentCannotQuietlyOpenTheServerEitherWay() throws IOException {
+        writeConfig("{\"token\": \"" + TOKEN + "\"}");
+
+        assertTrue(failure(file(), Map.of("MINECRAFT_MCP_HOST", "192.168.1.5")).getMessage().startsWith("invalid configuration: host '192.168.1.5'"));
+        assertEquals("192.168.1.5", ConfigLoader.load(file(),
+                Map.of("MINECRAFT_MCP_HOST", "192.168.1.5", "MINECRAFT_MCP_ALLOW_REMOTE", "true")).config().host());
+        assertEquals("MINECRAFT_MCP_ALLOW_REMOTE must be true or false, got: maybe",
+                failure(file(), Map.of("MINECRAFT_MCP_ALLOW_REMOTE", "maybe")).getMessage());
+    }
+
+    @Test
+    void allowRemoteMustBeABoolean() throws IOException {
+        writeConfig("{\"allowRemote\": \"yes\", \"token\": \"" + TOKEN + "\"}");
+        assertEquals("allowRemote must be true or false", failure(file(), Map.of()).getMessage());
     }
 
     @Test

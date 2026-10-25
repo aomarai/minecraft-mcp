@@ -60,6 +60,24 @@ class McpServiceTest {
     }
 
     @Test
+    void listeningBeyondThisMachineIsLoggedAsAWarningAndLoopbackIsNot() throws Exception {
+        Path file = dir.resolve("config").resolve("minecraft-mcp.json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, "{\"port\": " + freePort() + ", \"host\": \"0.0.0.0\", \"allowRemote\": true}");
+        try (LogCapture logs = new LogCapture();
+             McpService ignored = McpService.start(file, dir.resolve("audit.jsonl"), config -> GameServices.none())) {
+            assertTrue(logs.lines().stream().anyMatch(line -> line.contains("Listening on") && line.contains("0.0.0.0")
+                    && line.contains("plain HTTP") && line.contains("docs/remote-access.md")), logs.lines().toString());
+        }
+
+        Files.writeString(file, "{\"port\": " + freePort() + "}");
+        try (LogCapture logs = new LogCapture();
+             McpService ignored = McpService.start(file, dir.resolve("audit.jsonl"), config -> GameServices.none())) {
+            assertTrue(logs.lines().stream().noneMatch(line -> line.contains("plain HTTP")), logs.lines().toString());
+        }
+    }
+
+    @Test
     void thePortsAreBuiltFromTheLoadedConfig() throws Exception {
         int port = freePort();
         Path file = dir.resolve("config").resolve("minecraft-mcp.json");
