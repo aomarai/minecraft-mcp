@@ -38,7 +38,8 @@ module boundaries. If a change contradicts those documents, update the documents
 ./gradlew build          # compile + tests + coverage gate for all modules
 ./gradlew :core:test     # core tests only
 ./gradlew :core:pitest   # mutation testing (slow; CI runs it after build)
-./gradlew :stdio-shim:pitest   # mutation testing for the shim (not in CI yet)
+./gradlew :stdio-shim:pitest   # mutation testing for the shim (CI runs it too)
+scripts/smoke/run-in-docker.sh <fabric-jar>   # real headless-server smoke test (CI runs it; needs Docker)
 ```
 
 JDK 21 is required for the core and 1.21.x nodes. JDK 25 is required for 26.x nodes once those

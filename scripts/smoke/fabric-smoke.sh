@@ -69,9 +69,15 @@ MINECRAFT_MCP_ALLOW_WRITES=true MINECRAFT_MCP_ALLOW_ADMIN=true MINECRAFT_MCP_TOK
 SERVER_PID=$!
 exec 3>console
 
-for _ in $(seq 1 "$START_TIMEOUT_SECONDS"); do
+# Wait for the mod's own start-up message. Once the game reports "Done" the mod has had its chance, so
+# a missing message after a short grace period means it did not load: fail fast instead of waiting
+# out the whole timeout.
+done_seconds=""
+for second in $(seq 1 "$START_TIMEOUT_SECONDS"); do
   grep -q "MCP server listening\|MCP server not started\|MCP server failed" server.log 2>/dev/null && break
   kill -0 "$SERVER_PID" 2>/dev/null || break
+  [ -z "$done_seconds" ] && grep -q 'Done (' server.log 2>/dev/null && done_seconds="$second"
+  [ -n "$done_seconds" ] && [ $((second - done_seconds)) -ge 30 ] && break
   sleep 1
 done
 if ! grep -q "MCP server listening on port $PORT" server.log; then
@@ -122,7 +128,14 @@ case "$(stat -c %a "$AUDIT" 2>/dev/null)" in 600) pass "audit log is owner-only"
 
 echo "== shutdown through MCP"
 expect "a confirmed stop is accepted" "$(call 16 run_admin_command '{"command":"stop","confirm":true}')" '"isError":false'
+stop_started=$SECONDS
 for _ in $(seq 1 90); do kill -0 "$SERVER_PID" 2>/dev/null || break; sleep 1; done
+if kill -0 "$SERVER_PID" 2>/dev/null; then
+  fail "the server process was still running 90 seconds after stop (a thread may be keeping the JVM alive)"
+  tail -n 25 server.log
+else
+  pass "the server process exited $((SECONDS - stop_started))s after stop"
+fi
 grep -q "MCP server stopped" server.log && pass "endpoint stopped with the server" || fail "no 'MCP server stopped' in the log"
 [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:$PORT/mcp")" = "000" ] && pass "port is closed" || fail "port still answers"
 
