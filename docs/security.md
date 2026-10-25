@@ -21,6 +21,26 @@ are:
 - Destructive commands: require `confirm=true` in the tool call, even when admin is enabled.
 - Audit: JSONL file with timestamp, tool, arguments, decision, result summary.
 
+## Authentication and request filtering
+
+`BearerAuthFilter` sits in front of the whole server. There is no unauthenticated mode: `McpCore`
+cannot be built without a token of at least 16 characters.
+
+1. **Host (403):** the `Host` header must be `localhost`, `127.0.0.1`, `[::1]` or the configured bind
+   host, with the real listening port. This defeats DNS rebinding. Wildcard bind addresses
+   (`0.0.0.0`, `::`) are never accepted as a Host.
+2. **Origin (403):** if an `Origin` header is present it must be `http://` plus one of those
+   authorities. Browsers send `Origin` on cross-site requests, so a web page cannot drive the
+   server; MCP clients that are not browsers send none. Browser-based MCP clients served from
+   another origin are therefore unsupported.
+3. **Bearer token (401):** `Authorization: Bearer <token>` is the only accepted form, compared in
+   constant time. A failure returns a bare `401` with `WWW-Authenticate: Bearer` and no detail.
+
+Rejected requests never reach the MCP transport. They are logged with the remote address only,
+never the header or token, and are not written to the audit file, so an anonymous caller cannot
+fill it. There is no lockout; a 256-bit generated token is not guessable, and the server binds to
+loopback by default. Rotating the token requires a restart of the transport.
+
 ## Policy gate and audit
 
 Every tool call goes through `ToolDispatcher`:
