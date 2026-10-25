@@ -306,6 +306,14 @@ class ToolDispatcherTest {
     }
 
     @Test
+    void aCallWithNoArgumentsIsAuditedWithAnEmptyArgumentMap() {
+        dispatcher(false, false).call(tool("server_info"), null);
+
+        assertEquals(Map.of(), audit.get(0).arguments());
+        assertEquals(Map.of(), audit.get(1).arguments());
+    }
+
+    @Test
     void readLogMasksIpAddressesFlagsTheTextUntrustedAndDefaultsToFiftyLines() {
         McpSchema.CallToolResult result = dispatcher(false, false).call(tool("read_log"), Map.of());
 
