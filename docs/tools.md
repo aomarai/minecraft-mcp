@@ -99,6 +99,6 @@ read-only tools); they are not enforcement. The policy gate decides what actuall
 | `ban_player` | ADMIN | `player`, optional `reason`, `confirm` |
 | `save_world` | ADMIN | `confirm` (flushes pending world data to disk) |
 | `stop_server` | ADMIN | `confirm` |
-| `take_screenshot` | OBSERVE | none. **Client only**, and not served by any adapter yet (the client adapter is post-v1, issue #38). It exists so the contract is visible; a dedicated server never offers it |
+| `take_screenshot` | OBSERVE | none. **Client only**, and not served by any adapter yet (the Fabric client adapter is next, issue #38); a dedicated server never offers it. The answer is one `image/png` content block, at most 1280 x 720 pixels and 2 MiB, enforced by the core (`Screenshot`); the capture stays in memory and is never written to disk, and the audit log records only `image/png WxH, N bytes` |
 | `run_command` | ACT | `command` |
 | `run_admin_command` | ADMIN | `command`, `confirm` (must be true) |

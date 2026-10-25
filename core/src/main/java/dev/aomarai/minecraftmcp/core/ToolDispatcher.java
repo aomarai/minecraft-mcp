@@ -3,8 +3,10 @@ package dev.aomarai.minecraftmcp.core;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.time.Clock;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Runs catalog tools behind the policy gate.
@@ -63,9 +65,12 @@ public final class ToolDispatcher implements ToolInvoker {
         }
 
         String output;
+        Screenshot image = null;
         boolean failed;
         try {
-            output = execute(tool, args);
+            Outcome outcome = execute(tool, args);
+            output = outcome.text();
+            image = outcome.image();
             failed = false;
         } catch (Exception e) {
             output = describe(e);
@@ -76,7 +81,7 @@ public final class ToolDispatcher implements ToolInvoker {
         } catch (RuntimeException e) {
             return error("audit log unavailable after the call ran; result: " + output);
         }
-        return failed ? error(output) : ok(output);
+        return failed ? error(output) : ok(output, image);
     }
 
     private static String verdict(ToolPolicy.Decision decision) {
@@ -119,18 +124,32 @@ public final class ToolDispatcher implements ToolInvoker {
         audit.record(new AuditEntry(clock.instant(), phase, tool.name(), args, decision, detail));
     }
 
-    private String execute(ToolDescriptor tool, Map<String, Object> args) throws Exception {
+    /** What a handler produced: text, or an image with the text the audit log keeps in its place. */
+    private record Outcome(String text, Screenshot image) {
+    }
+
+    private Outcome execute(ToolDescriptor tool, Map<String, Object> args) throws Exception {
+        Optional<ToolHandlers.ImageHandler> imageHandler = handlers.findImage(tool.name());
+        if (imageHandler.isPresent()) {
+            Screenshot image = imageHandler.get().handle();
+            return new Outcome(image.describe(), image);
+        }
         ToolHandlers.Handler handler = handlers.find(tool.name())
                 .orElseThrow(() -> new UnsupportedOperationException(tool.name() + " has no handler"));
-        return handler.handle(new ToolArgs(args));
+        return new Outcome(handler.handle(new ToolArgs(args)), null);
     }
 
     private static String describe(Throwable t) {
         return Objects.toString(t.getMessage(), t.getClass().getSimpleName());
     }
 
-    private static McpSchema.CallToolResult ok(String text) {
-        return McpSchema.CallToolResult.builder().addTextContent(text).isError(false).build();
+    private static McpSchema.CallToolResult ok(String text, Screenshot image) {
+        McpSchema.CallToolResult.Builder result = McpSchema.CallToolResult.builder().isError(false);
+        if (image == null) {
+            return result.addTextContent(text).build();
+        }
+        String data = Base64.getEncoder().encodeToString(image.png());
+        return result.addContent(new McpSchema.ImageContent(null, data, "image/png")).build();
     }
 
     private static McpSchema.CallToolResult error(String text) {

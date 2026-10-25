@@ -52,6 +52,14 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     CompletableFuture<WorldState> pendingState;
     CompletableFuture<Permissions> pendingPermissions;
     CompletableFuture<Inventory> pendingInventory;
+    final List<int[]> screenshotRequests = new ArrayList<>();
+    Screenshot screenshot = new Screenshot(png(), 2, 3);
+    CompletableFuture<Screenshot> pendingScreenshot;
+
+    /** The smallest thing that starts like a PNG file; the core checks the signature and the bounds only. */
+    static byte[] png() {
+        return new byte[]{(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 1, 2, 3};
+    }
 
     /** Every port, on the server side. */
     GameServices services() {
@@ -85,15 +93,19 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
                         return FakeGame.this.onPublish(listener);
                     }
                 };
-                case SCREENSHOTS -> new ScreenshotCapture() {
-                };
+                case SCREENSHOTS -> (ScreenshotCapture) this::capture;
             });
         }
         return new GameServices(side, ports.toArray(new GamePort[0]));
     }
 
+    private CompletableFuture<Screenshot> capture(int maxWidth, int maxHeight) {
+        screenshotRequests.add(new int[]{maxWidth, maxHeight});
+        return pendingScreenshot != null ? pendingScreenshot : CompletableFuture.completedFuture(screenshot);
+    }
+
     int totalCalls() {
-        return infoCalls + playerCalls + commands.size() + queries.size() + registryQueries.size() + entityQueries.size()
+        return screenshotRequests.size() + infoCalls + playerCalls + commands.size() + queries.size() + registryQueries.size() + entityQueries.size()
                 + stateQueries.size() + permissionCalls + inventoryQueries.size() + logQueries.size() + eventReads.size();
     }
 

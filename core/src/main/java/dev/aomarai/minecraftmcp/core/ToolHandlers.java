@@ -23,13 +23,21 @@ final class ToolHandlers {
         String handle(ToolArgs args) throws Exception;
     }
 
+    /** A tool whose answer is an image, which the dispatcher returns as image content. */
+    @FunctionalInterface
+    interface ImageHandler {
+        Screenshot handle() throws Exception;
+    }
+
     private final McpConfig config;
     private final GameServices services;
     private final Map<String, Handler> byName;
+    private final Map<String, ImageHandler> imagesByName;
 
     ToolHandlers(McpConfig config, GameServices services) {
         this.config = config;
         this.services = services;
+        this.imagesByName = Map.of("take_screenshot", this::takeScreenshot);
         this.byName = Map.ofEntries(
                 entry("server_info", args -> port(RuntimeInfo.class, "runtime info").describe()),
                 entry("list_players", args -> listPlayers()),
@@ -59,6 +67,15 @@ final class ToolHandlers {
 
     Optional<Handler> find(String tool) {
         return Optional.ofNullable(byName.get(tool));
+    }
+
+    Optional<ImageHandler> findImage(String tool) {
+        return Optional.ofNullable(imagesByName.get(tool));
+    }
+
+    private Screenshot takeScreenshot() throws Exception {
+        ScreenshotCapture capture = port(ScreenshotCapture.class, "screenshots");
+        return await(capture.capture(Screenshot.MAX_WIDTH, Screenshot.MAX_HEIGHT), false);
     }
 
     private String listPlayers() throws Exception {
