@@ -116,18 +116,18 @@ class ToolCatalogTest {
 
     @Test
     void everyDefaultToolDeclaresTheCapabilityItsHandlerNeeds() {
-        java.util.Map<String, Capability> expected = java.util.Map.of(
-                "server_info", Capability.RUNTIME_INFO,
-                "list_players", Capability.PLAYERS,
-                "query_blocks", Capability.WORLD,
-                "list_registry", Capability.REGISTRIES,
-                "list_entities", Capability.ENTITIES,
-                "get_world_state", Capability.WORLD_STATE,
-                "list_permissions", Capability.PERMISSIONS,
-                "get_inventory", Capability.INVENTORY,
-                "read_log", Capability.LOGS,
-                "run_command", Capability.COMMANDS,
-                "run_admin_command", Capability.COMMANDS);
+        java.util.Map<String, Capability> expected = java.util.Map.ofEntries(
+                java.util.Map.entry("server_info", Capability.RUNTIME_INFO),
+                java.util.Map.entry("list_players", Capability.PLAYERS),
+                java.util.Map.entry("query_blocks", Capability.WORLD),
+                java.util.Map.entry("list_registry", Capability.REGISTRIES),
+                java.util.Map.entry("list_entities", Capability.ENTITIES),
+                java.util.Map.entry("get_world_state", Capability.WORLD_STATE),
+                java.util.Map.entry("list_permissions", Capability.PERMISSIONS),
+                java.util.Map.entry("get_inventory", Capability.INVENTORY),
+                java.util.Map.entry("read_log", Capability.LOGS),
+                java.util.Map.entry("run_command", Capability.COMMANDS),
+                java.util.Map.entry("run_admin_command", Capability.COMMANDS));
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
             assertEquals(expected.get(tool.name()), tool.capability(), tool.name());
             assertEquals(Side.SERVER, tool.side(), tool.name());
