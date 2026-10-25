@@ -17,9 +17,8 @@ import org.eclipse.jetty.server.ServerConnector;
  * {@link GameAccess} implementation later, but the protocol layer is testable
  * on a plain JVM.
  *
- * <p>The endpoint is {@code /mcp}. The server advertises tools capability but
- * starts with an empty catalog; issue #9 fills the catalog and #10 wires the
- * policy gate.
+ * <p>The endpoint is {@code /mcp}. The server advertises the {@link ToolCatalog}
+ * descriptors; call handlers and the policy gate are wired in issue #10.
  */
 public final class McpCore implements AutoCloseable {
 
@@ -38,6 +37,10 @@ public final class McpCore implements AutoCloseable {
     }
 
     public McpCore(String host, int port) {
+        this(host, port, ToolCatalog.defaults());
+    }
+
+    public McpCore(String host, int port, ToolCatalog catalog) {
         this.host = host;
         this.requestedPort = port;
 
@@ -50,6 +53,7 @@ public final class McpCore implements AutoCloseable {
                 .capabilities(McpSchema.ServerCapabilities.builder()
                         .tools(false)
                         .build())
+                .tools(catalog.specs())
                 .build();
 
         this.jetty = new Server();

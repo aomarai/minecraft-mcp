@@ -30,7 +30,7 @@ Adapters depend on `core`, never the reverse.
 ## Core responsibilities
 
 - MCP server lifecycle and Streamable HTTP transport.
-- Tool catalog and JSON schemas, including annotations (`readOnlyHint`, `destructiveHint`,
+- Tool catalog and JSON schemas (see `docs/tools.md`), including annotations (`readOnlyHint`, `destructiveHint`,
   `idempotentHint`).
 - Policy decisions: scopes (`OBSERVE`, `ACT`, `ADMIN`), command allow/deny lists, confirmation.
 - Audit logging (JSONL) and rate limiting.
