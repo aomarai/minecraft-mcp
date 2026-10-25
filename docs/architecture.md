@@ -16,7 +16,7 @@ MCP host (Claude, Codex, Cursor, ...)
         |  Streamable HTTP (JSON-RPC 2.0)
   protocol core (core/)
         |  tool registry, policy, audit, transport
-  GameAccess port (core/)
+  GamePort capability ports (core/)
         |
   +-----+----------------+-----------------+
   |                      |                 |
@@ -39,7 +39,9 @@ Adapters depend on `core`, never the reverse.
 
 ## Adapter responsibilities
 
-- Implement `GameAccess` and marshal all game access onto the main thread.
+- Implement the capability ports (`CommandRunner`, `PlayerReader`, `WorldReader`,
+  `RuntimeInfo`; more are added per tool group) that the platform can serve, and marshal all
+  game access onto the main thread. An adapter never has to stub a capability it lacks.
 - Register loader entrypoints and metadata (`fabric.mod.json`, `neoforge.mods.toml`).
 - Expose loader-specific lifecycle events (server started, tick, chat, player join/leave).
 - Provide registry access (blocks, items, entities, dimensions) without assuming vanilla.

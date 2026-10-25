@@ -14,7 +14,7 @@ import org.eclipse.jetty.server.ServerConnector;
  *
  * <p>Owns a Jetty container and the SDK's servlet transport. It deliberately
  * imports no Minecraft, Fabric, NeoForge or Bukkit classes: adapters inject a
- * {@link GameAccess} implementation later, but the protocol layer is testable
+ * {@link GamePort} implementations later, but the protocol layer is testable
  * on a plain JVM.
  *
  * <p>The endpoint is {@code /mcp}. The server advertises the {@link ToolCatalog}

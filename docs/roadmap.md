@@ -17,7 +17,7 @@ source of truth for status.
 
 ## Sequencing
 
-1. **E1 first.** Every adapter depends on the `GameAccess` port, tool schemas, and policy engine.
+1. **E1 first.** Every adapter depends on the `GamePort` capability ports, tool schemas, and policy engine.
 2. **Fabric before NeoForge.** Smaller loader surface and faster CI loop; the Fabric adapter
    proves the threading and registry model.
 3. **Build wiring before more adapters.** Stonecutter + Modstitch should land before the version
