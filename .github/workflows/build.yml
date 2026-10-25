@@ -25,4 +25,7 @@ jobs:
           # verification. Disable caching so every run verifies fresh downloads.
           cache-disabled: true
       - run: ./gradlew build --no-daemon --refresh-dependencies
-      - run: ./gradlew :core:pitest --no-daemon
+      - run: ./gradlew :core:pitest :stdio-shim:pitest --no-daemon
+      # A jar that compiles is not a jar that loads: start a real Fabric server with it.
+      - name: Fabric smoke test (Docker)
+        run: bash scripts/smoke/run-in-docker.sh adapters/fabric/build/libs/minecraft-mcp-*+1.21.1-fabric.jar

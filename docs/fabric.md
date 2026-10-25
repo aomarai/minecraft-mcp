@@ -54,6 +54,10 @@ the remapped, shaded jar; the other jars in that folder are intermediate and wil
 - **Shading:** the core and its libraries (MCP SDK, Jackson, Jetty, Reactor, ...) are packed into
   the mod and relocated under `dev.aomarai.minecraftmcp.shaded`, so they cannot clash with other
   mods or the game. SLF4J is left out because the game provides it.
+- **Clean JVM exit:** the MCP SDK starts its session sweeper on a non-daemon Reactor thread and does
+  not stop it on close, which kept the JVM alive after the game server had stopped. `McpCore` makes
+  Reactor's threads daemons (`DaemonSchedulers`; it affects only this mod's relocated copy). The
+  smoke test checks that the server process exits after `stop`, within seconds, like an unmodded server.
 - **Loom version:** Loom 1.17.x is the newest line that runs on JDK 21. Newer Loom needs JDK 25 and
   arrives with the 26.x nodes.
 - **Dependency verification:** Loom builds three things on each machine from verified inputs:
@@ -79,4 +83,15 @@ It needs bash, curl, Java 21 and network access, works in a throwaway directory,
 loading, the token, `initialize`/`tools/list`, reads, a write that takes effect, the policy
 refusals, the confirm flow, audit and file permissions, and a clean shutdown driven through MCP.
 Running it sets `eula=true` in that disposable server, which accepts the Minecraft EULA for the
-test only. Issue #20 wires it into CI in Docker.
+test only.
+
+CI runs the same script in a clean container so the host needs nothing but Docker; the server,
+world and EULA acceptance disappear with the container:
+
+```bash
+scripts/smoke/run-in-docker.sh adapters/fabric/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
+```
+
+It takes about two minutes. The test fails if the mod does not load (it gives up 30 seconds after
+the game reports it is ready) or if any check fails, and prints the server log. The server versions
+in the script must match `adapters/fabric/build.gradle.kts`.
