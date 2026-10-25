@@ -1,8 +1,6 @@
 package dev.aomarai.minecraftmcp.core;
 
-import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -75,11 +73,7 @@ class ToolCatalogGoldenTest {
     private static List<Object> fetchToolsList() throws Exception {
         try (McpCore core = new McpCore("127.0.0.1", 0)) {
             core.start();
-            HttpClientStreamableHttpTransport transport = HttpClientStreamableHttpTransport
-                    .builder("http://127.0.0.1:" + core.port())
-                    .endpoint(McpCore.DEFAULT_ENDPOINT)
-                    .build();
-            try (McpSyncClient client = McpClient.sync(transport).build()) {
+            try (McpSyncClient client = McpTestClients.client(core)) {
                 client.initialize();
                 List<Object> tools = new ArrayList<>();
                 for (McpSchema.Tool tool : client.listTools().tools()) {

@@ -1,8 +1,6 @@
 package dev.aomarai.minecraftmcp.core;
 
-import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -37,14 +35,11 @@ class PolicyGatedServerTest {
         McpConfig config = new McpConfig("127.0.0.1", 25599, writes, admin, 32768, Duration.ofSeconds(5));
         ToolDispatcher dispatcher = new ToolDispatcher(config, game.services(),
                 new JsonlAuditLog(auditFile, List.of(TOKEN)));
-        return new McpCore("127.0.0.1", 0, ToolCatalog.defaults(), dispatcher);
+        return new McpCore("127.0.0.1", 0, ToolCatalog.defaults(), dispatcher, TOKEN);
     }
 
     private static McpSyncClient client(McpCore core) {
-        return McpClient.sync(HttpClientStreamableHttpTransport
-                .builder("http://127.0.0.1:" + core.port())
-                .endpoint(McpCore.DEFAULT_ENDPOINT)
-                .build()).build();
+        return McpTestClients.client(core);
     }
 
     @Test

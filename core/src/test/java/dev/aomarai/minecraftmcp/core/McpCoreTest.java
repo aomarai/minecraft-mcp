@@ -1,8 +1,6 @@
 package dev.aomarai.minecraftmcp.core;
 
-import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
@@ -16,11 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class McpCoreTest {
 
     private static McpSyncClient client(McpCore core) {
-        HttpClientStreamableHttpTransport transport = HttpClientStreamableHttpTransport
-                .builder("http://127.0.0.1:" + core.port())
-                .endpoint(McpCore.DEFAULT_ENDPOINT)
-                .build();
-        return McpClient.sync(transport).build();
+        return McpTestClients.client(core);
     }
 
     @Test

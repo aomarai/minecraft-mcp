@@ -4,10 +4,14 @@ import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.servlet.DispatcherType;
+import org.eclipse.jetty.ee11.servlet.FilterHolder;
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee11.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+
+import java.util.EnumSet;
 
 /**
  * Minimal Streamable HTTP bootstrap for the MCP core.
@@ -26,6 +30,7 @@ public final class McpCore implements AutoCloseable {
     public static final String DEFAULT_HOST = "127.0.0.1";
     public static final String DEFAULT_ENDPOINT = "/mcp";
 
+    private final String token;
     private final String host;
     private final int requestedPort;
     private final HttpServletStreamableServerTransportProvider transport;
@@ -37,13 +42,21 @@ public final class McpCore implements AutoCloseable {
         this(DEFAULT_HOST, 0);
     }
 
-    /** A core with no game attached and the secure defaults; every call reports the missing port. */
+    /**
+     * A core with no game attached, the secure defaults and a freshly generated
+     * token (see {@link #token()}); every tool call reports the missing port.
+     */
     public McpCore(String host, int port) {
         this(host, port, ToolCatalog.defaults(), new ToolDispatcher(
-                McpConfig.defaults(), GameServices.none(), AuditLog.discarding()));
+                McpConfig.defaults(), GameServices.none(), AuditLog.discarding()), ConfigLoader.generateToken());
     }
 
-    public McpCore(String host, int port, ToolCatalog catalog, ToolInvoker invoker) {
+    /**
+     * @param token bearer token every request must present; at least
+     *              {@value ConfigLoader#MIN_TOKEN_LENGTH} characters. There is no unauthenticated mode.
+     */
+    public McpCore(String host, int port, ToolCatalog catalog, ToolInvoker invoker, String token) {
+        this.token = token;
         this.host = host;
         this.requestedPort = port;
 
@@ -66,6 +79,8 @@ public final class McpCore implements AutoCloseable {
         jetty.addConnector(connector);
 
         ServletContextHandler context = new ServletContextHandler();
+        context.addFilter(new FilterHolder(new BearerAuthFilter(token, host, connector::getLocalPort)),
+                "/*", EnumSet.of(DispatcherType.REQUEST));
         context.addServlet(new ServletHolder(transport), DEFAULT_ENDPOINT + "/*");
         jetty.setHandler(context);
     }
@@ -73,6 +88,11 @@ public final class McpCore implements AutoCloseable {
     /** Starts the HTTP listener. Call before connecting a client. */
     public void start() throws Exception {
         jetty.start();
+    }
+
+    /** The bearer token clients must present. A secret: for tests and the code that created the core. */
+    String token() {
+        return token;
     }
 
     /** The host the listener is bound to. */
