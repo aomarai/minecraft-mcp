@@ -3,12 +3,13 @@
 # no local Java, and the server, its world and the Minecraft EULA acceptance all disappear with the
 # container.
 #
-#   scripts/smoke/run-in-docker.sh <path-to-mod-jar>
+#   scripts/smoke/run-in-docker.sh <fabric|neoforge> <path-to-mod-jar>
 #
 # The repository is mounted read-only. The smoke script does everything else inside the container.
 set -eu
 
-JAR="${1:?usage: run-in-docker.sh <mod-jar>}"
+LOADER="${1:?usage: run-in-docker.sh <fabric|neoforge> <mod-jar>}"
+JAR="${2:?usage: run-in-docker.sh <fabric|neoforge> <mod-jar>}"
 [ -f "$JAR" ] || { echo "mod jar not found: $JAR" >&2; exit 2; }
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 JAR_ABS="$(cd "$(dirname "$JAR")" && pwd)/$(basename "$JAR")"
@@ -24,4 +25,4 @@ exec docker run --rm \
   --workdir /work \
   --memory 2g \
   eclipse-temurin:21-jre-noble \
-  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends curl >/dev/null && bash scripts/smoke/fabric-smoke.sh "$1"' _ "$JAR_IN_CONTAINER"
+  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends curl >/dev/null && bash scripts/smoke/smoke.sh "$1" "$2"' _ "$LOADER" "$JAR_IN_CONTAINER"

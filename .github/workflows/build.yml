@@ -30,4 +30,6 @@ jobs:
       - run: ./gradlew :adapters:fabric:1.21.1:runGameTest --no-daemon
       # A jar that compiles is not a jar that loads: start a real Fabric server with it.
       - name: Fabric smoke test (Docker)
-        run: bash scripts/smoke/run-in-docker.sh adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-*+1.21.1-fabric.jar
+        run: bash scripts/smoke/run-in-docker.sh fabric adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-*+1.21.1-fabric.jar
+      - name: NeoForge smoke test (Docker)
+        run: bash scripts/smoke/run-in-docker.sh neoforge adapters/neoforge/versions/1.21.1/build/libs/minecraft-mcp-*+1.21.1-neoforge.jar

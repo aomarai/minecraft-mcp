@@ -99,7 +99,7 @@ for this module. The classes are kept tiny, the logic lives in `core` (where the
 jar:
 
 ```bash
-scripts/smoke/fabric-smoke.sh adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
+scripts/smoke/smoke.sh fabric adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
 ```
 
 It needs bash, curl, Java 21 and network access, works in a throwaway directory, and checks:
@@ -112,7 +112,7 @@ CI runs the same script in a clean container so the host needs nothing but Docke
 world and EULA acceptance disappear with the container:
 
 ```bash
-scripts/smoke/run-in-docker.sh adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
+scripts/smoke/run-in-docker.sh fabric adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
 ```
 
 Fake players cannot join a headless server from outside, so they are tested in-process with Fabric's
