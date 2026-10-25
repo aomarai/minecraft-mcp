@@ -9,6 +9,16 @@
 Each supported target gets its own artifact. There is no single jar that covers every loader or
 every Minecraft version.
 
+## Status
+
+A target counts as supported only when its Docker smoke test runs in CI. Until then it is listed
+here as planned. Current state:
+
+| Target | State |
+|---|---|
+| Fabric 1.21.1 | Builds and loads on a headless server (verified by hand); CI smoke test pending (#20) |
+| Everything else | Planned |
+
 ## Initial targets
 
 | Loader | Minecraft | Java | Artifact |

@@ -1,0 +1,50 @@
+# Fabric adapter
+
+`adapters/fabric/` is a server-side Fabric mod that runs the MCP server inside a dedicated
+Minecraft server.
+
+## Requirements
+
+- Minecraft 1.21.1 dedicated server, Java 21.
+- Fabric Loader 0.16.0 or newer, and Fabric API (any version). Without Fabric API the loader stops
+  with `Install fabric-api, any version.`
+
+## Install
+
+Put `minecraft-mcp-<version>+1.21.1-fabric.jar` and Fabric API in the server's `mods/` folder and
+start the server. On the first start the mod creates `config/minecraft-mcp.json` (loopback,
+read-only, with a generated bearer token, owner-only) and `config/minecraft-mcp-audit.jsonl`. See
+`docs/configuration.md`. The log shows `MCP server listening on port 25599`.
+
+A bad configuration or a port in use is logged and leaves the game server running without MCP; it
+never crashes the game.
+
+## What it provides today
+
+The adapter currently provides runtime information only, so `tools/list` contains `server_info`
+(`Fabric <loader> / Minecraft <version> / server`). Players, block queries and commands arrive with
+issue #15; the catalog grows automatically as the adapter provides more capabilities.
+
+## Build
+
+```bash
+./gradlew :adapters:fabric:build
+```
+
+The loadable jar is `adapters/fabric/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar`. It is
+the remapped, shaded jar; the other jars in that folder are intermediate and will not load.
+
+- **Shading:** the core and its libraries (MCP SDK, Jackson, Jetty, Reactor, ...) are packed into
+  the mod and relocated under `dev.aomarai.minecraftmcp.shaded`, so they cannot clash with other
+  mods or the game. SLF4J is left out because the game provides it.
+- **Loom version:** Loom 1.17.x is the newest line that runs on JDK 21. Newer Loom needs JDK 25 and
+  arrives with the 26.x nodes.
+- **Dependency verification:** Loom remaps Fabric API on each machine into a local repository
+  (`remapped.*`). That output differs per machine, so `gradle/verification-metadata.xml` trusts
+  that one generated group without a checksum; the original jars it is built from stay pinned.
+
+## Testing
+
+Loader glue cannot be unit tested without a running game, so the line/branch coverage gate is off
+for this module. The classes are kept tiny, the logic lives in `core` (where the gate applies), and
+the Docker smoke test (issue #20) starts a real Fabric server with the jar.
