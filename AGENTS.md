@@ -59,6 +59,9 @@ check to get green; add a test that pins real behavior instead.
 - **Platform-dependent code** (file modes, line endings, paths) behaves differently on Windows
   and Linux, and CI runs Linux. Guard POSIX-only assertions with `Assumptions`, and verify on
   Linux (WSL or Docker) before claiming a green result from Windows.
+- **Adapters:** loader glue (`adapters/*`) cannot be unit tested without a game, so the coverage
+  gate is off there. Keep those classes tiny, put logic in `core` where the gate applies, and prove
+  the adapter with a headless-server smoke test.
 - **Smoke tests:** unit tests do not prove a mod loads; see the headless-server rule below.
 
 ## Dependencies
@@ -191,6 +194,7 @@ Do not commit build output, IDE files, local config, or `.claude/` worktrees.
 | Config keys and token handling | `docs/configuration.md` |
 | Tool catalog and conventions | `docs/tools.md` |
 | stdio shim for stdio-only hosts | `docs/stdio-shim.md` |
+| Fabric adapter | `docs/fabric.md` |
 | Supported loaders and versions | `docs/version-matrix.md` |
 | Milestones and order of work | `docs/roadmap.md` (issues are the source of truth) |
 

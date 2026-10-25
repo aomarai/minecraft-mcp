@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "minecraft-mcp",
+  "version": "${version}",
+  "name": "Minecraft MCP",
+  "description": "A Model Context Protocol server for this Minecraft server. Read-only and loopback-only by default.",
+  "authors": ["aomarai"],
+  "license": "See LICENSE",
+  "environment": "server",
+  "entrypoints": {
+    "main": ["dev.aomarai.minecraftmcp.fabric.McpFabricMod"]
+  },
+  "depends": {
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*"
+  }
+}

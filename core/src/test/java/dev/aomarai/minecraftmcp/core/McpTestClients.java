@@ -15,8 +15,12 @@ final class McpTestClients {
     }
 
     static McpSyncClient client(McpCore core, String token) {
+        return client(core.port(), token);
+    }
+
+    static McpSyncClient client(int port, String token) {
         return McpClient.sync(HttpClientStreamableHttpTransport
-                .builder("http://127.0.0.1:" + core.port())
+                .builder("http://127.0.0.1:" + port)
                 .endpoint(McpCore.DEFAULT_ENDPOINT)
                 .requestBuilder(java.net.http.HttpRequest.newBuilder().header("Authorization", "Bearer " + token))
                 .build()).build();
