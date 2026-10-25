@@ -39,6 +39,7 @@ module boundaries. If a change contradicts those documents, update the documents
 ./gradlew :core:test     # core tests only
 ./gradlew :core:pitest   # mutation testing (slow; CI runs it after build)
 ./gradlew :stdio-shim:pitest   # mutation testing for the shim (CI runs it too)
+./gradlew :adapters:fabric:runGameTest   # game tests with fake players on a real server (CI runs it)
 scripts/smoke/run-in-docker.sh <fabric-jar>   # real headless-server smoke test (CI runs it; needs Docker)
 ```
 

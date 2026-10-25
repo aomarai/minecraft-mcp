@@ -27,6 +27,16 @@ dependencies {
     implementation(project(":core"))
 }
 
+// Game tests run in a real dedicated server with fake players (`./gradlew :adapters:fabric:runGameTest`).
+// `eula` accepts the Minecraft EULA for that disposable development server only.
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = "minecraft-mcp-gametest"
+        eula = true
+    }
+}
+
 tasks.processResources {
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") {

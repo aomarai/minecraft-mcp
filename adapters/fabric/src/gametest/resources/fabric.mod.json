@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "minecraft-mcp-gametest",
+  "version": "1.0.0",
+  "name": "Minecraft MCP game tests",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-gametest": ["dev.aomarai.minecraftmcp.fabric.FakePlayerGameTest"]
+  },
+  "depends": {
+    "minecraft-mcp": "*"
+  }
+}

@@ -115,6 +115,19 @@ world and EULA acceptance disappear with the container:
 scripts/smoke/run-in-docker.sh adapters/fabric/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
 ```
 
-It takes about two minutes. The test fails if the mod does not load (it gives up 30 seconds after
+Fake players cannot join a headless server from outside, so they are tested in-process with Fabric's
+game test framework (`adapters/fabric/src/gametest`):
+
+```bash
+./gradlew :adapters:fabric:runGameTest
+```
+
+It starts a real dedicated server with the mod loaded and places a fake player through the player list
+over an in-memory channel, exactly as a connecting client is placed. The test checks that joining,
+chatting, dying and leaving are recorded as events, in order, and that the player and inventory readers
+see the player. `eula = true` in `build.gradle.kts` accepts the Minecraft EULA for that disposable
+development server only. CI runs it before the Docker smoke test.
+
+The smoke test takes about two minutes. It fails if the mod does not load (it gives up 30 seconds after
 the game reports it is ready) or if any check fails, and prints the server log. The server versions
 in the script must match `adapters/fabric/build.gradle.kts`.
