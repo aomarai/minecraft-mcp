@@ -40,6 +40,14 @@ final class ToolHandlers {
                 entry("list_permissions", args -> listPermissions()),
                 entry("get_inventory", this::getInventory),
                 entry("read_log", this::readLog),
+                entry("fill_blocks", this::fillBlocks),
+                entry("teleport", this::teleport),
+                entry("give_item", this::giveItem),
+                entry("send_message", this::sendMessage),
+                entry("kick_player", this::kickPlayer),
+                entry("ban_player", this::banPlayer),
+                entry("save_world", args -> run(CommandBuilder.saveWorld())),
+                entry("stop_server", args -> run(CommandBuilder.stopServer())),
                 entry("run_command", this::runCommand),
                 entry("run_admin_command", this::runCommand));
     }
@@ -208,8 +216,59 @@ final class ToolHandlers {
     }
 
     private String runCommand(ToolArgs args) throws Exception {
+        return run(args.string("command"));
+    }
+
+    /**
+     * The typed write tools build their command from validated arguments ({@link CommandBuilder}) and
+     * run it here. They are gated by their scope, not by the command text: that is the point of
+     * having a typed tool with fixed arguments.
+     */
+    private String fillBlocks(ToolArgs args) throws Exception {
+        // BlockQuery checks that the box is well formed and measures it; the limit is not used.
+        BlockQuery box = new BlockQuery(args.string("dimension"),
+                args.integer("min_x"), args.integer("min_y"), args.integer("min_z"),
+                args.integer("max_x"), args.integer("max_y"), args.integer("max_z"), 1);
+        if (box.volume() > config.maxBlockVolume()) {
+            throw new IllegalArgumentException(
+                    "volume " + box.volume() + " exceeds maxBlockVolume " + config.maxBlockVolume());
+        }
+        String command = CommandBuilder.fill(box.dimension(), box.minX(), box.minY(), box.minZ(),
+                box.maxX(), box.maxY(), box.maxZ(), args.string("block"));
+        if (args.optionalBoolean("dry_run", false)) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("dryRun", true);
+            out.put("volume", box.volume());
+            out.put("command", command);
+            return json(out);
+        }
+        return run(command);
+    }
+
+    private String teleport(ToolArgs args) throws Exception {
+        return run(CommandBuilder.teleport(args.string("player"), args.optionalString("dimension", ""),
+                args.number("x"), args.number("y"), args.number("z")));
+    }
+
+    private String giveItem(ToolArgs args) throws Exception {
+        return run(CommandBuilder.give(args.string("player"), args.string("item"), args.optionalInteger("count", 1)));
+    }
+
+    private String sendMessage(ToolArgs args) throws Exception {
+        return run(CommandBuilder.message(args.optionalString("player", ""), args.string("message")));
+    }
+
+    private String kickPlayer(ToolArgs args) throws Exception {
+        return run(CommandBuilder.kick(args.string("player"), args.optionalString("reason", "")));
+    }
+
+    private String banPlayer(ToolArgs args) throws Exception {
+        return run(CommandBuilder.ban(args.string("player"), args.optionalString("reason", "")));
+    }
+
+    private String run(String command) throws Exception {
         CommandResult result = await(port(CommandRunner.class, "command execution")
-                .runCommand(args.string("command"), config.callTimeout()), true);
+                .runCommand(command, config.callTimeout()), true);
         if (!result.success()) {
             throw new IllegalStateException(String.join("; ", result.feedback()));
         }

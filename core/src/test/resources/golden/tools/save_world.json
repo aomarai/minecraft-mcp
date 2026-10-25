@@ -1,0 +1,28 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Flush all pending world data to disk. Requires admin access and confirm=true.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "confirm": {
+          "description": "Must be true to save.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "confirm"
+      ],
+      "type": "object"
+    },
+    "name": "save_world",
+    "title": "Save world"
+  }
+}

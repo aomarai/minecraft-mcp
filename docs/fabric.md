@@ -34,6 +34,7 @@ All five tools in `docs/tools.md` are served.
 | `list_permissions` | The operator list (name, uuid, level) and whitelist from the server's own lists. Names come from the profile cache; a uuid the server has never seen is `unknown` |
 | `get_inventory` | An online player's items by slot, as registry ids and counts (modded items included). Not-online players are an error naming them |
 | `read_log` | The tail of `logs/latest.log`, read without loading the file (at most the last 256 KB). Written by the loader-agnostic `FileLogReader` in `core`; the Fabric module only supplies the path |
+| `fill_blocks`, `teleport`, `give_item`, `send_message`, `kick_player`, `ban_player`, `save_world`, `stop_server` | Typed write and admin tools. Each builds one fixed command from validated arguments and runs it through the same Brigadier dispatcher (`docs/tools.md`, "Typed tools"). `fill_blocks` and `teleport` target a dimension with `execute in <dimension> run ...` |
 | `run_command`, `run_admin_command` | Through the game's Brigadier dispatcher, so vanilla and modded commands both work |
 
 - **Main thread:** every read and write is queued with `MinecraftServer.execute` (see `MainThread`

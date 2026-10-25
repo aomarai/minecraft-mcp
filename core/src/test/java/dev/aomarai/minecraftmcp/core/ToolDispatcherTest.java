@@ -41,6 +41,12 @@ class ToolDispatcherTest {
         return ToolCatalog.defaults().tools().stream().filter(t -> t.name().equals(name)).findFirst().orElseThrow();
     }
 
+    /** The call succeeded and returned what the fake game answered. */
+    private static void assertDone(McpSchema.CallToolResult result) {
+        assertFalse(result.isError(), text(result));
+        assertEquals("done", text(result));
+    }
+
     private static Map<String, Object> args(Object... kv) {
         Map<String, Object> map = new HashMap<>();
         for (int i = 0; i < kv.length; i += 2) {
@@ -348,6 +354,157 @@ class ToolDispatcherTest {
 
         assertEquals("timed out after 100 ms", text(d.call(tool("get_inventory"), args("player", "Steve"))));
         assertTrue(game.pendingInventory.isCancelled());
+    }
+
+    // ---- typed write tools (ACT) ----
+
+    private static Map<String, Object> fillArgs(Object... overrides) {
+        Map<String, Object> map = args("dimension", "overworld", "min_x", 0, "min_y", -60, "min_z", 0,
+                "max_x", 1, "max_y", -59, "max_z", 1, "block", "stone");
+        for (int i = 0; i < overrides.length; i += 2) {
+            map.put((String) overrides[i], overrides[i + 1]);
+        }
+        return map;
+    }
+
+    @Test
+    void fillBlocksRunsTheExactCommandForTheBox() {
+        assertDone(dispatcher(true, false).call(tool("fill_blocks"), fillArgs()));
+        assertEquals(List.of("execute in minecraft:overworld run fill 0 -60 0 1 -59 1 minecraft:stone"), game.commands);
+        assertAudit(0, "decision", "fill_blocks", "allow", "");
+    }
+
+    @Test
+    void fillBlocksDryRunReportsTheVolumeAndCommandAndChangesNothing() {
+        McpSchema.CallToolResult result = dispatcher(true, false).call(tool("fill_blocks"), fillArgs("dry_run", true));
+
+        assertFalse(result.isError());
+        assertEquals("{\"dryRun\":true,\"volume\":8,\"command\":"
+                + "\"execute in minecraft:overworld run fill 0 -60 0 1 -59 1 minecraft:stone\"}", text(result));
+        assertEquals(0, game.totalCalls(), "a dry run never reaches the game");
+    }
+
+    @Test
+    void fillBlocksEnforcesTheVolumeCapAtTheBoundaryForRealAndDryRuns() {
+        ToolDispatcher d = dispatcher(config(true, false, 8, Duration.ofSeconds(2)), game.services(), audit::add);
+
+        assertFalse(d.call(tool("fill_blocks"), fillArgs()).isError(), "volume 8 == cap is allowed");
+        McpSchema.CallToolResult over = d.call(tool("fill_blocks"), fillArgs("max_x", 2));
+        assertEquals("volume 12 exceeds maxBlockVolume 8", text(over));
+        assertEquals("volume 12 exceeds maxBlockVolume 8", text(d.call(tool("fill_blocks"), fillArgs("max_x", 2, "dry_run", true))));
+        assertEquals(1, game.commands.size());
+    }
+
+    @Test
+    void fillBlocksRejectsMalformedBoxesAndIdsWithoutTouchingTheGame() {
+        ToolDispatcher d = dispatcher(true, false);
+        assertEquals("max coordinates must be >= min coordinates", text(d.call(tool("fill_blocks"), fillArgs("max_x", -5))));
+        assertEquals("max_y must be an integer", text(d.call(tool("fill_blocks"), fillArgs("max_y", 1.5))));
+        assertTrue(text(d.call(tool("fill_blocks"), fillArgs("block", "stone run stop"))).startsWith("block must be a resource location"));
+        assertTrue(text(d.call(tool("fill_blocks"), fillArgs("dimension", "x run stop"))).startsWith("dimension must be a resource location"));
+        assertEquals("block must be a string", text(d.call(tool("fill_blocks"), fillArgs("block", 5))));
+        assertEquals("dry_run must be true or false", text(d.call(tool("fill_blocks"), fillArgs("dry_run", "yes"))));
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void typedWriteToolsNeedWriteAccessAndNeverReachTheGameWithout() {
+        ToolDispatcher d = dispatcher(false, true);
+        for (String tool : new String[]{"fill_blocks", "teleport", "give_item", "send_message"}) {
+            Map<String, Object> arguments = switch (tool) {
+                case "fill_blocks" -> fillArgs();
+                case "teleport" -> args("player", "Steve", "x", 0, "y", 0, "z", 0);
+                case "give_item" -> args("player", "Steve", "item", "diamond");
+                default -> args("message", "hi");
+            };
+            McpSchema.CallToolResult result = d.call(tool(tool), arguments);
+            assertEquals("write access is disabled", text(result), tool);
+        }
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void teleportBuildsTheCommandWithAndWithoutADimension() {
+        ToolDispatcher d = dispatcher(true, false);
+
+        assertDone(d.call(tool("teleport"), args("player", "Steve", "x", 1.5, "y", 64, "z", -2)));
+        assertDone(d.call(tool("teleport"), args("player", "Steve", "x", 0, "y", 70, "z", 0, "dimension", "the_nether")));
+
+        assertEquals(List.of("tp Steve 1.5 64 -2", "execute in minecraft:the_nether run tp Steve 0 70 0"), game.commands);
+    }
+
+    @Test
+    void aTypedToolIsGatedByItsScopeNotByTheCommandItBuilds() {
+        // "tp" is on the destructive list for free-form commands, but a typed teleport has fixed,
+        // validated arguments, so write access is enough.
+        assertEquals("admin commands are disabled",
+                text(dispatcher(true, false).call(tool("run_command"), args("command", "tp Steve 0 0 0"))));
+        assertFalse(dispatcher(true, false).call(tool("teleport"), args("player", "Steve", "x", 0, "y", 0, "z", 0)).isError());
+    }
+
+    @Test
+    void giveItemDefaultsTheCountToOne() {
+        ToolDispatcher d = dispatcher(true, false);
+
+        assertDone(d.call(tool("give_item"), args("player", "Alex", "item", "diamond")));
+        assertDone(d.call(tool("give_item"), args("player", "Alex", "item", "create:cogwheel", "count", 64)));
+
+        assertEquals(List.of("give Alex minecraft:diamond 1", "give Alex create:cogwheel 64"), game.commands);
+    }
+
+    @Test
+    void sendMessageSpeaksToEveryoneOrOnePlayer() {
+        ToolDispatcher d = dispatcher(true, false);
+
+        assertDone(d.call(tool("send_message"), args("message", "hello all")));
+        assertDone(d.call(tool("send_message"), args("message", "psst", "player", "Steve")));
+
+        assertEquals(List.of("say hello all", "tell Steve psst"), game.commands);
+    }
+
+    @Test
+    void hostileArgumentsNeverReachTheGame() {
+        ToolDispatcher d = dispatcher(true, true);
+        assertTrue(text(d.call(tool("teleport"), args("player", "@a", "x", 0, "y", 0, "z", 0))).startsWith("player must be a player name"));
+        assertTrue(text(d.call(tool("give_item"), args("player", "Steve;stop", "item", "diamond"))).startsWith("player must be a player name"));
+        assertTrue(text(d.call(tool("give_item"), args("player", "Steve", "item", "diamond run stop"))).startsWith("item must be a resource location"));
+        assertEquals("message must not contain control characters or line breaks",
+                text(d.call(tool("send_message"), args("message", "hi\nop Eve"))));
+        assertEquals("reason must not contain control characters or line breaks",
+                text(d.call(tool("kick_player"), args("player", "Steve", "reason", "bye\nstop", "confirm", true))));
+        assertEquals("count must be between 1 and 6400", text(d.call(tool("give_item"), args("player", "Steve", "item", "diamond", "count", 6401))));
+        assertEquals("x must be between -30000000 and 30000000", text(d.call(tool("teleport"), args("player", "Steve", "x", 1e9, "y", 0, "z", 0))));
+        assertEquals(0, game.totalCalls());
+    }
+
+    // ---- typed admin tools (ADMIN) ----
+
+    @Test
+    void typedAdminToolsAreRefusedWhileAdminIsDisabled() {
+        ToolDispatcher d = dispatcher(true, false);
+        for (String tool : new String[]{"kick_player", "ban_player", "save_world", "stop_server"}) {
+            Map<String, Object> arguments = tool.endsWith("_player") ? args("player", "Steve", "confirm", true) : args("confirm", true);
+            assertEquals("admin access is disabled", text(d.call(tool(tool), arguments)), tool);
+        }
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void typedAdminToolsNeedConfirmationAndOnlyThenRun() {
+        ToolDispatcher d = dispatcher(false, true);
+        for (String tool : new String[]{"kick_player", "ban_player", "save_world", "stop_server"}) {
+            Map<String, Object> arguments = tool.endsWith("_player") ? args("player", "Steve", "confirm", false) : args("confirm", false);
+            assertEquals("admin action requires confirmation; call again with confirm=true", text(d.call(tool(tool), arguments)), tool);
+        }
+        assertEquals(0, game.totalCalls(), "nothing ran without confirmation");
+
+        assertDone(d.call(tool("kick_player"), args("player", "Steve", "confirm", true)));
+        assertDone(d.call(tool("kick_player"), args("player", "Alex", "reason", "AFK", "confirm", true)));
+        assertDone(d.call(tool("ban_player"), args("player", "Eve", "reason", "griefing", "confirm", true)));
+        assertDone(d.call(tool("save_world"), args("confirm", true)));
+        assertDone(d.call(tool("stop_server"), args("confirm", true)));
+
+        assertEquals(List.of("kick Steve", "kick Alex AFK", "ban Eve griefing", "save-all flush", "stop"), game.commands);
     }
 
     // ---- act: run_command ----

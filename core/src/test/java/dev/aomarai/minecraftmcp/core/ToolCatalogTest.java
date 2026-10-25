@@ -23,10 +23,12 @@ class ToolCatalogTest {
         assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities",
                         "get_world_state", "list_permissions", "get_inventory", "read_log"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
-        assertEquals(List.of("run_command"), names(catalog.byScope(ToolPolicy.Scope.ACT)));
-        assertEquals(List.of("run_admin_command"), names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
+        assertEquals(List.of("fill_blocks", "teleport", "give_item", "send_message", "run_command"),
+                names(catalog.byScope(ToolPolicy.Scope.ACT)));
+        assertEquals(List.of("kick_player", "ban_player", "save_world", "stop_server", "run_admin_command"),
+                names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
         assertEquals(ToolCatalog.defaults().tools().size(), catalog.tools().size());
-        assertEquals(11, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
+        assertEquals(19, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
     }
 
     @Test
@@ -64,7 +66,8 @@ class ToolCatalogTest {
 
     @Test
     void adminToolRequiresConfirm() {
-        ToolDescriptor admin = ToolCatalog.defaults().byScope(ToolPolicy.Scope.ADMIN).get(0);
+        ToolDescriptor admin = ToolCatalog.defaults().tools().stream()
+                .filter(t -> t.name().equals("run_admin_command")).findFirst().orElseThrow();
         assertEquals(List.of("command", "confirm"), admin.inputSchema().required());
     }
 
@@ -95,7 +98,8 @@ class ToolCatalogTest {
     void specificAdaptersGetSpecificCatalogs() {
         ToolCatalog all = ToolCatalog.defaults();
         // A protocol-only (RCON-like) adapter: no world reads, no players.
-        assertEquals(List.of("server_info", "run_command", "run_admin_command"),
+        assertEquals(List.of("server_info", "fill_blocks", "teleport", "give_item", "send_message", "kick_player",
+                        "ban_player", "save_world", "stop_server", "run_command", "run_admin_command"),
                 names(all.availableFor(services(Side.SERVER, Capability.RUNTIME_INFO, Capability.COMMANDS)).tools()));
         assertEquals(List.of(), names(all.availableFor(GameServices.none()).tools()));
         assertEquals(all.tools().size(), all.availableFor(services(Side.SERVER, Capability.values())).tools().size());
@@ -127,10 +131,29 @@ class ToolCatalogTest {
                 java.util.Map.entry("get_inventory", Capability.INVENTORIES),
                 java.util.Map.entry("read_log", Capability.LOGS),
                 java.util.Map.entry("run_command", Capability.COMMANDS),
-                java.util.Map.entry("run_admin_command", Capability.COMMANDS));
+                java.util.Map.entry("run_admin_command", Capability.COMMANDS),
+                java.util.Map.entry("fill_blocks", Capability.COMMANDS),
+                java.util.Map.entry("teleport", Capability.COMMANDS),
+                java.util.Map.entry("give_item", Capability.COMMANDS),
+                java.util.Map.entry("send_message", Capability.COMMANDS),
+                java.util.Map.entry("kick_player", Capability.COMMANDS),
+                java.util.Map.entry("ban_player", Capability.COMMANDS),
+                java.util.Map.entry("save_world", Capability.COMMANDS),
+                java.util.Map.entry("stop_server", Capability.COMMANDS));
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
             assertEquals(expected.get(tool.name()), tool.capability(), tool.name());
             assertEquals(Side.SERVER, tool.side(), tool.name());
+        }
+    }
+
+    @Test
+    void everyAdminToolRequiresConfirmationInItsSchema() {
+        for (ToolDescriptor tool : ToolCatalog.defaults().byScope(ToolPolicy.Scope.ADMIN)) {
+            assertTrue(tool.inputSchema().required().contains("confirm"), tool.name());
+            assertTrue(tool.inputSchema().properties().containsKey("confirm"), tool.name());
+        }
+        for (ToolDescriptor tool : ToolCatalog.defaults().byScope(ToolPolicy.Scope.ACT)) {
+            assertFalse(tool.inputSchema().properties().containsKey("confirm"), tool.name());
         }
     }
 

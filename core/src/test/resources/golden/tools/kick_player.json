@@ -1,0 +1,37 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Kick an online player. Requires admin access and confirm=true.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "confirm": {
+          "description": "Must be true to kick.",
+          "type": "boolean"
+        },
+        "player": {
+          "description": "Name of an online player.",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Shown to the player; one line, up to 256 characters.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "player",
+        "confirm"
+      ],
+      "type": "object"
+    },
+    "name": "kick_player",
+    "title": "Kick player"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Ban a player from the server. Requires admin access and confirm=true.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "confirm": {
+          "description": "Must be true to ban.",
+          "type": "boolean"
+        },
+        "player": {
+          "description": "Player name.",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Shown to the player; one line, up to 256 characters.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "player",
+        "confirm"
+      ],
+      "type": "object"
+    },
+    "name": "ban_player",
+    "title": "Ban player"
+  }
+}
