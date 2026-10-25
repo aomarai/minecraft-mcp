@@ -6,8 +6,8 @@ dependency and runs on Java 21 or later. It offers a reduced tool set (commands,
 events) with the same policy gate and audit log as the mods.
 
 This is under construction ([epic #5](https://github.com/aomarai/minecraft-mcp/issues/5)).
-Today the RCON client, the Query client and the log tailer exist; the tool profile and the standalone
-jar follow in #29 and #30.
+Today the RCON client, the Query client, the log tailer and the tool profile exist; the standalone jar and
+the tests against real servers follow in #30.
 
 ## RCON client (`adapters/rcon`)
 
@@ -53,6 +53,33 @@ chat, joins and leaves into events for the same event feed the mods use.
   single unfinished "line" that long is skipped rather than waited for.
 - Death messages are not turned into events: they are free text that cannot be told apart from other server
   messages reliably.
+
+## Tool profile (`UniversalServices`)
+
+The tier offers exactly the tools its ports can serve, and no others: the core's catalog advertises a tool
+only when its capability is present, so an unsupported tool is absent from `tools/list`, not stubbed to fail.
+What is offered depends on what the process was told about the server (`UniversalConfig`):
+
+| Given | Tools |
+|---|---|
+| RCON only | `server_info`, `run_command`, `run_admin_command`, `fill_blocks`, `teleport`, `give_item`, `send_message`, `kick_player`, `ban_player`, `save_world`, `stop_server` |
+| plus the server folder | adds `read_log` and `read_events` (chat, joins, leaves) |
+| plus the server folder and the Query port | adds `list_players` |
+
+`list_players` needs both on purpose. Query gives the names; where each player is and which dimension they
+are in come from the vanilla `data get entity` command (so modded dimensions work); and whether they are an
+operator comes from the server's own `ops.json`. Without the folder the tier cannot know who is an operator,
+so it does not offer the tool rather than report a guess. A name from the network is untrusted and goes into a
+command, so only a real player name (letters, digits, underscore, at most 16) is ever used, and at most 100
+players are listed.
+
+Not offered, because RCON can run commands but cannot read the world: `query_blocks`, `list_registry`,
+`list_entities`, `get_world_state`, `list_permissions`, `get_inventory` (and `take_screenshot`, which is
+client-only). Every tool the universal tier offers is also a tool the mods offer, with the same name and
+arguments. There is no TPS tool; `run_command` with `tps` works on servers that have the command.
+
+`server_info` reports `universal/RCON / Minecraft <version> / server`. The version comes from Query when it is
+available (and only if it looks like a version), otherwise it says `unknown`.
 
 ## Security
 

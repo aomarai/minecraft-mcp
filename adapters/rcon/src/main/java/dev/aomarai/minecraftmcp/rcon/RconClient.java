@@ -36,11 +36,7 @@ public final class RconClient implements CommandRunner, AutoCloseable {
 
     private final RconConfig config;
     private final Supplier<Socket> sockets;
-    private final ExecutorService worker = Executors.newSingleThreadExecutor(task -> {
-        Thread thread = new Thread(task, "minecraft-mcp-rcon");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final ExecutorService worker = Executors.newSingleThreadExecutor(DaemonThreads.named("minecraft-mcp-rcon"));
     /** The logged-in connection, if any. Only the worker thread opens and uses it; close() may close it from another thread. */
     private volatile Socket connection;
 
