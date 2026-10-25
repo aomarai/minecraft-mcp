@@ -72,6 +72,42 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void rotatingTheTokenReplacesOnlyTheToken() throws IOException {
+        writeConfig("{\"port\": 4000, \"allowWrites\": true, \"maxBlockVolume\": 100, \"token\": \"" + TOKEN + "\"}");
+
+        ConfigLoader.rotateToken(file());
+
+        ConfigLoader.Loaded loaded = ConfigLoader.load(file(), Map.of());
+        assertNotEquals(TOKEN, loaded.token());
+        assertTrue(loaded.token().length() >= ConfigLoader.MIN_TOKEN_LENGTH);
+        assertEquals(4000, loaded.config().port());
+        assertTrue(loaded.config().allowWrites());
+        assertEquals(100, loaded.config().maxBlockVolume());
+        assertFalse(Files.readString(file()).contains(TOKEN), "the old token is gone from the file");
+    }
+
+    @Test
+    void rotatingWithoutAFileCreatesOneWithSecureDefaults() throws IOException {
+        ConfigLoader.rotateToken(file());
+
+        ConfigLoader.Loaded loaded = ConfigLoader.load(file(), Map.of());
+        assertFalse(loaded.created(), "the rotation created it");
+        assertEquals(McpConfig.defaults(), loaded.config());
+        assertTrue(loaded.token().length() >= ConfigLoader.MIN_TOKEN_LENGTH);
+    }
+
+    @Test
+    void rotatedFilesStayOwnerOnlyOnPosix() throws IOException {
+        writeConfig("{\"token\": \"" + TOKEN + "\"}");
+        assumeTrue(posix());
+        Files.setPosixFilePermissions(file(), PosixFilePermissions.fromString("rw-r--r--"));
+
+        ConfigLoader.rotateToken(file());
+
+        assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(file())));
+    }
+
+    @Test
     void generatedTokensDiffer() {
         assertNotEquals(ConfigLoader.generateToken(), ConfigLoader.generateToken());
     }
