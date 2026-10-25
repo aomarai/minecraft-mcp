@@ -1,0 +1,26 @@
+name: Set up the build
+description: JDK 21 and 25, Gradle without a cache, and the Gradle toolchain wiring that every build job shares.
+
+runs:
+  using: composite
+  steps:
+    # Java 21 runs Gradle and builds the 1.21.x nodes; the 26.x nodes need a Java 25 toolchain. The
+    # first version listed is JAVA_HOME; the other is found through JAVA_HOME_25_X64 below.
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: |
+          21
+          25
+    - name: Let Gradle find both JDKs
+      shell: bash
+      run: |
+        mkdir -p ~/.gradle
+        echo "org.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64" >> ~/.gradle/gradle.properties
+    - uses: gradle/actions/setup-gradle@v6
+      with:
+        # Dependency verification compares downloaded artifacts against the
+        # committed metadata. A restored cache from the base branch can contain
+        # artifacts resolved before the metadata changed, which then fail
+        # verification. Disable caching so every run verifies fresh downloads.
+        cache-disabled: true
