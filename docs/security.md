@@ -133,8 +133,9 @@ by `[redacted]` in every string, and strings over 256 characters are truncated.
   permissions and runs before any command reaches Brigadier.
 - Chat, signs, books, and logs are untrusted. Text arriving from the game cannot authorize a
   command or change policy.
-- Remote access requires TLS plus either the MCP OAuth 2.1 resource-server flow or an
-  authenticated reverse proxy. Plain HTTP on a public interface is unsupported.
+- Remote access goes through a TLS reverse proxy in front of the loopback endpoint, with the bearer token
+  still required (`docs/remote-access.md`). A non-loopback `host` is refused unless `allowRemote` is set,
+  and plain HTTP on a public interface is unsupported. The OAuth 2.1 flow is not implemented.
 - Destructive bulk tools (`fill`, `clone`, `setblock` loops) must validate volume and support a
   dry-run before applying.
 - Rotate the token with `/mcp token rotate`. It writes a new token to the config file and restarts the
