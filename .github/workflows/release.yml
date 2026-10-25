@@ -1,0 +1,106 @@
+name: release
+
+# Builds and tests every version node, then attaches the jars and their SHA-256 checksums to a GitHub
+# release. See docs/release.md.
+#
+#   push a tag v1.2.3            -> builds as 1.2.3 and publishes the GitHub release
+#   push a tag v1.2.3-dryrun     -> builds as 1.2.3, publishes nothing (keeps the files as a workflow artifact)
+#   run it by hand (Actions tab) -> always a dry run, with the version you type
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build the jars as, for example 0.1.0-test (this is always a dry run)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      dry-run: ${{ steps.plan.outputs.dry-run }}
+    steps:
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            version="$INPUT_VERSION"; dry=true
+          else
+            version="${REF_NAME#v}"; dry=false
+            case "$version" in *-dryrun) version="${version%-dryrun}"; dry=true ;; esac
+          fi
+          # The version ends up in file names and mod metadata: allow only what a version can contain.
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "not a usable version: '$version'" >&2; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dry-run=$dry" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version (dry run: $dry)"
+
+  # The whole pipeline: unit tests, coverage, mutation testing, game test and a smoke test of every jar.
+  build:
+    needs: plan
+    uses: ./.github/workflows/build.yml
+    with:
+      release-version: ${{ needs.plan.outputs.version }}
+
+  package:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: jars-*
+          merge-multiple: true
+          path: dist
+      - name: Check that every node is there, and nothing else
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          # One jar per loader and version node in the repository: a missing one fails the release.
+          expected=$(for node in adapters/*/versions/*/; do
+            loader=$(basename "$(dirname "$(dirname "$node")")"); mc=$(basename "$node")
+            echo "minecraft-mcp-$VERSION+$mc-$loader.jar"
+          done | sort)
+          found=$(cd dist && ls minecraft-mcp-*.jar 2>/dev/null | sort)
+          if [ "$expected" != "$found" ]; then
+            echo "expected:"; echo "$expected"; echo "found:"; echo "$found"
+            echo "the jars do not match the nodes in the repository" >&2; exit 1
+          fi
+          echo "$found"
+      - name: Checksums
+        run: cd dist && sha256sum minecraft-mcp-*.jar > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-files
+          path: dist/
+          retention-days: 7
+
+  publish:
+    # A dry run stops at the artifact above. Only a real tag publishes.
+    if: needs.plan.outputs.dry-run == 'false'
+    needs: [plan, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-files
+          path: dist
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: gh release create "$TAG" dist/* --repo "$REPO" --title "$TAG" --generate-notes --verify-tag

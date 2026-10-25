@@ -79,4 +79,4 @@ best-effort.
    a new generation); the smoke test says whether it worked.
 3. Add the node to the `smoke` matrix in `.github/workflows/build.yml`. A target counts as supported only
    when that job passes.
-4. Document it here and in the README, and add the artifact to the release matrix.
+4. Document it here and in the README. The release workflow picks the node up by itself ([release.md](release.md)).

@@ -29,9 +29,14 @@ gradle.sharedServices.registerIfAbsent("neoformRuntime", OneAtATime::class) {
     maxParallelUsages = 1
 }
 
+// A release build passes the version of its tag (-PreleaseVersion=1.2.3, or ORG_GRADLE_PROJECT_releaseVersion), so
+// the jar names and the version inside each jar's mod metadata agree. Everything else builds a snapshot.
+val buildVersion = providers.gradleProperty("releaseVersion").map { it.trim() }.filter { it.isNotEmpty() }
+    .getOrElse("0.1.0-SNAPSHOT")
+
 allprojects {
     group = "dev.aomarai.minecraftmcp"
-    version = "0.1.0-SNAPSHOT"
+    version = buildVersion
 }
 
 // A Stonecutter controller (it has a stonecutter.gradle.kts) only holds the shared sources and build

@@ -76,7 +76,7 @@ adapters/neoforge/    NeoForge mod adapter (Stonecutter nodes under versions/)
 adapters/common/      vanilla-only code both mod adapters compile in
 adapters/rcon/        protocol-only fallback (placeholder)
 stdio-shim/           stdio-to-HTTP shim for stdio-only MCP hosts (placeholder)
-docs/                 architecture, security, version matrix
+docs/                 architecture, security, version matrix, releasing
 ```
 
 ## Development

@@ -4,9 +4,19 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The release workflow runs this whole pipeline first, with the version of the tag.
+  workflow_call:
+    inputs:
+      release-version:
+        description: Version to build the jars as (empty for a snapshot)
+        type: string
+        default: ""
 
 permissions:
   contents: read
+
+env:
+  ORG_GRADLE_PROJECT_releaseVersion: ${{ inputs.release-version }}
 
 # The jobs run in parallel on separate runners, so the slow part (preparing Minecraft for each NeoForge
 # node) never competes for memory with the rest. Each loader's smoke tests start as soon as its own jars
