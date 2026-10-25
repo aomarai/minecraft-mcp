@@ -74,7 +74,7 @@ core/                 loader-agnostic protocol, tools, policy, audit
 adapters/fabric/      Fabric mod adapter (Stonecutter nodes under versions/)
 adapters/neoforge/    NeoForge mod adapter (Stonecutter nodes under versions/)
 adapters/common/      vanilla-only code both mod adapters compile in
-adapters/rcon/        universal tier: RCON client (more to come)
+adapters/rcon/        universal tier: standalone jar for servers without a mod (RCON, Query, log)
 stdio-shim/           stdio-to-HTTP shim for stdio-only MCP hosts (placeholder)
 docs/                 architecture, security, version matrix, releasing
 ```

@@ -41,7 +41,7 @@ module boundaries. If a change contradicts those documents, update the documents
 ./gradlew :stdio-shim:pitest   # mutation testing for the shim (CI runs it too)
 ./gradlew :adapters:rcon:pitest   # mutation testing for the universal tier (CI runs it too)
 ./gradlew :adapters:fabric:1.21.1:runGameTest   # game tests with fake players on a real server (CI runs it)
-scripts/smoke/run-in-docker.sh <fabric|neoforge> <jar>   # real headless-server smoke test (CI runs it; needs Docker)
+scripts/smoke/run-in-docker.sh <fabric|neoforge|vanilla|paper> <jar>   # real headless-server smoke test (CI runs it; needs Docker)
 ```
 
 JDK 21 runs Gradle and is required for the core and 1.21.x nodes. JDK 25 is also required, for the 26.x

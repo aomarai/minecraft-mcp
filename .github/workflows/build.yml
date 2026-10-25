@@ -69,7 +69,40 @@ jobs:
           path: jars/
           retention-days: 1
 
+  # The standalone jar for servers without a mod (its tests run in the core job; this only builds the jar).
+  universal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-build
+      - run: ./gradlew :adapters:rcon:shadowJar --no-daemon --refresh-dependencies
+      - name: Collect the jar
+        run: |
+          mkdir jars
+          cp adapters/rcon/build/libs/minecraft-mcp-*-universal.jar jars/
+          ls -l jars
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jars-universal
+          path: jars/
+          retention-days: 1
+
   # A jar that compiles is not a jar that loads: start a real server with each one, in parallel.
+  smoke-universal:
+    needs: universal
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        server: [vanilla, paper]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: jars-universal
+          path: jars
+      - run: bash scripts/smoke/run-in-docker.sh ${{ matrix.server }} jars/minecraft-mcp-*-universal.jar
+
   smoke-fabric:
     needs: fabric
     runs-on: ubuntu-latest
@@ -104,7 +137,7 @@ jobs:
   # when every job above passed, so a failing or skipped job still blocks the merge.
   build-and-test:
     if: always()
-    needs: [core, fabric, neoforge, smoke-fabric, smoke-neoforge]
+    needs: [core, fabric, neoforge, universal, smoke-fabric, smoke-neoforge, smoke-universal]
     runs-on: ubuntu-latest
     steps:
       - name: Everything passed

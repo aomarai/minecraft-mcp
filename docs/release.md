@@ -24,8 +24,9 @@ moving), so use a dry run, not a real tag, to try the pipeline.
    coverage gate, mutation testing, the Fabric game test, and a Docker smoke test of **every** jar. A failure
    anywhere stops the release.
 3. **package**: checks that there is exactly one jar for each loader and version node in the repository,
-   named `minecraft-mcp-<version>+<minecraft>-<loader>.jar`. A missing or extra jar fails the release (it
-   fails closed). Then it writes `SHA256SUMS`.
+   named `minecraft-mcp-<version>+<minecraft>-<loader>.jar`, plus the universal jar,
+   `minecraft-mcp-<version>-universal.jar`. A missing or extra jar fails the release (it fails closed).
+   Then it writes `SHA256SUMS`.
 4. **publish**: only for a real tag. Creates the GitHub release from the tag.
 
 Because the node list comes from `adapters/*/versions/*`, adding a node (see
@@ -40,5 +41,4 @@ sha256sum -c SHA256SUMS
 ## Not done yet
 
 - Modrinth and CurseForge upload (tokens, project ids, changelog format).
-- The universal (RCON) jar, once that tier exists.
 - The wider checklist in issue #35: EULA wording, license check, changelog.

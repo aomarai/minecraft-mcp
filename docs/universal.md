@@ -5,9 +5,59 @@ that talks to the game server over RCON, the Query protocol and its log file. It
 dependency and runs on Java 21 or later. It offers a reduced tool set (commands, players, log and
 events) with the same policy gate and audit log as the mods.
 
-This is under construction ([epic #5](https://github.com/aomarai/minecraft-mcp/issues/5)).
-Today the RCON client, the Query client, the log tailer and the tool profile exist; the standalone jar and
-the tests against real servers follow in #30.
+Download `minecraft-mcp-<version>-universal.jar` from the release (check it with `sha256sum -c SHA256SUMS`).
+It is tested in CI against a real vanilla and a real Paper 1.21.1 server, with no mod on either.
+
+## Installing it
+
+1. Turn on RCON (and, optionally, Query) in the game server's `server.properties`, then restart the game
+   server (see "Enabling RCON on the game server" below).
+2. Run the jar on the same machine, with Java 21 or later:
+
+   ```bash
+   MINECRAFT_MCP_RCON_PASSWORD='<the rcon.password you set>' \
+   MINECRAFT_MCP_QUERY_PORT=25565 \
+   MINECRAFT_MCP_SERVER_DIRECTORY=/path/to/the/game/server \
+   java -jar minecraft-mcp-<version>-universal.jar /path/to/mcp-config
+   ```
+
+   The argument is the folder for `minecraft-mcp.json` and the audit log (the current folder if you leave it
+   out). The first run creates the file with a generated token, owner-only, and says where it is. The token is
+   never printed. Point your MCP client at `http://127.0.0.1:25599/mcp` with that token as a bearer token. A
+   host that can only speak stdio uses the [stdio shim](stdio-shim.md).
+3. Stop it with Ctrl+C or `kill`; it closes the connections and exits.
+
+Everything but the RCON password is optional: with nothing else it offers server info and the command
+tools (see the profile table below); each setting you add switches on more.
+
+### Settings
+
+The same file as the mods uses (see [configuration](configuration.md)), with an extra `universal` object. An
+environment variable wins over the file, so a container needs no password on disk.
+
+| File key (`universal`) | Environment variable | Default |
+|---|---|---|
+| `rconPassword` | `MINECRAFT_MCP_RCON_PASSWORD` | required |
+| `rconHost` | `MINECRAFT_MCP_RCON_HOST` | `127.0.0.1` |
+| `rconPort` | `MINECRAFT_MCP_RCON_PORT` | `25575` |
+| `allowRemoteRcon` | `MINECRAFT_MCP_ALLOW_REMOTE_RCON` | `false` |
+| `queryPort` | `MINECRAFT_MCP_QUERY_PORT` | off |
+| `serverDirectory` | `MINECRAFT_MCP_SERVER_DIRECTORY` | off |
+
+```json
+{
+  "token": "...generated...",
+  "allowWrites": true,
+  "universal": { "rconPassword": "...", "queryPort": 25565, "serverDirectory": "/srv/minecraft" }
+}
+```
+
+Writes and admin are off by default, as everywhere: `allowWrites` and `allowAdmin` (or
+`MINECRAFT_MCP_ALLOW_WRITES` / `MINECRAFT_MCP_ALLOW_ADMIN`) turn them on.
+
+The SDK's own diagnostics are off in this build (it has no logging backend, so the first line of output is an
+SLF4J "no providers" notice). The jar prints where it listens and where its configuration is; the audit log
+records every tool call.
 
 ## RCON client (`adapters/rcon`)
 
