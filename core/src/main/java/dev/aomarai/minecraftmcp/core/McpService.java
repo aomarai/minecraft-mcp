@@ -2,14 +2,16 @@ package dev.aomarai.minecraftmcp.core;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Everything an adapter needs to run the server: load the config, wire the policy gate and audit
  * log around the adapter's ports, and start the authenticated HTTP endpoint.
  *
  * <p>An adapter calls {@link #start} when its game server is ready and {@link #close} when it is
- * stopping. It supplies only what it can serve as {@link GameServices}; the catalog advertises
- * exactly those tools.</p>
+ * stopping. It supplies only what it can serve as {@link GameServices}, built from the loaded
+ * config (some ports depend on it, such as the permission level of commands); the catalog
+ * advertises exactly those tools.</p>
  */
 public final class McpService implements AutoCloseable {
 
@@ -22,16 +24,19 @@ public final class McpService implements AutoCloseable {
     /**
      * @param configFile JSON config; created with secure defaults and a generated token on first run
      * @param auditFile  JSONL audit log; created owner-only
+     * @param services   builds the adapter's ports once the config is known
      * @throws ConfigException if the configuration is invalid
      * @throws Exception       if the HTTP endpoint cannot start (for example, the port is in use)
      */
-    public static McpService start(Path configFile, Path auditFile, GameServices services) throws Exception {
+    public static McpService start(Path configFile, Path auditFile, Function<McpConfig, GameServices> services)
+            throws Exception {
         ConfigLoader.Loaded loaded = ConfigLoader.load(configFile);
         McpConfig config = loaded.config();
-        ToolDispatcher dispatcher = new ToolDispatcher(config, services,
+        GameServices ports = services.apply(config);
+        ToolDispatcher dispatcher = new ToolDispatcher(config, ports,
                 new JsonlAuditLog(auditFile, List.of(loaded.token())));
         McpCore core = new McpCore(config.host(), config.port(),
-                ToolCatalog.defaults().availableFor(services), dispatcher, loaded.token());
+                ToolCatalog.defaults().availableFor(ports), dispatcher, loaded.token());
         core.start();
         return new McpService(core);
     }

@@ -41,7 +41,7 @@ class McpServiceTest {
         int port = freePort();
         Path configFile = config(port);
 
-        try (McpService service = McpService.start(configFile, dir.resolve("audit.jsonl"), infoOnly)) {
+        try (McpService service = McpService.start(configFile, dir.resolve("audit.jsonl"), config -> infoOnly)) {
             assertEquals(port, service.port());
             String token = ConfigLoader.load(configFile).token();
             try (McpSyncClient client = McpTestClients.client(port, token)) {
@@ -60,9 +60,28 @@ class McpServiceTest {
     }
 
     @Test
+    void thePortsAreBuiltFromTheLoadedConfig() throws Exception {
+        int port = freePort();
+        Path file = dir.resolve("config").resolve("minecraft-mcp.json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, "{\"port\": " + port + ", \"allowWrites\": true, \"maxBlockVolume\": 77}");
+        McpConfig[] seen = new McpConfig[1];
+
+        try (McpService service = McpService.start(file, dir.resolve("audit.jsonl"), config -> {
+            seen[0] = config;
+            return GameServices.none();
+        })) {
+            assertEquals(port, seen[0].port());
+            assertTrue(seen[0].allowWrites());
+            assertFalse(seen[0].allowAdmin());
+            assertEquals(77, seen[0].maxBlockVolume());
+        }
+    }
+
+    @Test
     void closeStopsTheEndpoint() throws Exception {
         int port = freePort();
-        McpService service = McpService.start(config(port), dir.resolve("audit.jsonl"), GameServices.none());
+        McpService service = McpService.start(config(port), dir.resolve("audit.jsonl"), config -> GameServices.none());
         service.close();
         assertThrows(java.net.ConnectException.class, () -> new Socket("127.0.0.1", port).close());
     }
@@ -71,7 +90,7 @@ class McpServiceTest {
     void anInvalidConfigFailsWithAClearMessageAndStartsNothing() throws Exception {
         Path file = config(70000);
         ConfigException e = assertThrows(ConfigException.class,
-                () -> McpService.start(file, dir.resolve("audit.jsonl"), GameServices.none()));
+                () -> McpService.start(file, dir.resolve("audit.jsonl"), config -> GameServices.none()));
         assertTrue(e.getMessage().contains("port must be between 1 and 65535"), e.getMessage());
     }
 
@@ -81,7 +100,7 @@ class McpServiceTest {
             int port = taken.getLocalPort();
             Path file = config(port);
 
-            assertThrows(Exception.class, () -> McpService.start(file, dir.resolve("audit.jsonl"), GameServices.none()));
+            assertThrows(Exception.class, () -> McpService.start(file, dir.resolve("audit.jsonl"), config -> GameServices.none()));
         }
     }
 }

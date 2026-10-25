@@ -87,6 +87,16 @@ class ToolDispatcherTest {
     }
 
     @Test
+    void listPlayersOnAnEmptyServerIsAnEmptyList() {
+        game.players = List.of();
+
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("list_players"), Map.of());
+
+        assertFalse(result.isError());
+        assertEquals("{\"players\":[]}", text(result));
+    }
+
+    @Test
     void queryBlocksPassesTheQueryAndReturnsBlocks() {
         McpSchema.CallToolResult result = dispatcher(false, false).call(tool("query_blocks"), blocks(1, 8));
 
