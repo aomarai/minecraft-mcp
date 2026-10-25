@@ -1,9 +1,10 @@
 # Tool catalog
 
 The catalog is defined in code (`ToolCatalog.defaults()` in `core/`) and advertised through
-`tools/list`. The golden file `core/src/test/resources/golden/tools-list.json` pins the exact
-output; changing any name, schema or annotation fails `ToolCatalogGoldenTest` until the file is
-regenerated and reviewed:
+`tools/list`. One golden file per tool under `core/src/test/resources/golden/tools/` pins the exact
+descriptor a client sees plus the capability and side the catalog declares for it. Changing any
+name, schema, annotation, capability or side fails `ToolCatalogGoldenTest` until that tool's file
+is regenerated and reviewed (adding a tool adds exactly one file):
 
 ```bash
 GOLDEN_UPDATE=true ./gradlew :core:test
@@ -12,6 +13,27 @@ GOLDEN_UPDATE=true ./gradlew :core:test
 Calls run through `ToolDispatcher`, which applies the policy gate and writes the audit log (see
 `docs/security.md`). A tool whose capability port the adapter does not provide returns an error
 result saying it is unsupported.
+
+## Capabilities and sides
+
+Each tool declares the capability it needs (`RUNTIME_INFO`, `PLAYERS`, `WORLD`, `COMMANDS`; one
+per port in `core/`) and the side it runs on (`SERVER` or `CLIENT`). `ToolCatalog.availableFor`
+builds the catalog for a given `GameServices`, so `tools/list` only contains tools the adapter can
+serve. A core with no game attached advertises no tools; an RCON-style adapter with only runtime
+info and commands advertises `server_info`, `run_command` and `run_admin_command`.
+
+## How to add a tool
+
+1. Add the port method to the right capability port in `core/` (or a new port plus a `Capability`
+   value if no existing one fits), and implement it in each adapter that can serve it.
+2. Add a `ToolDescriptor` to `ToolCatalog.defaults()` with its scope, capability, side and an input
+   schema (`additionalProperties: false`, explicit `required`, bounded inputs, snake_case names).
+3. Add the handler case in `ToolDispatcher.execute`. Bound the result and wait through
+   `CallAwaiter`.
+4. Run `GOLDEN_UPDATE=true ./gradlew :core:test`, review the new file under `golden/tools/`, and
+   commit it.
+5. Add tests (allow, deny, confirm, bad arguments, timeout) and update the table below.
+6. Run `./gradlew build` and `./gradlew :core:pitest`.
 
 ## Conventions
 

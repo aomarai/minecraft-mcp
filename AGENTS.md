@@ -74,9 +74,10 @@ check to get green; add a test that pins real behavior instead.
 - **Tools:** names and argument names are `snake_case`. Every input schema has
   `additionalProperties: false` and an explicit `required` list. Annotations derive from the
   policy scope (`OBSERVE` read-only, `ADMIN` destructive); do not hand-set them.
-- **Adding a tool:** add a `ToolDescriptor` to `ToolCatalog`, regenerate the golden file with
-  `GOLDEN_UPDATE=true ./gradlew :core:test`, review the `tools-list.json` diff, update
-  `docs/tools.md`, and add tests. A tool change that does not touch the golden file is a bug.
+- **Adding a tool:** follow "How to add a tool" in `docs/tools.md`. Each tool declares a
+  capability and side, and has its own golden file under `golden/tools/`; regenerate with
+  `GOLDEN_UPDATE=true ./gradlew :core:test` and review the diff. A tool change that does not
+  touch its golden file is a bug.
 - **Ports:** adapters implement small capability ports (`CommandRunner`, `PlayerReader`,
   `WorldReader`, `RuntimeInfo`), not one large interface. A new tool group adds a port.
 - **Java:** prefer records and immutability, no nulls in public APIs, `List.copyOf` on inputs,

@@ -35,7 +35,7 @@ class PolicyGatedServerTest {
         McpConfig config = new McpConfig("127.0.0.1", 25599, writes, admin, 32768, Duration.ofSeconds(5));
         ToolDispatcher dispatcher = new ToolDispatcher(config, game.services(),
                 new JsonlAuditLog(auditFile, List.of(TOKEN)));
-        return new McpCore("127.0.0.1", 0, ToolCatalog.defaults(), dispatcher, TOKEN);
+        return new McpCore("127.0.0.1", 0, ToolCatalog.defaults().availableFor(game.services()), dispatcher, TOKEN);
     }
 
     private static McpSyncClient client(McpCore core) {

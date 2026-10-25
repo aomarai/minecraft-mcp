@@ -6,45 +6,64 @@ import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Golden-file check for {@code tools/list}. Any change to a tool name, schema
- * or annotation changes the output and fails this test. If the change is
- * intended, regenerate with {@code GOLDEN_UPDATE=true ./gradlew :core:test}
- * and review the diff of {@code tools-list.json}.
+ * Golden files for {@code tools/list}: one file per tool, so adding or changing
+ * a tool changes exactly one file. Each file holds the descriptor as a client
+ * sees it, plus the capability and side the catalog declares for it.
+ *
+ * <p>Any change to a tool name, schema, annotation, capability or side fails
+ * this test. If the change is intended, regenerate with
+ * {@code GOLDEN_UPDATE=true ./gradlew :core:test} and review the diff under
+ * {@code core/src/test/resources/golden/tools/}.</p>
  */
 class ToolCatalogGoldenTest {
 
-    private static final String RESOURCE = "/golden/tools-list.json";
-    private static final Path SOURCE = Path.of("src/test/resources/golden/tools-list.json");
+    private static final String RESOURCE_DIR = "/golden/tools/";
+    private static final Path SOURCE_DIR = Path.of("src/test/resources/golden/tools");
 
     @Test
-    void toolsListMatchesGoldenFile() throws Exception {
-        String actual = render(fetchToolsList());
+    void everyToolMatchesItsGoldenFile() throws Exception {
+        Map<String, String> actual = renderEachTool();
 
         if ("true".equals(System.getenv("GOLDEN_UPDATE"))) {
-            Files.createDirectories(SOURCE.getParent());
-            Files.writeString(SOURCE, actual, StandardCharsets.UTF_8);
+            regenerate(actual);
+            return;
         }
 
-        try (InputStream in = ToolCatalogGoldenTest.class.getResourceAsStream(RESOURCE)) {
-            assertNotNull(in, "missing " + RESOURCE + "; regenerate with GOLDEN_UPDATE=true");
-            String expected = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            assertEquals(normalize(expected), normalize(actual),
-                    "tools/list changed; if intended, regenerate with GOLDEN_UPDATE=true and review the diff");
+        for (Map.Entry<String, String> tool : actual.entrySet()) {
+            try (InputStream in = ToolCatalogGoldenTest.class
+                    .getResourceAsStream(RESOURCE_DIR + tool.getKey() + ".json")) {
+                assertNotNull(in, "missing golden file for " + tool.getKey() + "; regenerate with GOLDEN_UPDATE=true");
+                String expected = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                assertEquals(normalize(expected), normalize(tool.getValue()),
+                        tool.getKey() + " changed; if intended, regenerate with GOLDEN_UPDATE=true and review the diff");
+            }
         }
+    }
+
+    @Test
+    void noGoldenFileExistsForAToolThatIsGone() throws Exception {
+        List<String> files;
+        try (Stream<Path> listing = Files.list(SOURCE_DIR)) {
+            files = listing.map(p -> p.getFileName().toString()).sorted().toList();
+        }
+        List<String> expected = ToolCatalog.defaults().tools().stream()
+                .map(tool -> tool.name() + ".json").sorted().toList();
+        assertEquals(expected, files, "stale or missing golden files; regenerate with GOLDEN_UPDATE=true");
     }
 
     @Test
@@ -70,19 +89,44 @@ class ToolCatalogGoldenTest {
         return text.replace("\r\n", "\n");
     }
 
-    private static List<Object> fetchToolsList() throws Exception {
-        try (McpCore core = new McpCore("127.0.0.1", 0)) {
-            core.start();
-            try (McpSyncClient client = McpTestClients.client(core)) {
-                client.initialize();
-                List<Object> tools = new ArrayList<>();
-                for (McpSchema.Tool tool : client.listTools().tools()) {
-                    tools.add(McpJsonDefaults.getMapper().convertValue(tool, new TypeRef<Map<String, Object>>() {
-                    }));
+    private static void regenerate(Map<String, String> actual) throws IOException {
+        Files.createDirectories(SOURCE_DIR);
+        try (Stream<Path> existing = Files.list(SOURCE_DIR)) {
+            for (Path file : existing.toList()) {
+                String name = file.getFileName().toString();
+                if (!actual.containsKey(name.substring(0, name.length() - ".json".length()))) {
+                    Files.delete(file);
                 }
-                return tools;
             }
         }
+        for (Map.Entry<String, String> tool : actual.entrySet()) {
+            Files.writeString(SOURCE_DIR.resolve(tool.getKey() + ".json"), tool.getValue(), StandardCharsets.UTF_8);
+        }
+    }
+
+    /** Fetches {@code tools/list} from a real server and renders one canonical document per tool. */
+    private static Map<String, String> renderEachTool() throws Exception {
+        Map<String, ToolDescriptor> declared = new LinkedHashMap<>();
+        ToolCatalog.defaults().tools().forEach(tool -> declared.put(tool.name(), tool));
+
+        Map<String, String> rendered = new LinkedHashMap<>();
+        try (McpCore core = TestCores.full(new FakeGame())) {
+            core.start();
+            try (McpSyncClient client = McpTestClients.client(core, TestCores.TOKEN)) {
+                client.initialize();
+                for (McpSchema.Tool tool : client.listTools().tools()) {
+                    ToolDescriptor descriptor = declared.get(tool.name());
+                    Map<String, Object> document = new LinkedHashMap<>();
+                    document.put("capability", descriptor.capability().name());
+                    document.put("side", descriptor.side().name());
+                    document.put("tool", McpJsonDefaults.getMapper()
+                            .convertValue(tool, new TypeRef<Map<String, Object>>() {
+                            }));
+                    rendered.put(tool.name(), render(document));
+                }
+            }
+        }
+        return rendered;
     }
 
     /** Pretty-prints with sorted keys so the golden file is independent of map ordering. */

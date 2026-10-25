@@ -37,13 +37,13 @@ public final class ToolCatalog {
         return new ToolCatalog(List.of(
                 new ToolDescriptor("server_info", "Server info",
                         "Describe the game runtime: loader, Minecraft version and side.",
-                        ToolPolicy.Scope.OBSERVE, schema(props(), List.of())),
+                        ToolPolicy.Scope.OBSERVE, Capability.RUNTIME_INFO, Side.SERVER, schema(props(), List.of())),
                 new ToolDescriptor("list_players", "List players",
                         "List online players with position, dimension and operator status.",
-                        ToolPolicy.Scope.OBSERVE, schema(props(), List.of())),
+                        ToolPolicy.Scope.OBSERVE, Capability.PLAYERS, Side.SERVER, schema(props(), List.of())),
                 new ToolDescriptor("query_blocks", "Query blocks",
                         "Read blocks in a bounded box of one dimension. Blocks are identified by registry id.",
-                        ToolPolicy.Scope.OBSERVE, schema(
+                        ToolPolicy.Scope.OBSERVE, Capability.WORLD, Side.SERVER, schema(
                                 props(
                                         "dimension", string("Dimension registry id, e.g. minecraft:overworld."),
                                         "min_x", integer("Lower X bound, inclusive.", null, null),
@@ -56,12 +56,12 @@ public final class ToolCatalog {
                                 List.of("dimension", "min_x", "min_y", "min_z", "max_x", "max_y", "max_z", "limit"))),
                 new ToolDescriptor("run_command", "Run command",
                         "Run a non-destructive server command through Brigadier. Requires write access.",
-                        ToolPolicy.Scope.ACT, schema(
+                        ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(
                                 props("command", string("Command without the leading slash.")),
                                 List.of("command"))),
                 new ToolDescriptor("run_admin_command", "Run admin command",
                         "Run a destructive or administrative command. Requires admin access and confirm=true.",
-                        ToolPolicy.Scope.ADMIN, schema(
+                        ToolPolicy.Scope.ADMIN, Capability.COMMANDS, Side.SERVER, schema(
                                 props(
                                         "command", string("Command without the leading slash."),
                                         "confirm", bool("Must be true to run the command.")),
@@ -70,6 +70,17 @@ public final class ToolCatalog {
 
     public List<ToolDescriptor> tools() {
         return tools;
+    }
+
+    /**
+     * The tools an adapter can actually serve: those on its side whose capability it provides.
+     * An adapter without a capability never advertises the tools that need it.
+     */
+    public ToolCatalog availableFor(GameServices services) {
+        Set<Capability> provided = services.capabilities();
+        return new ToolCatalog(tools.stream()
+                .filter(tool -> tool.side() == services.side() && provided.contains(tool.capability()))
+                .toList());
     }
 
     public List<ToolDescriptor> byScope(ToolPolicy.Scope scope) {
