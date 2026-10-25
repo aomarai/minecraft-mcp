@@ -1,5 +1,6 @@
 plugins {
     id("info.solidsoft.pitest") version "1.19.0"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 dependencies {
@@ -38,4 +39,23 @@ pitest {
 // The mutation run forks its own JVM, which needs the same environment.
 tasks.withType<info.solidsoft.gradle.pitest.PitestTask>().configureEach {
     environment.put("MINECRAFT_MCP_TOKEN", testToken)
+}
+
+// The standalone jar an MCP host launches over stdio: `java -jar minecraft-mcp-<version>-stdio-shim.jar`.
+// It carries the SDK's JSON mapper (and what that needs), so it runs on its own on any Java 21.
+tasks.shadowJar {
+    archiveBaseName.set("minecraft-mcp")
+    archiveVersion.set(project.version.toString())
+    archiveClassifier.set("stdio-shim")
+    manifest {
+        attributes("Main-Class" to "dev.aomarai.minecraftmcp.shim.StdioShim")
+    }
+    // Service files with the same name exist in several libraries and must be merged, not dropped.
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    mergeServiceFiles()
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "module-info.class", "META-INF/versions/*/module-info.class")
+}
+
+tasks.assemble {
+    dependsOn(tasks.shadowJar)
 }

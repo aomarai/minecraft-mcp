@@ -69,17 +69,20 @@ jobs:
           path: jars/
           retention-days: 1
 
-  # The standalone jar for servers without a mod (its tests run in the core job; this only builds the jar).
+  # The standalone jars: the universal tier for servers without a mod, and the stdio shim for hosts that can only
+  # launch stdio servers. Their tests run in the core job; this builds the jars and checks they work as jars.
   universal:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-build
-      - run: ./gradlew :adapters:rcon:shadowJar --no-daemon --refresh-dependencies
-      - name: Collect the jar
+      - run: ./gradlew :adapters:rcon:shadowJar :stdio-shim:shadowJar --no-daemon --refresh-dependencies
+      - name: The shim jar talks to the universal jar over stdio
+        run: bash scripts/smoke/shim-smoke.sh adapters/rcon/build/libs/minecraft-mcp-*-universal.jar stdio-shim/build/libs/minecraft-mcp-*-stdio-shim.jar
+      - name: Collect the jars
         run: |
           mkdir jars
-          cp adapters/rcon/build/libs/minecraft-mcp-*-universal.jar jars/
+          cp adapters/rcon/build/libs/minecraft-mcp-*-universal.jar stdio-shim/build/libs/minecraft-mcp-*-stdio-shim.jar jars/
           ls -l jars
       - uses: actions/upload-artifact@v7
         with:
