@@ -59,9 +59,11 @@ public final class ConfigLoader {
     private static final String ALLOWED_COMMANDS = "allowedCommands";
     private static final String DESTRUCTIVE_COMMANDS = "destructiveCommands";
     private static final String TOKEN = "token";
+    /** A section the universal tier reads for itself (see {@link #universalSection}); the core only checks its shape. */
+    private static final String UNIVERSAL = "universal";
     private static final List<String> KEYS = List.of(
             HOST, PORT, ALLOW_WRITES, ALLOW_ADMIN, MAX_BLOCK_VOLUME, CALL_TIMEOUT_MS, ALLOWED_COMMANDS,
-            DESTRUCTIVE_COMMANDS, TOKEN);
+            DESTRUCTIVE_COMMANDS, TOKEN, UNIVERSAL);
 
     private ConfigLoader() {
     }
@@ -105,6 +107,24 @@ public final class ConfigLoader {
         McpConfig config = build(effective);
         LOG.log(System.Logger.Level.INFO, "Loaded configuration from {0}", file);
         return new Loaded(config, token, created);
+    }
+
+    /**
+     * The {@code universal} object of the config file: the settings of the universal (RCON) tier, which
+     * lives in the same file as everything else. Empty when the file or the section does not exist. The core
+     * does not interpret it.
+     */
+    public static Map<String, Object> universalSection(Path file) throws IOException {
+        if (!Files.exists(file)) {
+            return Map.of();
+        }
+        Object section = readFile(McpJsonDefaults.getMapper(), file).get(UNIVERSAL);
+        if (section == null) {
+            return Map.of();
+        }
+        Map<String, Object> copy = new LinkedHashMap<>();
+        ((Map<?, ?>) section).forEach((key, value) -> copy.put(String.valueOf(key), value));
+        return copy;
     }
 
     /**
@@ -153,6 +173,9 @@ public final class ConfigLoader {
             if (!KEYS.contains(key)) {
                 throw new ConfigException("unknown config key: " + key);
             }
+        }
+        if (parsed.get(UNIVERSAL) != null && !(parsed.get(UNIVERSAL) instanceof Map)) {
+            throw new ConfigException(UNIVERSAL + " must be an object");
         }
         return new LinkedHashMap<>(parsed);
     }

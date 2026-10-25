@@ -67,11 +67,11 @@ jobs:
         env:
           VERSION: ${{ needs.plan.outputs.version }}
         run: |
-          # One jar per loader and version node in the repository: a missing one fails the release.
-          expected=$(for node in adapters/*/versions/*/; do
+          # One jar per loader and version node in the repository, and the universal jar: a missing one fails the release.
+          expected=$( (for node in adapters/*/versions/*/; do
             loader=$(basename "$(dirname "$(dirname "$node")")"); mc=$(basename "$node")
             echo "minecraft-mcp-$VERSION+$mc-$loader.jar"
-          done | sort)
+          done; echo "minecraft-mcp-$VERSION-universal.jar") | sort)
           found=$(cd dist && ls minecraft-mcp-*.jar 2>/dev/null | sort)
           if [ "$expected" != "$found" ]; then
             echo "expected:"; echo "$expected"; echo "found:"; echo "$found"

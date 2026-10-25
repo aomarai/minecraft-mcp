@@ -310,6 +310,46 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void theUniversalSectionIsAcceptedAndHandedOverUntouched() throws IOException {
+        writeConfig("{\"token\":\"" + TOKEN + "\",\"universal\":{\"rconPort\":25575,\"serverDirectory\":\"/srv/mc\"}}");
+
+        assertEquals(McpConfig.defaults(), ConfigLoader.load(file(), Map.of()).config());
+        Map<String, Object> section = ConfigLoader.universalSection(file());
+        assertEquals(2, section.size());
+        assertEquals("/srv/mc", section.get("serverDirectory"));
+        assertEquals(25575, ((Number) section.get("rconPort")).intValue());
+    }
+
+    @Test
+    void theUniversalSectionIsEmptyWhenThereIsNoneOrNoFile() throws IOException {
+        assertEquals(Map.of(), ConfigLoader.universalSection(file()));
+
+        writeConfig("{\"token\":\"" + TOKEN + "\"}");
+        assertEquals(Map.of(), ConfigLoader.universalSection(file()));
+        writeConfig("{\"token\":\"" + TOKEN + "\",\"universal\":null}");
+        assertEquals(Map.of(), ConfigLoader.universalSection(file()));
+    }
+
+    @Test
+    void theUniversalSectionMustBeAnObject() throws IOException {
+        writeConfig("{\"token\":\"" + TOKEN + "\",\"universal\":[1]}");
+        assertEquals("universal must be an object", failure(file(), Map.of()).getMessage());
+        writeConfig("{\"token\":\"" + TOKEN + "\",\"universal\":\"text\"}");
+        assertEquals("universal must be an object", failure(file(), Map.of()).getMessage());
+        assertThrows(ConfigException.class, () -> ConfigLoader.universalSection(file()));
+    }
+
+    @Test
+    void rotatingTheTokenKeepsTheUniversalSection() throws IOException {
+        writeConfig("{\"token\":\"" + TOKEN + "\",\"universal\":{\"rconPort\":25575}}");
+
+        ConfigLoader.rotateToken(file());
+
+        assertEquals(25575, ((Number) ConfigLoader.universalSection(file()).get("rconPort")).intValue());
+        assertNotEquals(TOKEN, ConfigLoader.load(file(), Map.of()).token());
+    }
+
+    @Test
     void malformedJsonIsRejected() throws IOException {
         writeConfig("{not json");
         ConfigException e = failure(file(), Map.of());
