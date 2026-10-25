@@ -87,7 +87,9 @@ public final class ToolDispatcher implements ToolInvoker {
     }
 
     private ToolPolicy.Decision decide(ToolDescriptor tool, Map<String, Object> args) {
-        boolean confirmed = Boolean.TRUE.equals(args.get(CONFIRM));
+        // Only an admin tool takes a confirmation. Any other tool ignores the argument, so it cannot be used to
+        // push a destructive command through the ordinary write tool.
+        boolean confirmed = tool.scope() == ToolPolicy.Scope.ADMIN && Boolean.TRUE.equals(args.get(CONFIRM));
         ToolPolicy.Decision scope = policy.checkScope(tool.scope(), confirmed);
         if (!scope.allowed() || !hasCommand(tool)) {
             return scope;
