@@ -26,6 +26,35 @@ class McpConfigTest {
     }
 
     @Test
+    void commandListsDefaultToEmptyAndAreNormalized() {
+        assertEquals(java.util.Set.of(), McpConfig.defaults().allowedCommands());
+        assertEquals(java.util.Set.of(), McpConfig.defaults().destructiveCommands());
+        McpConfig config = new McpConfig("h", 1, false, false, 1, ONE_SECOND,
+                java.util.Set.of(" MyMod:Status ", "Minecraft:Say"), java.util.Set.of("MINECRAFT:KILL"));
+        assertEquals(java.util.Set.of("mymod:status", "say"), config.allowedCommands());
+        assertEquals(java.util.Set.of("kill"), config.destructiveCommands());
+    }
+
+    @Test
+    void nullCommandListsBecomeEmpty() {
+        McpConfig config = new McpConfig("h", 1, false, false, 1, ONE_SECOND, null, null);
+        assertEquals(java.util.Set.of(), config.allowedCommands());
+        assertEquals(java.util.Set.of(), config.destructiveCommands());
+    }
+
+    @Test
+    void commandNamesMustBeSingleWords() {
+        for (String bad : new String[]{"", "  ", "two words", "/slash", "tab\there", "minecraft:"}) {
+            IllegalArgumentException a = assertThrows(IllegalArgumentException.class, () ->
+                    new McpConfig("h", 1, false, false, 1, ONE_SECOND, java.util.Set.of(bad), java.util.Set.of()));
+            assertTrue(a.getMessage().startsWith("allowedCommands must be single command names"), a.getMessage());
+            IllegalArgumentException d = assertThrows(IllegalArgumentException.class, () ->
+                    new McpConfig("h", 1, false, false, 1, ONE_SECOND, java.util.Set.of(), java.util.Set.of(bad)));
+            assertTrue(d.getMessage().startsWith("destructiveCommands must be single command names"), d.getMessage());
+        }
+    }
+
+    @Test
     void nullHostFallsBackToLoopback() {
         assertEquals("127.0.0.1", new McpConfig(null, 1, false, false, 1, ONE_SECOND).host());
     }

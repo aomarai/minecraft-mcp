@@ -45,9 +45,23 @@ loopback by default. Rotating the token requires a restart of the transport.
 
 Every tool call goes through `ToolDispatcher`:
 
-1. The policy decides from the tool's scope and, for command tools, the command text.
-   Disabled writes or admin deny the call. Destructive commands need admin plus `confirm=true`,
-   and through `run_command` they are refused outright (use `run_admin_command`).
+1. The policy decides from the tool's scope and, for command tools, the command text. A command is
+   one of three kinds, by its first word (case-insensitive, `minecraft:` ignored, so `minecraft:kill`
+   is `kill`):
+   - **Known safe**: a small built-in list of everyday vanilla commands (`say`, `tell`, `msg`, `w`,
+     `me`, `tellraw`, `title`, `list`, `seed`, `help`, `time`, `weather`, `give`, `xp`,
+     `experience`, `effect`, `playsound`, `particle`) plus the operator's `allowedCommands`. Needs
+     `allowWrites`.
+   - **Destructive**: the built-in list (`kill`, `op`, `stop`, `fill`, `setblock`, `tp`, `ban`, ...)
+     plus the operator's `destructiveCommands`. Needs admin plus `confirm=true`.
+   - **Anything else** (a modded command such as `mymod:wipe_world`, or `execute`, `function`,
+     `data`, which can run other commands): treated like a destructive command. It is not known to
+     be harmless, so it is never a plain write. The operator lists it in `allowedCommands` to trust it.
+
+   `destructiveCommands` wins over `allowedCommands`, and the built-in destructive list cannot be
+   loosened. Through `run_command` a command that needs admin is refused outright; it must go through
+   `run_admin_command` with `confirm=true`. Only the configuration can change any of this: game text
+   and mod-provided metadata cannot.
 2. The decision is appended to the audit log **before** anything runs. If the entry cannot be
    written the call is refused.
 3. Only an allowed, confirmed call reaches a game port. Denied and unconfirmed calls never do.
