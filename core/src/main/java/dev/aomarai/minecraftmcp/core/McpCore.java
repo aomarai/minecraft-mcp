@@ -56,6 +56,7 @@ public final class McpCore implements AutoCloseable {
      *              {@value ConfigLoader#MIN_TOKEN_LENGTH} characters. There is no unauthenticated mode.
      */
     public McpCore(String host, int port, ToolCatalog catalog, ToolInvoker invoker, String token) {
+        DaemonSchedulers.install();
         this.token = token;
         this.host = host;
         this.requestedPort = port;
