@@ -53,7 +53,11 @@ The HTTP transport runs on its own threads. The game does not.
 
 - Server adapters: dispatch with `MinecraftServer.execute(...)`.
 - Client adapters: dispatch with `Minecraft.getInstance().execute(...)`.
-- Every tool call has a timeout; cancellation must not leave partial world writes.
+- Every tool call has a timeout (`callTimeout`, default 8 s). On expiry the core cancels the
+  future and returns an MCP error result. Adapters must check `isCancelled()` before starting
+  queued work and must not apply partial writes. A write that was already running cannot be
+  stopped, so a timed-out write reports "may still have taken effect" and that message is
+  audited; the effect is never silent.
 - Read tools may snapshot on the main thread and serialize on the HTTP thread.
 - No adapter may block the main thread waiting for an MCP client.
 

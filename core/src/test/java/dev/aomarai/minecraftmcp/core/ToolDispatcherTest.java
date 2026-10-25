@@ -295,11 +295,24 @@ class ToolDispatcherTest {
         long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
 
         assertTrue(result.isError());
-        assertEquals("timed out after 100 ms", text(result));
+        String expected = "timed out after 100 ms; the call may still have taken effect";
+        assertEquals(expected, text(result));
         assertTrue(elapsedMillis < 5_000, "returned within a bounded time: " + elapsedMillis);
         assertTrue(game.pendingCommand.isCancelled());
         assertEquals(Duration.ofMillis(100), game.commandTimeouts.get(0));
-        assertAudit(1, "result", "run_command", "allow", "error: timed out after 100 ms");
+        assertAudit(1, "result", "run_command", "allow", "error: " + expected);
+    }
+
+    @Test
+    void readsThatTimeOutDoNotClaimASideEffectAndAreCancelled() {
+        game.pendingPlayers = new CompletableFuture<>();
+        game.pendingSnapshot = new CompletableFuture<>();
+        ToolDispatcher d = dispatcher(config(false, false, 32768, Duration.ofMillis(100)), game.services(), audit::add);
+
+        assertEquals("timed out after 100 ms", text(d.call(tool("list_players"), Map.of())));
+        assertEquals("timed out after 100 ms", text(d.call(tool("query_blocks"), blocks(1, 8))));
+        assertTrue(game.pendingPlayers.isCancelled());
+        assertTrue(game.pendingSnapshot.isCancelled());
     }
 
     @Test
