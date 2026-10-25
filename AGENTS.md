@@ -38,6 +38,7 @@ module boundaries. If a change contradicts those documents, update the documents
 ./gradlew build          # compile + tests + coverage gate for all modules
 ./gradlew :core:test     # core tests only
 ./gradlew :core:pitest   # mutation testing (slow; CI runs it after build)
+./gradlew :stdio-shim:pitest   # mutation testing for the shim (not in CI yet)
 ```
 
 JDK 21 is required for the core and 1.21.x nodes. JDK 25 is required for 26.x nodes once those
@@ -153,6 +154,7 @@ Do not commit build output, IDE files, local config, or `.claude/` worktrees.
 | Threat model, defaults | `docs/security.md` |
 | Config keys and token handling | `docs/configuration.md` |
 | Tool catalog and conventions | `docs/tools.md` |
+| stdio shim for stdio-only hosts | `docs/stdio-shim.md` |
 | Supported loaders and versions | `docs/version-matrix.md` |
 | Milestones and order of work | `docs/roadmap.md` (issues are the source of truth) |
 
