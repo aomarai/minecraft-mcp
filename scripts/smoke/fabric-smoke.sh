@@ -131,7 +131,8 @@ start_session
 [ -n "$SESSION" ] && pass "initialize returned a session" || fail "initialize returned no session id"
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
-for tool in server_info list_players query_blocks list_registry list_entities run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
+TOOL_COUNT="$(printf '%s' "$TOOLS" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
+for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
 
 echo "== reads"
 expect "server_info describes Fabric and Minecraft" "$(call 3 server_info '{}')" "Fabric $FABRIC_LOADER_VERSION / Minecraft $MINECRAFT_VERSION / server"
@@ -172,8 +173,21 @@ expect "a different type finds nothing" "$(call 29 list_entities '{"dimension":"
 expect "the radius is bounded" "$(call 30 list_entities '{"dimension":"minecraft:overworld","x":0,"y":0,"z":0,"radius":100}')" 'must have a maximum value of 64'
 expect "an unknown dimension is reported with the available ones" "$(call 31 list_entities '{"dimension":"mod:nowhere","x":0,"y":0,"z":0,"radius":5}')" 'available: minecraft:overworld'
 
+echo "== world state and permissions"
+STATE="$(call 40 get_world_state '{"dimension":"minecraft:overworld"}')"
+expect "get_world_state reports the difficulty" "$STATE" '\"difficulty\":'
+expect "and every game rule, by name" "$STATE" '\"doDaylightCycle\":\"true\"'
+expect "and the time" "$STATE" '\"dayTime\":'
+expect "a game rule change by an admin command is visible to the read" "$(call 41 run_admin_command '{"command":"gamerule doDaylightCycle false","confirm":true}')" '"isError":false'
+expect "the new rule value is reported" "$(call 42 get_world_state '{"dimension":"minecraft:overworld"}')" '\"doDaylightCycle\":\"false\"'
+expect "an unknown dimension names the available ones" "$(call 43 get_world_state '{"dimension":"mod:nowhere"}')" 'available: minecraft:overworld'
+expect "an unconfigured server has no operators" "$(call 44 list_permissions '{}')" '\"operators\":[]'
+expect "granting operator succeeds" "$(call 45 run_admin_command '{"command":"op Steve","confirm":true}')" '"isError":false'
+expect_eventually "list_permissions shows the new operator and level" 'Steve' 46 list_permissions '{}'
+expect "the whitelist state is reported" "$(call 47 list_permissions '{}')" '\"whitelistEnabled\":false'
+
 echo "== operator commands (/mcp from the console)"
-console "mcp status" "MCP server is listening on 127.0.0.1:$PORT, writes and admin enabled, 7 tools" "/mcp status reports the endpoint and access"
+console "mcp status" "MCP server is listening on 127.0.0.1:$PORT, writes and admin enabled, $TOOL_COUNT tools" "/mcp status reports the endpoint and access"
 # A bad configuration must not take the working server down.
 cp config/minecraft-mcp.json config.good
 sed -i 's/"port": [0-9]*/"port": 99999999/' config/minecraft-mcp.json

@@ -103,6 +103,40 @@ class QueryRecordsTest {
         assertThrows(IllegalArgumentException.class, () -> new EntityQuery("d", 0, 0, 0, 5, "Not Valid", 1));
     }
 
+    // ---- WorldState / Permissions ----
+
+    @Test
+    void worldStateSortsAndFreezesItsGameRules() {
+        java.util.Map<String, String> source = new java.util.HashMap<>();
+        source.put("zeta", "1");
+        source.put("alpha", "2");
+        WorldState state = new WorldState("minecraft:overworld", 1L, 2L, false, true, "hard", source);
+        source.put("late", "3");
+
+        assertEquals(List.of("alpha", "zeta"), List.copyOf(state.gameRules().keySet()));
+        assertThrows(UnsupportedOperationException.class, () -> state.gameRules().put("x", "y"));
+        assertEquals(1L, state.gameTime());
+        assertEquals(2L, state.dayTime());
+        assertFalse(state.raining());
+        assertTrue(state.thundering());
+        assertEquals("hard", state.difficulty());
+    }
+
+    @Test
+    void permissionsCopyTheirLists() {
+        List<Permissions.Operator> ops = new ArrayList<>(List.of(new Permissions.Operator("Alex", "u", 4)));
+        List<Permissions.Whitelisted> white = new ArrayList<>(List.of(new Permissions.Whitelisted("Steve", "v")));
+        Permissions permissions = new Permissions(ops, true, white);
+        ops.clear();
+        white.clear();
+
+        assertEquals(1, permissions.operators().size());
+        assertEquals(1, permissions.whitelist().size());
+        assertTrue(permissions.whitelistEnabled());
+        assertThrows(UnsupportedOperationException.class, () -> permissions.operators().clear());
+        assertThrows(UnsupportedOperationException.class, () -> permissions.whitelist().clear());
+    }
+
     @Test
     void entityListCopiesItsEntities() {
         List<EntityList.EntityInfo> source = new ArrayList<>(List.of(new EntityList.EntityInfo("minecraft:pig", "u", "Pig", 1, 2, 3)));

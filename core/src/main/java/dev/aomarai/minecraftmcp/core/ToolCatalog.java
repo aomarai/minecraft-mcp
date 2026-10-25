@@ -77,6 +77,15 @@ public final class ToolCatalog {
                                         "type", string("Only this entity type, e.g. minecraft:zombie."),
                                         "limit", integer("Maximum entities to return.", 1, EntityQuery.MAX_LIMIT)),
                                 List.of("dimension", "x", "y", "z", "radius"))),
+                new ToolDescriptor("get_world_state", "Get world state",
+                        "Read a dimension's time, weather, difficulty and every game rule with its current value.",
+                        ToolPolicy.Scope.OBSERVE, Capability.WORLD_STATE, Side.SERVER, schema(
+                                props("dimension", string("Dimension registry id, e.g. minecraft:overworld.")),
+                                List.of("dimension"))),
+                new ToolDescriptor("list_permissions", "List permissions",
+                        "List the server's operators (with their permission level) and its whitelist. "
+                                + "This reads the server's own lists; it does not grant anything.",
+                        ToolPolicy.Scope.OBSERVE, Capability.PERMISSIONS, Side.SERVER, schema(props(), List.of())),
                 new ToolDescriptor("run_command", "Run command",
                         "Run a non-destructive server command through Brigadier. Requires write access.",
                         ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(

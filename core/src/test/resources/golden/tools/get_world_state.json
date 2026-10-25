@@ -1,0 +1,28 @@
+{
+  "capability": "WORLD_STATE",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Read a dimension's time, weather, difficulty and every game rule with its current value.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "description": "Dimension registry id, e.g. minecraft:overworld.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimension"
+      ],
+      "type": "object"
+    },
+    "name": "get_world_state",
+    "title": "Get world state"
+  }
+}

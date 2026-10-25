@@ -20,11 +20,13 @@ class ToolCatalogTest {
     @Test
     void defaultsAreGroupedByScope() {
         ToolCatalog catalog = ToolCatalog.defaults();
-        assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities"),
+        assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities",
+                        "get_world_state", "list_permissions"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
         assertEquals(List.of("run_command"), names(catalog.byScope(ToolPolicy.Scope.ACT)));
         assertEquals(List.of("run_admin_command"), names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
-        assertEquals(7, catalog.tools().size());
+        assertEquals(ToolCatalog.defaults().tools().size(), catalog.tools().size());
+        assertEquals(9, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
     }
 
     @Test
@@ -96,7 +98,7 @@ class ToolCatalogTest {
         assertEquals(List.of("server_info", "run_command", "run_admin_command"),
                 names(all.availableFor(services(Side.SERVER, Capability.RUNTIME_INFO, Capability.COMMANDS)).tools()));
         assertEquals(List.of(), names(all.availableFor(GameServices.none()).tools()));
-        assertEquals(7, all.availableFor(services(Side.SERVER, Capability.values())).tools().size());
+        assertEquals(all.tools().size(), all.availableFor(services(Side.SERVER, Capability.values())).tools().size());
     }
 
     @Test
@@ -120,6 +122,8 @@ class ToolCatalogTest {
                 "query_blocks", Capability.WORLD,
                 "list_registry", Capability.REGISTRIES,
                 "list_entities", Capability.ENTITIES,
+                "get_world_state", Capability.WORLD_STATE,
+                "list_permissions", Capability.PERMISSIONS,
                 "run_command", Capability.COMMANDS,
                 "run_admin_command", Capability.COMMANDS);
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
@@ -150,7 +154,7 @@ class ToolCatalogTest {
             return McpSchema.CallToolResult.builder().addTextContent("via " + tool.name()).build();
         };
         List<McpServerFeatures.SyncToolSpecification> specs = ToolCatalog.defaults().specs(invoker);
-        assertEquals(7, specs.size());
+        assertEquals(ToolCatalog.defaults().tools().size(), specs.size());
         for (McpServerFeatures.SyncToolSpecification spec : specs) {
             McpSchema.CallToolResult result = spec.callHandler()
                     .apply(null, new McpSchema.CallToolRequest(spec.tool().name(), Map.of("k", "v")));

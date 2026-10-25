@@ -30,6 +30,8 @@ All five tools in `docs/tools.md` are served.
 | `query_blocks` | Blocks in a bounded box of one dimension, as registry ids (`minecraft:stone`, `create:cogwheel`). Air, positions outside the world and unloaded chunks are skipped, and chunks are never loaded or generated. The box is capped by `maxBlockVolume` and the result by `limit` (`truncated` says when more exist) |
 | `list_registry` | Any registry by id: the built-in ones (blocks, items, entity types, ...) and the server's dynamic ones (biomes, dimension types, ...). Sorted, searchable, paged (at most 200 per page). Whatever a mod registers appears with no code naming it. An unknown registry is reported with the available ones |
 | `list_entities` | Entities within 1-64 blocks of a point in a dimension, nearest first, with their type as a registry id. Loaded chunks only; nothing is loaded or generated. A freshly spawned entity can take a moment to appear while its chunk finishes loading |
+| `get_world_state` | A dimension's game time, day time, weather, difficulty and every game rule, enumerated from the game so mod rules are included |
+| `list_permissions` | The operator list (name, uuid, level) and whitelist from the server's own lists. Names come from the profile cache; a uuid the server has never seen is `unknown` |
 | `run_command`, `run_admin_command` | Through the game's Brigadier dispatcher, so vanilla and modded commands both work |
 
 - **Main thread:** every read and write is queued with `MinecraftServer.execute` (see `MainThread`
