@@ -85,6 +85,42 @@ check to get green; add a test that pins real behavior instead.
 - **Bounded by default:** every query has a cap, every call a timeout. No unbounded loops over
   world data, entity lists or logs.
 
+## Engineering principles
+
+Write the simplest code that meets the acceptance criteria, then stop. These apply to production
+code and to tests.
+
+- **Keep it simple (KISS, YAGNI).** No speculative options, hooks, generics or layers "for later".
+  Prefer straight-line code, early returns and small methods. If a reviewer needs a diagram to follow
+  a method, split or simplify it. Delete dead code and unused parameters instead of keeping them.
+- **DRY, for real duplication only.** Extract when the same *knowledge* appears a third time (rule
+  of three), not when two things merely look alike. Duplicated test setup belongs in a shared helper
+  (`FakeGame`, `TestCores`, `McpTestClients`); duplicated production logic belongs in one place with
+  a name. Never copy a constant or message: define it once.
+- **One reason to change.** Each class does one job and its name says which. Keep methods short
+  and at one level of abstraction. Names carry intent; comments explain *why*, not *what*.
+- **Patterns only where they remove complexity.** This codebase already uses ports and adapters
+  (`GamePort` and its capability ports), a strategy via a small functional interface
+  (`ToolInvoker`), a decorator-style gate around execution (`ToolDispatcher`), and factories with
+  validating constructors. Reach for a pattern when it replaces a growing `if`/`switch` or isolates
+  something that varies; do not add one to look structured. No singletons or hidden global state.
+- **Composition and explicit dependencies.** Pass collaborators through the constructor (including
+  `Clock`, `AuditLog`, ports) so code is testable without mocks of internals. Prefer composition
+  to inheritance and interfaces to concrete types at module boundaries.
+- **Make bad states unrepresentable.** Immutable records and enums with validation in the
+  constructor beat flags and strings. Fail fast with a message that names the field or value; never
+  swallow an exception or return a vague default.
+- **Tests read like specs.** Arrange, act, assert; one behavior per test; name the behavior, not the
+  method. Use small fakes, not mocking frameworks. Inject time and I/O boundaries, and avoid
+  `sleep` as synchronization where an event or latch will do.
+- **Match the surrounding code.** Follow its naming, structure and comment density. Make the
+  change the issue needs; log other improvements as issues rather than widening the PR. Do the
+  small tidy-up that the change touches (rename, delete, extract) in the same PR when it makes the
+  change easier to read.
+
+Before opening a PR, read your own diff once and ask: can anything here be deleted, is anything
+duplicated, is there a simpler way to say this, and would the next person find it where they expect?
+
 ## Security rules for code
 
 - Never log or print a token, and keep secrets out of `toString()`. Add a test when you
