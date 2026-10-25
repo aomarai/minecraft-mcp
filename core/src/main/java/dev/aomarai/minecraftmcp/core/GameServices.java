@@ -1,43 +1,46 @@
 package dev.aomarai.minecraftmcp.core;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
- * The capability ports an adapter provides, and the side it runs on. A port the
- * platform cannot serve is {@code null}; {@link ToolCatalog#availableFor} then
- * leaves out the tools that need it.
+ * The capability ports an adapter provides, and the side it runs on. One object may implement
+ * several ports. {@link ToolCatalog#availableFor} leaves out the tools whose capability is missing,
+ * so an adapter never has to stub a port it cannot serve.
  */
-public record GameServices(
-        RuntimeInfo info,
-        PlayerReader players,
-        WorldReader world,
-        CommandRunner commands,
-        Side side) {
+public final class GameServices {
 
-    public GameServices {
-        Objects.requireNonNull(side, "side");
+    private final Side side;
+    private final List<GamePort> ports;
+
+    public GameServices(Side side, GamePort... ports) {
+        this.side = Objects.requireNonNull(side, "side");
+        this.ports = List.of(ports);
     }
 
     /** A server-side adapter with no capabilities. */
     public static GameServices none() {
-        return new GameServices(null, null, null, null, Side.SERVER);
+        return new GameServices(Side.SERVER);
+    }
+
+    public Side side() {
+        return side;
+    }
+
+    /** The port of this type, if the adapter provides one. */
+    public <T extends GamePort> Optional<T> find(Class<T> type) {
+        return ports.stream().filter(type::isInstance).map(type::cast).findFirst();
     }
 
     public Set<Capability> capabilities() {
         Set<Capability> capabilities = EnumSet.noneOf(Capability.class);
-        if (info != null) {
-            capabilities.add(Capability.RUNTIME_INFO);
-        }
-        if (players != null) {
-            capabilities.add(Capability.PLAYERS);
-        }
-        if (world != null) {
-            capabilities.add(Capability.WORLD);
-        }
-        if (commands != null) {
-            capabilities.add(Capability.COMMANDS);
+        for (Capability capability : Capability.values()) {
+            if (find(capability.portType()).isPresent()) {
+                capabilities.add(capability);
+            }
         }
         return capabilities;
     }

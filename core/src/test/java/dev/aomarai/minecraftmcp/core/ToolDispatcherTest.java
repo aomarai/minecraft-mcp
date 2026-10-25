@@ -135,6 +135,90 @@ class ToolDispatcherTest {
         assertEquals(1, game.queries.size());
     }
 
+    // ---- registries and entities ----
+
+    private static Map<String, Object> entityArgs(Object... overrides) {
+        Map<String, Object> map = args("dimension", "minecraft:overworld", "x", 1, "y", 64, "z", -2, "radius", 8);
+        for (int i = 0; i < overrides.length; i += 2) {
+            map.put((String) overrides[i], overrides[i + 1]);
+        }
+        return map;
+    }
+
+    @Test
+    void listRegistryReturnsAPageWithPagingInformation() {
+        McpSchema.CallToolResult result = dispatcher(false, false)
+                .call(tool("list_registry"), args("registry", "minecraft:block", "search", "stone", "offset", 2, "limit", 5));
+
+        assertFalse(result.isError());
+        assertEquals("{\"registry\":\"minecraft:block\",\"total\":7,\"offset\":2,\"hasMore\":true,"
+                + "\"ids\":[\"minecraft:stone\",\"create:cogwheel\"]}", text(result));
+        assertEquals(new RegistryQuery("minecraft:block", "stone", 2, 5), game.registryQueries.get(0));
+    }
+
+    @Test
+    void listRegistryDefaultsToTheFirstFiftyAndNormalizesTheId() {
+        dispatcher(false, false).call(tool("list_registry"), args("registry", "item"));
+
+        assertEquals(new RegistryQuery("minecraft:item", "", 0, 50), game.registryQueries.get(0));
+    }
+
+    @Test
+    void listRegistryRejectsBadArgumentsBeforeTheGameIsAsked() {
+        ToolDispatcher d = dispatcher(false, false);
+        assertTrue(text(d.call(tool("list_registry"), args("registry", "Not Valid"))).startsWith("registry must be a resource location"));
+        assertEquals("registry must be a string", text(d.call(tool("list_registry"), args())));
+        assertEquals("limit must be between 1 and 200", text(d.call(tool("list_registry"), args("registry", "block", "limit", 201))));
+        assertEquals("offset must not be negative", text(d.call(tool("list_registry"), args("registry", "block", "offset", -1))));
+        assertEquals("search must be a string", text(d.call(tool("list_registry"), args("registry", "block", "search", 5))));
+        assertEquals("limit must be an integer", text(d.call(tool("list_registry"), args("registry", "block", "limit", 1.5))));
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void listEntitiesReturnsEveryFieldAndPassesTheQuery() {
+        McpSchema.CallToolResult result = dispatcher(false, false)
+                .call(tool("list_entities"), entityArgs("type", "zombie", "limit", 3));
+
+        assertFalse(result.isError());
+        assertEquals("{\"dimension\":\"minecraft:overworld\",\"truncated\":true,\"entities\":["
+                + "{\"type\":\"minecraft:zombie\",\"uuid\":\"uuid-2\",\"name\":\"Zombie\",\"x\":1.5,\"y\":64.0,\"z\":-2.5}]}",
+                text(result));
+        assertEquals(new EntityQuery("minecraft:overworld", 1, 64, -2, 8, "minecraft:zombie", 3), game.entityQueries.get(0));
+    }
+
+    @Test
+    void listEntitiesDefaultsToAnyTypeAndFiftyResults() {
+        dispatcher(false, false).call(tool("list_entities"), entityArgs());
+
+        assertEquals(new EntityQuery("minecraft:overworld", 1, 64, -2, 8, "", 50), game.entityQueries.get(0));
+    }
+
+    @Test
+    void listEntitiesRejectsBadArgumentsBeforeTheGameIsAsked() {
+        ToolDispatcher d = dispatcher(false, false);
+        assertEquals("radius must be between 1 and 64", text(d.call(tool("list_entities"), entityArgs("radius", 65))));
+        assertEquals("radius must be between 1 and 64", text(d.call(tool("list_entities"), entityArgs("radius", 0.5))));
+        assertEquals("x must be a number", text(d.call(tool("list_entities"), entityArgs("x", "1"))));
+        assertEquals("y must be a number", text(d.call(tool("list_entities"), entityArgs("y", Double.NaN))));
+        assertEquals("dimension must be a string", text(d.call(tool("list_entities"), entityArgs("dimension", 1))));
+        assertTrue(text(d.call(tool("list_entities"), entityArgs("type", "Zombie!"))).startsWith("type must be a resource location"));
+        assertEquals("limit must be between 1 and 200", text(d.call(tool("list_entities"), entityArgs("limit", 0))));
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void registryAndEntityReadsThatTimeOutAreCancelledWithoutClaimingASideEffect() {
+        game.pendingRegistry = new CompletableFuture<>();
+        game.pendingEntities = new CompletableFuture<>();
+        ToolDispatcher d = dispatcher(config(false, false, 32768, Duration.ofMillis(100)), game.services(), audit::add);
+
+        assertEquals("timed out after 100 ms", text(d.call(tool("list_registry"), args("registry", "block"))));
+        assertEquals("timed out after 100 ms", text(d.call(tool("list_entities"), entityArgs())));
+        assertTrue(game.pendingRegistry.isCancelled());
+        assertTrue(game.pendingEntities.isCancelled());
+    }
+
     // ---- act: run_command ----
 
     @Test
@@ -313,6 +397,9 @@ class ToolDispatcherTest {
         assertEquals("block queries is not supported by this adapter", text(d.call(tool("query_blocks"), blocks(1, 8))));
         assertEquals("command execution is not supported by this adapter",
                 text(d.call(tool("run_command"), args("command", "say hi"))));
+        assertEquals("registry listing is not supported by this adapter",
+                text(d.call(tool("list_registry"), args("registry", "block"))));
+        assertEquals("entity queries is not supported by this adapter", text(d.call(tool("list_entities"), entityArgs())));
         assertAudit(1, "result", "server_info", "allow", "error: runtime info is not supported by this adapter");
     }
 

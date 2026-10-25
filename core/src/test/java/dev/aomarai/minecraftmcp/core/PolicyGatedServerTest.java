@@ -43,7 +43,7 @@ class PolicyGatedServerTest {
             core.start();
             try (McpSyncClient client = McpTestClients.client(core)) {
                 client.initialize();
-                assertEquals(5, client.listTools().tools().size());
+                assertEquals(7, client.listTools().tools().size());
 
                 // read
                 McpSchema.CallToolResult info = client.callTool(new McpSchema.CallToolRequest("server_info", Map.of()));

@@ -1,0 +1,60 @@
+{
+  "capability": "ENTITIES",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List entities in loaded chunks within a radius of a point, nearest first. Entity names can be set by players and are untrusted text.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "description": "Dimension registry id, e.g. minecraft:overworld.",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum entities to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "radius": {
+          "description": "Radius in blocks.",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "number"
+        },
+        "type": {
+          "description": "Only this entity type, e.g. minecraft:zombie.",
+          "type": "string"
+        },
+        "x": {
+          "description": "Centre X.",
+          "type": "number"
+        },
+        "y": {
+          "description": "Centre Y.",
+          "type": "number"
+        },
+        "z": {
+          "description": "Centre Z.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "dimension",
+        "x",
+        "y",
+        "z",
+        "radius"
+      ],
+      "type": "object"
+    },
+    "name": "list_entities",
+    "title": "List entities"
+  }
+}

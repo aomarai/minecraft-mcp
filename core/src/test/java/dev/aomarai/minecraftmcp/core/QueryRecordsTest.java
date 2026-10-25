@@ -1,0 +1,116 @@
+package dev.aomarai.minecraftmcp.core;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class QueryRecordsTest {
+
+    // ---- RegistryQuery ----
+
+    @Test
+    void registryQueryNormalizesAndKeepsItsFields() {
+        RegistryQuery query = new RegistryQuery("block", "  Gold ", 3, 50);
+
+        assertEquals("minecraft:block", query.registry());
+        assertEquals("Gold", query.search());
+        assertEquals(3, query.offset());
+        assertEquals(50, query.limit());
+    }
+
+    @Test
+    void registryQuerySearchDefaultsToEverything() {
+        assertEquals("", new RegistryQuery("minecraft:item", null, 0, 1).search());
+    }
+
+    @Test
+    void registryQueryBoundsAreExact() {
+        assertDoesNotThrow(() -> new RegistryQuery("minecraft:block", "", 0, 1));
+        assertDoesNotThrow(() -> new RegistryQuery("minecraft:block", "", 0, RegistryQuery.MAX_LIMIT));
+        assertEquals("limit must be between 1 and 200",
+                assertThrows(IllegalArgumentException.class, () -> new RegistryQuery("minecraft:block", "", 0, 0)).getMessage());
+        assertEquals("limit must be between 1 and 200",
+                assertThrows(IllegalArgumentException.class, () -> new RegistryQuery("minecraft:block", "", 0, 201)).getMessage());
+        assertEquals("offset must not be negative",
+                assertThrows(IllegalArgumentException.class, () -> new RegistryQuery("minecraft:block", "", -1, 1)).getMessage());
+        assertDoesNotThrow(() -> new RegistryQuery("minecraft:block", "", Integer.MAX_VALUE, 1));
+    }
+
+    @Test
+    void registryQueryRejectsABadRegistryId() {
+        assertThrows(IllegalArgumentException.class, () -> new RegistryQuery("Not Valid", "", 0, 1));
+        assertThrows(NullPointerException.class, () -> new RegistryQuery(null, "", 0, 1));
+    }
+
+    @Test
+    void registryPageCopiesItsIds() {
+        List<String> source = new ArrayList<>(List.of("minecraft:stone"));
+        RegistryPage page = new RegistryPage("minecraft:block", source, 1, 0, false);
+        source.add("minecraft:dirt");
+
+        assertEquals(List.of("minecraft:stone"), page.ids());
+        assertThrows(UnsupportedOperationException.class, () -> page.ids().add("x"));
+    }
+
+    // ---- EntityQuery ----
+
+    @Test
+    void entityQueryNormalizesTheTypeAndKeepsItsFields() {
+        EntityQuery query = new EntityQuery("minecraft:overworld", 1.5, 64, -2.5, 10, " zombie ", 20);
+
+        assertEquals("minecraft:zombie", query.type());
+        assertEquals(1.5, query.x());
+        assertEquals(64, query.y());
+        assertEquals(-2.5, query.z());
+        assertEquals(10, query.radius());
+        assertEquals(20, query.limit());
+    }
+
+    @Test
+    void entityQueryTypeDefaultsToAnyType() {
+        assertEquals("", new EntityQuery("d", 0, 0, 0, 5, null, 1).type());
+        assertEquals("", new EntityQuery("d", 0, 0, 0, 5, "   ", 1).type());
+        assertEquals("", new EntityQuery("d", 0, 0, 0, 5, "", 1).type());
+    }
+
+    @Test
+    void entityQueryRadiusBoundsAreExactAndNanIsRejected() {
+        assertDoesNotThrow(() -> new EntityQuery("d", 0, 0, 0, 1, "", 1));
+        assertDoesNotThrow(() -> new EntityQuery("d", 0, 0, 0, 64, "", 1));
+        for (double bad : new double[]{0.99, 64.01, 0, -1, Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertEquals("radius must be between 1 and 64",
+                    assertThrows(IllegalArgumentException.class, () -> new EntityQuery("d", 0, 0, 0, bad, "", 1)).getMessage(),
+                    String.valueOf(bad));
+        }
+    }
+
+    @Test
+    void entityQueryLimitBoundsAreExact() {
+        assertDoesNotThrow(() -> new EntityQuery("d", 0, 0, 0, 5, "", 1));
+        assertDoesNotThrow(() -> new EntityQuery("d", 0, 0, 0, 5, "", EntityQuery.MAX_LIMIT));
+        assertEquals("limit must be between 1 and 200",
+                assertThrows(IllegalArgumentException.class, () -> new EntityQuery("d", 0, 0, 0, 5, "", 0)).getMessage());
+        assertEquals("limit must be between 1 and 200",
+                assertThrows(IllegalArgumentException.class, () -> new EntityQuery("d", 0, 0, 0, 5, "", 201)).getMessage());
+    }
+
+    @Test
+    void entityQueryRequiresADimensionAndAWellFormedType() {
+        assertThrows(NullPointerException.class, () -> new EntityQuery(null, 0, 0, 0, 5, "", 1));
+        assertThrows(IllegalArgumentException.class, () -> new EntityQuery("d", 0, 0, 0, 5, "Not Valid", 1));
+    }
+
+    @Test
+    void entityListCopiesItsEntities() {
+        List<EntityList.EntityInfo> source = new ArrayList<>(List.of(new EntityList.EntityInfo("minecraft:pig", "u", "Pig", 1, 2, 3)));
+        EntityList list = new EntityList("minecraft:overworld", source, false);
+        source.clear();
+
+        assertEquals(1, list.entities().size());
+        assertEquals("minecraft:pig", list.entities().get(0).type());
+        assertThrows(UnsupportedOperationException.class, () -> list.entities().clear());
+    }
+}

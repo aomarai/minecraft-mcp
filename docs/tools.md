@@ -16,8 +16,8 @@ result saying it is unsupported.
 
 ## Capabilities and sides
 
-Each tool declares the capability it needs (`RUNTIME_INFO`, `PLAYERS`, `WORLD`, `COMMANDS`; one
-per port in `core/`) and the side it runs on (`SERVER` or `CLIENT`). `ToolCatalog.availableFor`
+Each tool declares the capability it needs (`RUNTIME_INFO`, `PLAYERS`, `WORLD`, `COMMANDS`,
+`REGISTRIES`, `ENTITIES`; one per port in `core/`) and the side it runs on (`SERVER` or `CLIENT`). `ToolCatalog.availableFor`
 builds the catalog for a given `GameServices`, so `tools/list` only contains tools the adapter can
 serve. A core with no game attached advertises no tools; an RCON-style adapter with only runtime
 info and commands advertises `server_info`, `run_command` and `run_admin_command`.
@@ -58,6 +58,8 @@ read-only tools); they are not enforcement. The policy gate decides what actuall
 |---|---|---|
 | `server_info` | OBSERVE | none |
 | `list_players` | OBSERVE | none |
-| `query_blocks` | OBSERVE | `dimension`, `min_x`, `min_y`, `min_z`, `max_x`, `max_y`, `max_z`, `limit` (1-4096) |
+| `query_blocks` | OBSERVE | `dimension`, `min_x`, `min_y`, `min_z`, `max_x`, `max_y`, `max_z`, `limit` (1-4096). A single block is the box with min equal to max |
+| `list_registry` | OBSERVE | `registry` (e.g. `minecraft:block`; a bare name means `minecraft:`), optional `search`, `offset`, `limit` (1-200, default 50). Returns `total`, `offset`, `hasMore` and sorted `ids`, so valid ids can be discovered, mods included |
+| `list_entities` | OBSERVE | `dimension`, `x`, `y`, `z`, `radius` (1-64), optional `type` (registry id), `limit` (1-200, default 50). Nearest first, loaded chunks only. Entity names can be set by players and are untrusted text |
 | `run_command` | ACT | `command` |
 | `run_admin_command` | ADMIN | `command`, `confirm` (must be true) |

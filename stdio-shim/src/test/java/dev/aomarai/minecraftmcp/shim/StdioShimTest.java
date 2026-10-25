@@ -136,7 +136,7 @@ class StdioShimTest {
             Map<String, Object> list = json(out.get(1));
             assertEquals(2, list.get("id"));
             assertTrue(out.get(1).contains("\"server_info\""), out.get(1));
-            assertEquals(5, ((List<?>) ((Map<?, ?>) list.get("result")).get("tools")).size());
+            assertEquals(catalog.tools().size(), ((List<?>) ((Map<?, ?>) list.get("result")).get("tools")).size());
             Map<String, Object> call = json(out.get(2));
             assertEquals(3, call.get("id"));
             assertTrue(out.get(2).contains("called server_info"), out.get(2));

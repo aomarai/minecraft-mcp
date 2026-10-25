@@ -69,12 +69,13 @@ public final class McpFabricMod implements ModInitializer {
         // Commands run at the lowest level that fits what is enabled, so the game itself refuses
         // admin commands unless admin access is on. The core's policy has already decided by then.
         int commandLevel = config.allowAdmin() ? ADMIN_LEVEL : GAMEMASTER_LEVEL;
-        return new GameServices(
+        return new GameServices(Side.SERVER,
                 new FabricRuntimeInfo(server),
                 new FabricPlayerReader(server),
                 new FabricWorldReader(server),
-                new FabricCommandRunner(server, commandLevel),
-                Side.SERVER);
+                new FabricRegistryReader(server),
+                new FabricEntityReader(server),
+                new FabricCommandRunner(server, commandLevel));
     }
 
     private void stop() {

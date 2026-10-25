@@ -143,13 +143,4 @@ class JsonlAuditLogTest {
     void discardingLogAcceptsEntries() {
         assertDoesNotThrow(() -> AuditLog.discarding().record(entry(Map.of(), "ok")));
     }
-
-    @Test
-    void noneServicesHaveNoPorts() {
-        GameServices none = GameServices.none();
-        assertNull(none.info());
-        assertNull(none.players());
-        assertNull(none.world());
-        assertNull(none.commands());
-    }
 }
