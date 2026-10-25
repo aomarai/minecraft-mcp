@@ -40,7 +40,20 @@ pass() { echo "ok:   $1"; }
 
 # expect <label> <haystack> <needle>: fixed-string match, no regex surprises.
 expect() {
-  if printf '%s' "$2" | grep -qF -- "$3"; then pass "$1"; else fail "$1 (expected to find: $3) got: $(printf '%s' "$2" | head -c 300)"; fi
+  if printf '%s' "$2" | grep -qF -- "$3"; then pass "$1"; else fail "$1 (expected to find: $3) got: $(printf '%s' "$2" | tr '
+' ' ' | tail -c 400)"; fi
+}
+
+# expect_eventually <label> <needle> <id> <tool> <arguments>: a freshly started server needs a moment before
+# a new entity is visible to queries (its chunk is still being promoted), so retry for a few seconds.
+expect_eventually() {
+  local out=""
+  for _ in $(seq 1 15); do
+    out="$(call "$3" "$4" "$5")"
+    if printf '%s' "$out" | grep -qF -- "$2"; then pass "$1"; return; fi
+    sleep 1
+  done
+  fail "$1 (expected to find: $2) got: $(printf '%s' "$out" | tr '\n' ' ' | tail -c 400)"
 }
 
 mcp() { # mcp <json> [extra curl args]: POST a JSON-RPC message with the token and session
@@ -118,7 +131,7 @@ start_session
 [ -n "$SESSION" ] && pass "initialize returned a session" || fail "initialize returned no session id"
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
-for tool in server_info list_players query_blocks run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
+for tool in server_info list_players query_blocks list_registry list_entities run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
 
 echo "== reads"
 expect "server_info describes Fabric and Minecraft" "$(call 3 server_info '{}')" "Fabric $FABRIC_LOADER_VERSION / Minecraft $MINECRAFT_VERSION / server"
@@ -143,8 +156,24 @@ kill -0 "$SERVER_PID" 2>/dev/null && pass "the server is still running: nothing 
 expect "a confirmed admin command runs" "$(call 14 run_admin_command '{"command":"setblock 3 -50 3 minecraft:gold_block","confirm":true}')" '"isError":false'
 expect "and the placed block is read back by registry id" "$(call 15 query_blocks '{"dimension":"minecraft:overworld","min_x":3,"min_y":-50,"min_z":3,"max_x":3,"max_y":-50,"max_z":3,"limit":1}')" 'minecraft:gold_block'
 
+echo "== registries and entities"
+expect "list_registry finds a block by search" "$(call 20 list_registry '{"registry":"minecraft:block","search":"gold_block"}')" 'minecraft:gold_block'
+PAGE="$(call 21 list_registry '{"registry":"block","limit":2}')"
+expect "a bare registry name means minecraft:" "$PAGE" '\"registry\":\"minecraft:block\"'
+expect "listings are paged" "$PAGE" '\"hasMore\":true'
+expect "the next page starts where this one ended" "$(call 22 list_registry '{"registry":"minecraft:block","offset":2,"limit":2}')" '\"offset\":2'
+expect "a dynamic registry is listed too" "$(call 23 list_registry '{"registry":"minecraft:worldgen/biome","search":"plains","limit":5}')" 'minecraft:plains'
+expect "an unknown registry names the available ones" "$(call 24 list_registry '{"registry":"mod:nothing"}')" 'available: '
+expect "a malformed id is rejected clearly" "$(call 25 list_registry '{"registry":"Not Valid!"}')" 'registry must be a resource location'
+expect "the page size is bounded" "$(call 26 list_registry '{"registry":"minecraft:block","limit":201}')" 'must have a maximum value of 200'
+expect "an entity can be spawned with a confirmed admin command" "$(call 27 run_admin_command '{"command":"summon minecraft:armor_stand 0 -50 0","confirm":true}')" '"isError":false'
+expect_eventually "list_entities finds it by type, by registry id" 'minecraft:armor_stand' 28 list_entities '{"dimension":"minecraft:overworld","x":0,"y":-50,"z":0,"radius":5,"type":"minecraft:armor_stand"}'
+expect "a different type finds nothing" "$(call 29 list_entities '{"dimension":"minecraft:overworld","x":0,"y":-50,"z":0,"radius":5,"type":"minecraft:zombie"}')" '\"entities\":[]'
+expect "the radius is bounded" "$(call 30 list_entities '{"dimension":"minecraft:overworld","x":0,"y":0,"z":0,"radius":100}')" 'must have a maximum value of 64'
+expect "an unknown dimension is reported with the available ones" "$(call 31 list_entities '{"dimension":"mod:nowhere","x":0,"y":0,"z":0,"radius":5}')" 'available: minecraft:overworld'
+
 echo "== operator commands (/mcp from the console)"
-console "mcp status" "MCP server is listening on 127.0.0.1:$PORT, writes and admin enabled, 5 tools" "/mcp status reports the endpoint and access"
+console "mcp status" "MCP server is listening on 127.0.0.1:$PORT, writes and admin enabled, 7 tools" "/mcp status reports the endpoint and access"
 # A bad configuration must not take the working server down.
 cp config/minecraft-mcp.json config.good
 sed -i 's/"port": [0-9]*/"port": 99999999/' config/minecraft-mcp.json

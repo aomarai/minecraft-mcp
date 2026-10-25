@@ -7,16 +7,12 @@ import dev.aomarai.minecraftmcp.core.WorldReader;
 import dev.aomarai.minecraftmcp.core.WorldSnapshot;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * Reads blocks on the main thread. Dimensions and blocks are resolved by registry id, so modded
@@ -34,22 +30,9 @@ final class FabricWorldReader implements WorldReader {
     @Override
     public CompletableFuture<WorldSnapshot> snapshot(BlockQuery query) {
         return MainThread.call(server, () -> {
-            ServerLevel level = level(query.dimension());
+            ServerLevel level = FabricDimensions.level(server, query.dimension());
             return BlockScanner.scan(query, (x, y, z) -> blockAt(level, x, y, z));
         });
-    }
-
-    private ServerLevel level(String dimension) {
-        ResourceLocation id = ResourceLocation.tryParse(dimension);
-        ServerLevel level = id == null ? null : server.getLevel(ResourceKey.create(Registries.DIMENSION, id));
-        if (level == null) {
-            String available = server.levelKeys().stream()
-                    .map(key -> key.location().toString())
-                    .sorted()
-                    .collect(Collectors.joining(", "));
-            throw new IllegalArgumentException("unknown dimension '" + dimension + "'; available: " + available);
-        }
-        return level;
     }
 
     private static Optional<String> blockAt(ServerLevel level, int x, int y, int z) {

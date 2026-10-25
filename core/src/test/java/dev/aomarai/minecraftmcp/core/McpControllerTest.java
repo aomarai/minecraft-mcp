@@ -81,8 +81,8 @@ class McpControllerTest {
 
             McpService.Status status = controller.status().orElseThrow();
 
-            assertEquals(new McpService.Status("127.0.0.1", port, false, false, 5), status);
-            assertEquals("listening on 127.0.0.1:" + port + ", read-only, 5 tools", status.summary());
+            assertEquals(new McpService.Status("127.0.0.1", port, false, false, 7), status);
+            assertEquals("listening on 127.0.0.1:" + port + ", read-only, 7 tools", status.summary());
             assertFalse(status.toString().contains(token()));
             assertFalse(status.summary().contains(token()));
         }

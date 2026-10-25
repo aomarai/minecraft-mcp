@@ -1,0 +1,43 @@
+{
+  "capability": "REGISTRIES",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List ids in a game registry (for example minecraft:block, minecraft:item, minecraft:entity_type), mods included, so valid ids can be discovered instead of guessed. Paged and searchable.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "description": "Maximum ids to return.",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "description": "How many matching ids to skip.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "registry": {
+          "description": "Registry id, e.g. minecraft:block.",
+          "type": "string"
+        },
+        "search": {
+          "description": "Keep only ids containing this text (case-insensitive).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "registry"
+      ],
+      "type": "object"
+    },
+    "name": "list_registry",
+    "title": "List registry"
+  }
+}

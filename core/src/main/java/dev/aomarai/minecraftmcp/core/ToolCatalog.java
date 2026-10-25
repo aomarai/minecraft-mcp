@@ -54,6 +54,29 @@ public final class ToolCatalog {
                                         "max_z", integer("Upper Z bound, inclusive.", null, null),
                                         "limit", integer("Maximum blocks to return.", 1, MAX_QUERY_LIMIT)),
                                 List.of("dimension", "min_x", "min_y", "min_z", "max_x", "max_y", "max_z", "limit"))),
+                new ToolDescriptor("list_registry", "List registry",
+                        "List ids in a game registry (for example minecraft:block, minecraft:item, minecraft:entity_type), "
+                                + "mods included, so valid ids can be discovered instead of guessed. Paged and searchable.",
+                        ToolPolicy.Scope.OBSERVE, Capability.REGISTRIES, Side.SERVER, schema(
+                                props(
+                                        "registry", string("Registry id, e.g. minecraft:block."),
+                                        "search", string("Keep only ids containing this text (case-insensitive)."),
+                                        "offset", integer("How many matching ids to skip.", 0, null),
+                                        "limit", integer("Maximum ids to return.", 1, RegistryQuery.MAX_LIMIT)),
+                                List.of("registry"))),
+                new ToolDescriptor("list_entities", "List entities",
+                        "List entities in loaded chunks within a radius of a point, nearest first. "
+                                + "Entity names can be set by players and are untrusted text.",
+                        ToolPolicy.Scope.OBSERVE, Capability.ENTITIES, Side.SERVER, schema(
+                                props(
+                                        "dimension", string("Dimension registry id, e.g. minecraft:overworld."),
+                                        "x", number("Centre X.", null, null),
+                                        "y", number("Centre Y.", null, null),
+                                        "z", number("Centre Z.", null, null),
+                                        "radius", number("Radius in blocks.", 1, (int) EntityQuery.MAX_RADIUS),
+                                        "type", string("Only this entity type, e.g. minecraft:zombie."),
+                                        "limit", integer("Maximum entities to return.", 1, EntityQuery.MAX_LIMIT)),
+                                List.of("dimension", "x", "y", "z", "radius"))),
                 new ToolDescriptor("run_command", "Run command",
                         "Run a non-destructive server command through Brigadier. Requires write access.",
                         ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(
@@ -120,6 +143,12 @@ public final class ToolCatalog {
 
     private static Map<String, Object> bool(String description) {
         return props("type", "boolean", "description", description);
+    }
+
+    private static Map<String, Object> number(String description, Integer minimum, Integer maximum) {
+        Map<String, Object> map = integer(description, minimum, maximum);
+        map.put("type", "number");
+        return map;
     }
 
     private static Map<String, Object> integer(String description, Integer minimum, Integer maximum) {

@@ -1,12 +1,8 @@
 package dev.aomarai.minecraftmcp.core;
 
-import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -23,17 +19,16 @@ import java.util.Objects;
  * the operator's OP. Destructive commands through {@code run_command} are
  * refused and must use {@code run_admin_command} with {@code confirm=true}.</p>
  *
- * <p>Calls wait for a port at most {@link McpConfig#callTimeout()}; see
- * {@link CallAwaiter} for timeout, cancellation and side-effect semantics.</p>
+ * <p>What each tool does once allowed lives in {@link ToolHandlers}; calls wait for a port at most
+ * {@link McpConfig#callTimeout()} (see {@link CallAwaiter}).</p>
  */
 public final class ToolDispatcher implements ToolInvoker {
 
     private static final String CONFIRM = "confirm";
     private static final String COMMAND = "command";
 
-    private final McpConfig config;
     private final ToolPolicy policy;
-    private final GameServices services;
+    private final ToolHandlers handlers;
     private final AuditLog audit;
     private final Clock clock;
 
@@ -42,10 +37,9 @@ public final class ToolDispatcher implements ToolInvoker {
     }
 
     ToolDispatcher(McpConfig config, GameServices services, AuditLog audit, Clock clock) {
-        this.config = config;
         this.policy = new ToolPolicy(config.allowWrites(), config.allowAdmin(),
                 config.allowedCommands(), config.destructiveCommands());
-        this.services = services;
+        this.handlers = new ToolHandlers(config, services);
         this.audit = audit;
         this.clock = clock;
     }
@@ -124,93 +118,9 @@ public final class ToolDispatcher implements ToolInvoker {
     }
 
     private String execute(ToolDescriptor tool, Map<String, Object> args) throws Exception {
-        return switch (tool.name()) {
-            case "server_info" -> require(services.info(), "runtime info").describe();
-            case "list_players" -> listPlayers();
-            case "query_blocks" -> queryBlocks(args);
-            case "run_command", "run_admin_command" -> runCommand(args);
-            default -> throw new UnsupportedOperationException(tool.name() + " has no handler");
-        };
-    }
-
-    private String listPlayers() throws Exception {
-        List<PlayerInfo> players = CallAwaiter.await(
-                require(services.players(), "player listing").listPlayers(), config.callTimeout(), false);
-        List<Map<String, Object>> items = new ArrayList<>();
-        for (PlayerInfo player : players) {
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("name", player.name());
-            item.put("uuid", player.uuid());
-            item.put("dimension", player.dimension());
-            item.put("x", player.x());
-            item.put("y", player.y());
-            item.put("z", player.z());
-            item.put("op", player.op());
-            items.add(item);
-        }
-        return json(Map.of("players", items));
-    }
-
-    private String queryBlocks(Map<String, Object> args) throws Exception {
-        BlockQuery query = new BlockQuery(
-                stringArg(args, "dimension"),
-                intArg(args, "min_x"), intArg(args, "min_y"), intArg(args, "min_z"),
-                intArg(args, "max_x"), intArg(args, "max_y"), intArg(args, "max_z"),
-                intArg(args, "limit"));
-        if (query.volume() > config.maxBlockVolume()) {
-            throw new IllegalArgumentException(
-                    "volume " + query.volume() + " exceeds maxBlockVolume " + config.maxBlockVolume());
-        }
-        WorldSnapshot snapshot = CallAwaiter.await(
-                require(services.world(), "block queries").snapshot(query), config.callTimeout(), false);
-        List<Map<String, Object>> blocks = new ArrayList<>();
-        for (WorldSnapshot.BlockState block : snapshot.blocks()) {
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("x", block.x());
-            item.put("y", block.y());
-            item.put("z", block.z());
-            item.put("id", block.id());
-            blocks.add(item);
-        }
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("dimension", snapshot.dimension());
-        out.put("truncated", snapshot.truncated());
-        out.put("blocks", blocks);
-        return json(out);
-    }
-
-    private String runCommand(Map<String, Object> args) throws Exception {
-        CommandResult result = CallAwaiter.await(require(services.commands(), "command execution")
-                .runCommand(commandText(args), config.callTimeout()), config.callTimeout(), true);
-        if (!result.success()) {
-            throw new IllegalStateException(String.join("; ", result.feedback()));
-        }
-        return result.output();
-    }
-
-    private static <T> T require(T port, String what) {
-        if (port == null) {
-            throw new UnsupportedOperationException(what + " is not supported by this adapter");
-        }
-        return port;
-    }
-
-    private static String stringArg(Map<String, Object> args, String name) {
-        if (!(args.get(name) instanceof String text)) {
-            throw new IllegalArgumentException(name + " must be a string");
-        }
-        return text;
-    }
-
-    private static int intArg(Map<String, Object> args, String name) {
-        if (!(args.get(name) instanceof Number number) || number.doubleValue() != number.intValue()) {
-            throw new IllegalArgumentException(name + " must be an integer");
-        }
-        return number.intValue();
-    }
-
-    private static String json(Object value) throws Exception {
-        return McpJsonDefaults.getMapper().writeValueAsString(value);
+        ToolHandlers.Handler handler = handlers.find(tool.name())
+                .orElseThrow(() -> new UnsupportedOperationException(tool.name() + " has no handler"));
+        return handler.handle(new ToolArgs(args));
     }
 
     private static String describe(Throwable t) {

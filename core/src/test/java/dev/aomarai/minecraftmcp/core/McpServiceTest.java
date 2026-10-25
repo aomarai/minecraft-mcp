@@ -37,7 +37,7 @@ class McpServiceTest {
     @Test
     void startsFromTheConfigAndServesOnlyWhatTheAdapterProvides() throws Exception {
         FakeGame game = new FakeGame();
-        GameServices infoOnly = new GameServices(game, null, null, null, Side.SERVER);
+        GameServices infoOnly = new GameServices(Side.SERVER, (RuntimeInfo) game::describe);
         int port = freePort();
         Path configFile = config(port);
 

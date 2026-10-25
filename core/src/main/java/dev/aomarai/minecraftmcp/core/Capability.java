@@ -1,13 +1,22 @@
 package dev.aomarai.minecraftmcp.core;
 
-/** A capability an adapter may provide. Each one corresponds to a {@link GamePort}. */
+/** A capability an adapter may provide. Each one corresponds to one {@link GamePort} type. */
 public enum Capability {
-    /** {@link RuntimeInfo} */
-    RUNTIME_INFO,
-    /** {@link PlayerReader} */
-    PLAYERS,
-    /** {@link WorldReader} */
-    WORLD,
-    /** {@link CommandRunner} */
-    COMMANDS
+    RUNTIME_INFO(RuntimeInfo.class),
+    PLAYERS(PlayerReader.class),
+    WORLD(WorldReader.class),
+    COMMANDS(CommandRunner.class),
+    REGISTRIES(RegistryReader.class),
+    ENTITIES(EntityReader.class);
+
+    private final Class<? extends GamePort> portType;
+
+    Capability(Class<? extends GamePort> portType) {
+        this.portType = portType;
+    }
+
+    /** The port an adapter implements to provide this capability. */
+    public Class<? extends GamePort> portType() {
+        return portType;
+    }
 }

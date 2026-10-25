@@ -20,11 +20,11 @@ class ToolCatalogTest {
     @Test
     void defaultsAreGroupedByScope() {
         ToolCatalog catalog = ToolCatalog.defaults();
-        assertEquals(List.of("server_info", "list_players", "query_blocks"),
+        assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
         assertEquals(List.of("run_command"), names(catalog.byScope(ToolPolicy.Scope.ACT)));
         assertEquals(List.of("run_admin_command"), names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
-        assertEquals(5, catalog.tools().size());
+        assertEquals(7, catalog.tools().size());
     }
 
     @Test
@@ -67,15 +67,7 @@ class ToolCatalogTest {
     }
 
     private static GameServices services(Side side, Capability... provided) {
-        FakeGame game = new FakeGame();
-        java.util.Set<Capability> set = provided.length == 0
-                ? java.util.EnumSet.noneOf(Capability.class) : java.util.EnumSet.copyOf(List.of(provided));
-        return new GameServices(
-                set.contains(Capability.RUNTIME_INFO) ? game : null,
-                set.contains(Capability.PLAYERS) ? game : null,
-                set.contains(Capability.WORLD) ? game : null,
-                set.contains(Capability.COMMANDS) ? game : null,
-                side);
+        return new FakeGame().services(side, provided);
     }
 
     @Test
@@ -104,7 +96,7 @@ class ToolCatalogTest {
         assertEquals(List.of("server_info", "run_command", "run_admin_command"),
                 names(all.availableFor(services(Side.SERVER, Capability.RUNTIME_INFO, Capability.COMMANDS)).tools()));
         assertEquals(List.of(), names(all.availableFor(GameServices.none()).tools()));
-        assertEquals(5, all.availableFor(services(Side.SERVER, Capability.values())).tools().size());
+        assertEquals(7, all.availableFor(services(Side.SERVER, Capability.values())).tools().size());
     }
 
     @Test
@@ -121,26 +113,13 @@ class ToolCatalogTest {
     }
 
     @Test
-    void gameServicesReportOnlyTheirNonNullPorts() {
-        FakeGame game = new FakeGame();
-        assertEquals(java.util.Set.of(), GameServices.none().capabilities());
-        assertEquals(java.util.Set.of(Capability.RUNTIME_INFO),
-                new GameServices(game, null, null, null, Side.SERVER).capabilities());
-        assertEquals(java.util.Set.of(Capability.PLAYERS),
-                new GameServices(null, game, null, null, Side.SERVER).capabilities());
-        assertEquals(java.util.Set.of(Capability.WORLD),
-                new GameServices(null, null, game, null, Side.SERVER).capabilities());
-        assertEquals(java.util.Set.of(Capability.COMMANDS),
-                new GameServices(null, null, null, game, Side.SERVER).capabilities());
-        assertThrows(NullPointerException.class, () -> new GameServices(null, null, null, null, null));
-    }
-
-    @Test
     void everyDefaultToolDeclaresTheCapabilityItsHandlerNeeds() {
         java.util.Map<String, Capability> expected = java.util.Map.of(
                 "server_info", Capability.RUNTIME_INFO,
                 "list_players", Capability.PLAYERS,
                 "query_blocks", Capability.WORLD,
+                "list_registry", Capability.REGISTRIES,
+                "list_entities", Capability.ENTITIES,
                 "run_command", Capability.COMMANDS,
                 "run_admin_command", Capability.COMMANDS);
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
@@ -171,7 +150,7 @@ class ToolCatalogTest {
             return McpSchema.CallToolResult.builder().addTextContent("via " + tool.name()).build();
         };
         List<McpServerFeatures.SyncToolSpecification> specs = ToolCatalog.defaults().specs(invoker);
-        assertEquals(5, specs.size());
+        assertEquals(7, specs.size());
         for (McpServerFeatures.SyncToolSpecification spec : specs) {
             McpSchema.CallToolResult result = spec.callHandler()
                     .apply(null, new McpSchema.CallToolRequest(spec.tool().name(), Map.of("k", "v")));
