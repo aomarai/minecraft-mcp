@@ -75,6 +75,8 @@ public final class McpFabricMod implements ModInitializer {
                 new FabricWorldReader(server),
                 new FabricRegistryReader(server),
                 new FabricEntityReader(server),
+                new FabricWorldStateReader(server),
+                new FabricPermissionReader(server),
                 new FabricCommandRunner(server, commandLevel));
     }
 

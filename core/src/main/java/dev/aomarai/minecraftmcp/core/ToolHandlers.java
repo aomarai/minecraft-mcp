@@ -36,6 +36,8 @@ final class ToolHandlers {
                 "query_blocks", this::queryBlocks,
                 "list_registry", this::listRegistry,
                 "list_entities", this::listEntities,
+                "get_world_state", this::getWorldState,
+                "list_permissions", args -> listPermissions(),
                 "run_command", this::runCommand,
                 "run_admin_command", this::runCommand);
     }
@@ -128,6 +130,44 @@ final class ToolHandlers {
         out.put("dimension", found.dimension());
         out.put("truncated", found.truncated());
         out.put("entities", entities);
+        return json(out);
+    }
+
+    private String getWorldState(ToolArgs args) throws Exception {
+        WorldState state = await(port(WorldStateReader.class, "world state")
+                .state(args.string("dimension")), false);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("dimension", state.dimension());
+        out.put("gameTime", state.gameTime());
+        out.put("dayTime", state.dayTime());
+        out.put("raining", state.raining());
+        out.put("thundering", state.thundering());
+        out.put("difficulty", state.difficulty());
+        out.put("gameRules", state.gameRules());
+        return json(out);
+    }
+
+    private String listPermissions() throws Exception {
+        Permissions permissions = await(port(PermissionReader.class, "permission listing").permissions(), false);
+        List<Map<String, Object>> operators = new ArrayList<>();
+        for (Permissions.Operator operator : permissions.operators()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", operator.name());
+            item.put("uuid", operator.uuid());
+            item.put("level", operator.level());
+            operators.add(item);
+        }
+        List<Map<String, Object>> whitelist = new ArrayList<>();
+        for (Permissions.Whitelisted entry : permissions.whitelist()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", entry.name());
+            item.put("uuid", entry.uuid());
+            whitelist.add(item);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("operators", operators);
+        out.put("whitelistEnabled", permissions.whitelistEnabled());
+        out.put("whitelist", whitelist);
         return json(out);
     }
 

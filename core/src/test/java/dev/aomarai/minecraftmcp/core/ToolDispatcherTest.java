@@ -219,6 +219,57 @@ class ToolDispatcherTest {
         assertTrue(game.pendingEntities.isCancelled());
     }
 
+    // ---- world state and permissions ----
+
+    @Test
+    void getWorldStateReturnsTimeWeatherDifficultyAndSortedRules() {
+        McpSchema.CallToolResult result = dispatcher(false, false)
+                .call(tool("get_world_state"), args("dimension", "minecraft:overworld"));
+
+        assertFalse(result.isError());
+        assertEquals("{\"dimension\":\"minecraft:overworld\",\"gameTime\":12345,\"dayTime\":6000,\"raining\":true,"
+                + "\"thundering\":false,\"difficulty\":\"normal\","
+                + "\"gameRules\":{\"doDaylightCycle\":\"true\",\"keepInventory\":\"false\"}}", text(result));
+        assertEquals(List.of("minecraft:overworld"), game.stateQueries);
+    }
+
+    @Test
+    void getWorldStateNeedsAStringDimension() {
+        assertEquals("dimension must be a string", text(dispatcher(false, false).call(tool("get_world_state"), args("dimension", 5))));
+        assertEquals("dimension must be a string", text(dispatcher(false, false).call(tool("get_world_state"), Map.of())));
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void listPermissionsReturnsOperatorsLevelsAndTheWhitelist() {
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("list_permissions"), Map.of());
+
+        assertFalse(result.isError());
+        assertEquals("{\"operators\":[{\"name\":\"Alex\",\"uuid\":\"uuid-op\",\"level\":4},"
+                + "{\"name\":\"Sam\",\"uuid\":\"uuid-op2\",\"level\":2}],\"whitelistEnabled\":true,"
+                + "\"whitelist\":[{\"name\":\"Steve\",\"uuid\":\"uuid-1\"}]}", text(result));
+        assertEquals(1, game.permissionCalls);
+    }
+
+    @Test
+    void listPermissionsOnAnOpenServerWithNoOperators() {
+        game.permissions = new Permissions(List.of(), false, List.of());
+        assertEquals("{\"operators\":[],\"whitelistEnabled\":false,\"whitelist\":[]}",
+                text(dispatcher(false, false).call(tool("list_permissions"), null)));
+    }
+
+    @Test
+    void stateAndPermissionReadsThatTimeOutAreCancelledWithoutClaimingASideEffect() {
+        game.pendingState = new CompletableFuture<>();
+        game.pendingPermissions = new CompletableFuture<>();
+        ToolDispatcher d = dispatcher(config(false, false, 32768, Duration.ofMillis(100)), game.services(), audit::add);
+
+        assertEquals("timed out after 100 ms", text(d.call(tool("get_world_state"), args("dimension", "minecraft:overworld"))));
+        assertEquals("timed out after 100 ms", text(d.call(tool("list_permissions"), Map.of())));
+        assertTrue(game.pendingState.isCancelled());
+        assertTrue(game.pendingPermissions.isCancelled());
+    }
+
     // ---- act: run_command ----
 
     @Test
@@ -400,6 +451,9 @@ class ToolDispatcherTest {
         assertEquals("registry listing is not supported by this adapter",
                 text(d.call(tool("list_registry"), args("registry", "block"))));
         assertEquals("entity queries is not supported by this adapter", text(d.call(tool("list_entities"), entityArgs())));
+        assertEquals("world state is not supported by this adapter",
+                text(d.call(tool("get_world_state"), args("dimension", "minecraft:overworld"))));
+        assertEquals("permission listing is not supported by this adapter", text(d.call(tool("list_permissions"), Map.of())));
         assertAudit(1, "result", "server_info", "allow", "error: runtime info is not supported by this adapter");
     }
 

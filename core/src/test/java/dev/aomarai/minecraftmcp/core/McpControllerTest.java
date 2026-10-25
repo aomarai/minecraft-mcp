@@ -15,6 +15,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class McpControllerTest {
 
+    /** Every default tool, since the fake game provides every port. */
+    private static final int TOOLS = ToolCatalog.defaults().tools().size();
+
     @TempDir
     Path dir;
 
@@ -81,8 +84,8 @@ class McpControllerTest {
 
             McpService.Status status = controller.status().orElseThrow();
 
-            assertEquals(new McpService.Status("127.0.0.1", port, false, false, 7), status);
-            assertEquals("listening on 127.0.0.1:" + port + ", read-only, 7 tools", status.summary());
+            assertEquals(new McpService.Status("127.0.0.1", port, false, false, TOOLS), status);
+            assertEquals("listening on 127.0.0.1:" + port + ", read-only, " + TOOLS + " tools", status.summary());
             assertFalse(status.toString().contains(token()));
             assertFalse(status.summary().contains(token()));
         }

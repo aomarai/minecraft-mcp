@@ -1,0 +1,21 @@
+{
+  "capability": "PERMISSIONS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List the server's operators (with their permission level) and its whitelist. This reads the server's own lists; it does not grant anything.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "name": "list_permissions",
+    "title": "List permissions"
+  }
+}

@@ -7,7 +7,9 @@ public enum Capability {
     WORLD(WorldReader.class),
     COMMANDS(CommandRunner.class),
     REGISTRIES(RegistryReader.class),
-    ENTITIES(EntityReader.class);
+    ENTITIES(EntityReader.class),
+    WORLD_STATE(WorldStateReader.class),
+    PERMISSIONS(PermissionReader.class);
 
     private final Class<? extends GamePort> portType;
 
