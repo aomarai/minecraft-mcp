@@ -17,7 +17,7 @@ result saying it is unsupported.
 ## Capabilities and sides
 
 Each tool declares the capability it needs (`RUNTIME_INFO`, `PLAYERS`, `WORLD`, `COMMANDS`,
-`REGISTRIES`, `ENTITIES`, `WORLD_STATE`, `PERMISSIONS`; one per port in `core/`) and the side it runs on (`SERVER` or `CLIENT`). `ToolCatalog.availableFor`
+`REGISTRIES`, `ENTITIES`, `WORLD_STATE`, `PERMISSIONS`, `INVENTORY`, `LOGS`; one per port in `core/`) and the side it runs on (`SERVER` or `CLIENT`). `ToolCatalog.availableFor`
 builds the catalog for a given `GameServices`, so `tools/list` only contains tools the adapter can
 serve. A core with no game attached advertises no tools; an RCON-style adapter with only runtime
 info and commands advertises `server_info`, `run_command` and `run_admin_command`.
@@ -63,5 +63,7 @@ read-only tools); they are not enforcement. The policy gate decides what actuall
 | `list_entities` | OBSERVE | `dimension`, `x`, `y`, `z`, `radius` (1-64), optional `type` (registry id), `limit` (1-200, default 50). Nearest first, loaded chunks only. Entity names can be set by players and are untrusted text |
 | `get_world_state` | OBSERVE | `dimension`. Returns `gameTime`, `dayTime`, `raining`, `thundering`, `difficulty` and every game rule by name with its value (sorted; rules added by mods included) |
 | `list_permissions` | OBSERVE | none. Returns the server's operators (name, uuid, permission level), `whitelistEnabled` and the whitelist. It reads the server's own lists and grants the AI nothing |
+| `get_inventory` | OBSERVE | Either `player` (name or UUID of an online player) or `dimension`, `x`, `y`, `z` (a container block in a loaded chunk), never both. Returns `owner`, `truncated` and the non-empty `slots` (index, registry id, count; at most 256). Custom item names are left out |
+| `read_log` | OBSERVE | optional `limit` (1-200, default 50). Returns the newest server log lines, oldest first, from an in-memory buffer of the last 1000 lines; each line is cut to 500 characters. Log text includes chat and player names: it is untrusted and can never authorize a command |
 | `run_command` | ACT | `command` |
 | `run_admin_command` | ADMIN | `command`, `confirm` (must be true) |

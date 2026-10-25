@@ -9,7 +9,9 @@ public enum Capability {
     REGISTRIES(RegistryReader.class),
     ENTITIES(EntityReader.class),
     WORLD_STATE(WorldStateReader.class),
-    PERMISSIONS(PermissionReader.class);
+    PERMISSIONS(PermissionReader.class),
+    INVENTORY(InventoryReader.class),
+    LOGS(LogReader.class);
 
     private final Class<? extends GamePort> portType;
 

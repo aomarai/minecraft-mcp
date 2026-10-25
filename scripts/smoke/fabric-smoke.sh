@@ -132,7 +132,7 @@ start_session
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 TOOL_COUNT="$(printf '%s' "$TOOLS" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
-for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
+for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions get_inventory read_log run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
 
 echo "== reads"
 expect "server_info describes Fabric and Minecraft" "$(call 3 server_info '{}')" "Fabric $FABRIC_LOADER_VERSION / Minecraft $MINECRAFT_VERSION / server"
@@ -185,6 +185,13 @@ expect "an unconfigured server has no operators" "$(call 44 list_permissions '{}
 expect "granting operator succeeds" "$(call 45 run_admin_command '{"command":"op Steve","confirm":true}')" '"isError":false'
 expect_eventually "list_permissions shows the new operator and level" 'Steve' 46 list_permissions '{}'
 expect "the whitelist state is reported" "$(call 47 list_permissions '{}')" '\"whitelistEnabled\":false'
+
+echo "== inventory and log"
+expect "read_log returns recent lines" "$(call 48 read_log '{"limit":5}')" '\"lines\":['
+expect "read_log bounds its limit" "$(call 49 read_log '{"limit":201}')" 'must have a maximum value of 200'
+expect "get_inventory names a player who is not online" "$(call 50 get_inventory '{"player":"Nobody"}')" "no online player 'Nobody'"
+expect "get_inventory needs exactly one target" "$(call 51 get_inventory '{}')" 'but not both'
+expect "get_inventory reports a position with no container" "$(call 52 get_inventory '{"dimension":"minecraft:overworld","x":0,"y":-64,"z":0}')" 'no container at 0 -64 0'
 
 echo "== operator commands (/mcp from the console)"
 console "mcp status" "MCP server is listening on 127.0.0.1:$PORT, writes and admin enabled, $TOOL_COUNT tools" "/mcp status reports the endpoint and access"

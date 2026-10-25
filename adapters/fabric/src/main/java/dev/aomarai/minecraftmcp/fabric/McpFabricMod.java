@@ -2,6 +2,7 @@ package dev.aomarai.minecraftmcp.fabric;
 
 import dev.aomarai.minecraftmcp.core.ConfigException;
 import dev.aomarai.minecraftmcp.core.GameServices;
+import dev.aomarai.minecraftmcp.core.LogBuffer;
 import dev.aomarai.minecraftmcp.core.McpConfig;
 import dev.aomarai.minecraftmcp.core.McpController;
 import dev.aomarai.minecraftmcp.core.Side;
@@ -40,6 +41,11 @@ public final class McpFabricMod implements ModInitializer {
         return thread;
     });
 
+    /** Log lines kept for {@code read_log}. */
+    private static final int LOG_LINES = 1000;
+
+    private final LogBuffer logs = new LogBuffer(LOG_LINES);
+    private volatile FabricLogAppender logAppender;
     private volatile McpController controller;
 
     @Override
@@ -51,9 +57,10 @@ public final class McpFabricMod implements ModInitializer {
     }
 
     private void start(MinecraftServer server) {
+        logAppender = FabricLogAppender.attach(logs);
         Path configDir = FabricLoader.getInstance().getConfigDir();
         McpController created = new McpController(configDir.resolve("minecraft-mcp.json"),
-                configDir.resolve("minecraft-mcp-audit.jsonl"), config -> servicesFor(server, config), System.getenv());
+                configDir.resolve("minecraft-mcp-audit.jsonl"), config -> servicesFor(server, config, logs), System.getenv());
         controller = created;
         try {
             created.start();
@@ -65,7 +72,7 @@ public final class McpFabricMod implements ModInitializer {
         }
     }
 
-    private static GameServices servicesFor(MinecraftServer server, McpConfig config) {
+    private static GameServices servicesFor(MinecraftServer server, McpConfig config, LogBuffer logs) {
         // Commands run at the lowest level that fits what is enabled, so the game itself refuses
         // admin commands unless admin access is on. The core's policy has already decided by then.
         int commandLevel = config.allowAdmin() ? ADMIN_LEVEL : GAMEMASTER_LEVEL;
@@ -77,10 +84,17 @@ public final class McpFabricMod implements ModInitializer {
                 new FabricEntityReader(server),
                 new FabricWorldStateReader(server),
                 new FabricPermissionReader(server),
+                new FabricInventoryReader(server),
+                logs,
                 new FabricCommandRunner(server, commandLevel));
     }
 
     private void stop() {
+        FabricLogAppender appender = logAppender;
+        logAppender = null;
+        if (appender != null) {
+            appender.detach();
+        }
         McpController stopping = controller;
         controller = null;
         if (stopping == null) {

@@ -103,6 +103,46 @@ class QueryRecordsTest {
         assertThrows(IllegalArgumentException.class, () -> new EntityQuery("d", 0, 0, 0, 5, "Not Valid", 1));
     }
 
+    // ---- inventory and log ----
+
+    @Test
+    void inventoryContentsCopyTheirSlotsAndCapThem() {
+        List<InventoryContents.Slot> source = new ArrayList<>(List.of(new InventoryContents.Slot(0, "minecraft:stone", 3)));
+        InventoryContents inventory = new InventoryContents("Steve", source, true);
+        source.clear();
+
+        assertEquals(1, inventory.slots().size());
+        assertEquals(new InventoryContents.Slot(0, "minecraft:stone", 3), inventory.slots().get(0));
+        assertTrue(inventory.truncated());
+        assertThrows(UnsupportedOperationException.class, () -> inventory.slots().clear());
+
+        List<InventoryContents.Slot> atCap = java.util.Collections.nCopies(256, new InventoryContents.Slot(0, "a:b", 1));
+        assertEquals(256, new InventoryContents("c", atCap, false).slots().size());
+        List<InventoryContents.Slot> overCap = java.util.Collections.nCopies(257, new InventoryContents.Slot(0, "a:b", 1));
+        IllegalArgumentException tooMany = assertThrows(IllegalArgumentException.class,
+                () -> new InventoryContents("c", overCap, false));
+        assertEquals("slots must hold at most 256 entries", tooMany.getMessage());
+    }
+
+    @Test
+    void logQueryLimitIsBounded() {
+        assertEquals(1, new LogQuery(1).limit());
+        assertEquals(200, new LogQuery(200).limit());
+        assertEquals("limit must be between 1 and 200", assertThrows(IllegalArgumentException.class, () -> new LogQuery(0)).getMessage());
+        assertEquals("limit must be between 1 and 200", assertThrows(IllegalArgumentException.class, () -> new LogQuery(201)).getMessage());
+    }
+
+    @Test
+    void logLinesAreCopiedAndCutToTheMaximumLength() {
+        List<String> source = new ArrayList<>(List.of("short", "x".repeat(500), "y".repeat(501)));
+        LogLines log = new LogLines(source, false);
+        source.clear();
+
+        assertEquals(List.of("short", "x".repeat(500), "y".repeat(500)), log.lines());
+        assertFalse(log.truncated());
+        assertThrows(UnsupportedOperationException.class, () -> log.lines().clear());
+    }
+
     // ---- WorldState / Permissions ----
 
     @Test

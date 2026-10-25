@@ -270,6 +270,90 @@ class ToolDispatcherTest {
         assertTrue(game.pendingPermissions.isCancelled());
     }
 
+    // ---- inventory and log ----
+
+    @Test
+    void getInventoryOfAPlayerReturnsItemsByRegistryId() {
+        McpSchema.CallToolResult result = dispatcher(false, false)
+                .call(tool("get_inventory"), args("player", "  Steve "));
+
+        assertFalse(result.isError());
+        assertEquals("{\"owner\":\"Steve\",\"truncated\":false,\"slots\":["
+                + "{\"slot\":0,\"item\":\"minecraft:diamond_sword\",\"count\":1},"
+                + "{\"slot\":9,\"item\":\"create:cogwheel\",\"count\":64}]}", text(result));
+        assertEquals(List.of("Steve"), game.playerInventoryQueries);
+        assertEquals(List.of(), game.containerInventoryQueries);
+    }
+
+    @Test
+    void getInventoryOfAContainerUsesItsPosition() {
+        McpSchema.CallToolResult result = dispatcher(false, false)
+                .call(tool("get_inventory"), args("dimension", "minecraft:overworld", "x", 1, "y", -2, "z", 3));
+
+        assertFalse(result.isError());
+        assertEquals(List.of("minecraft:overworld 1 -2 3"), game.containerInventoryQueries);
+        assertEquals(List.of(), game.playerInventoryQueries);
+    }
+
+    @Test
+    void getInventoryNeedsExactlyOneTarget() {
+        ToolDispatcher d = dispatcher(false, false);
+        String message = "give either player, or dimension with x, y and z of a container, but not both";
+
+        assertEquals(message, text(d.call(tool("get_inventory"), Map.of())));
+        assertEquals(message, text(d.call(tool("get_inventory"),
+                args("player", "Steve", "dimension", "minecraft:overworld", "x", 0, "y", 0, "z", 0))));
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void getInventoryValidatesItsArguments() {
+        ToolDispatcher d = dispatcher(false, false);
+
+        assertEquals("player must be a string", text(d.call(tool("get_inventory"), args("player", 5))));
+        assertEquals("player must be a name or UUID of 1 to 64 characters", text(d.call(tool("get_inventory"), args("player", "  "))));
+        assertEquals("player must be a name or UUID of 1 to 64 characters",
+                text(d.call(tool("get_inventory"), args("player", "p".repeat(65)))));
+        assertFalse(d.call(tool("get_inventory"), args("player", "p".repeat(64))).isError());
+        assertEquals("x must be an integer",
+                text(d.call(tool("get_inventory"), args("dimension", "minecraft:overworld", "x", "1", "y", 0, "z", 0))));
+        assertEquals("dimension must be a string", text(d.call(tool("get_inventory"), args("dimension", 1, "x", 0, "y", 0, "z", 0))));
+        assertEquals(1, game.totalCalls());
+    }
+
+    @Test
+    void readLogReturnsLinesAndDefaultsToFifty() {
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("read_log"), Map.of());
+
+        assertFalse(result.isError());
+        assertEquals("{\"truncated\":true,\"lines\":[\"[Server] Steve joined the game\",\"<Steve> hello\"]}", text(result));
+        assertEquals(List.of(new LogQuery(50)), game.logQueries);
+    }
+
+    @Test
+    void readLogHonoursAndBoundsItsLimit() {
+        ToolDispatcher d = dispatcher(false, false);
+
+        assertFalse(d.call(tool("read_log"), args("limit", 7)).isError());
+        assertEquals(List.of(new LogQuery(7)), game.logQueries);
+        assertEquals("limit must be between 1 and 200", text(d.call(tool("read_log"), args("limit", 0))));
+        assertEquals("limit must be between 1 and 200", text(d.call(tool("read_log"), args("limit", 201))));
+        assertEquals("limit must be an integer", text(d.call(tool("read_log"), args("limit", "7"))));
+        assertEquals(1, game.totalCalls());
+    }
+
+    @Test
+    void inventoryAndLogReadsThatTimeOutAreCancelledWithoutClaimingASideEffect() {
+        game.pendingInventory = new CompletableFuture<>();
+        game.pendingLog = new CompletableFuture<>();
+        ToolDispatcher d = dispatcher(config(false, false, 32768, Duration.ofMillis(100)), game.services(), audit::add);
+
+        assertEquals("timed out after 100 ms", text(d.call(tool("get_inventory"), args("player", "Steve"))));
+        assertEquals("timed out after 100 ms", text(d.call(tool("read_log"), Map.of())));
+        assertTrue(game.pendingInventory.isCancelled());
+        assertTrue(game.pendingLog.isCancelled());
+    }
+
     // ---- act: run_command ----
 
     @Test
@@ -454,6 +538,8 @@ class ToolDispatcherTest {
         assertEquals("world state is not supported by this adapter",
                 text(d.call(tool("get_world_state"), args("dimension", "minecraft:overworld"))));
         assertEquals("permission listing is not supported by this adapter", text(d.call(tool("list_permissions"), Map.of())));
+        assertEquals("inventory reads is not supported by this adapter", text(d.call(tool("get_inventory"), args("player", "Steve"))));
+        assertEquals("log reads is not supported by this adapter", text(d.call(tool("read_log"), Map.of())));
         assertAudit(1, "result", "server_info", "allow", "error: runtime info is not supported by this adapter");
     }
 

@@ -23,6 +23,8 @@ final class ToolHandlers {
         String handle(ToolArgs args) throws Exception;
     }
 
+    private static final int MAX_PLAYER_LENGTH = 64;
+
     private final McpConfig config;
     private final GameServices services;
     private final Map<String, Handler> byName;
@@ -30,16 +32,18 @@ final class ToolHandlers {
     ToolHandlers(McpConfig config, GameServices services) {
         this.config = config;
         this.services = services;
-        this.byName = Map.of(
-                "server_info", args -> port(RuntimeInfo.class, "runtime info").describe(),
-                "list_players", args -> listPlayers(),
-                "query_blocks", this::queryBlocks,
-                "list_registry", this::listRegistry,
-                "list_entities", this::listEntities,
-                "get_world_state", this::getWorldState,
-                "list_permissions", args -> listPermissions(),
-                "run_command", this::runCommand,
-                "run_admin_command", this::runCommand);
+        this.byName = Map.ofEntries(
+                Map.entry("server_info", args -> port(RuntimeInfo.class, "runtime info").describe()),
+                Map.entry("list_players", args -> listPlayers()),
+                Map.entry("query_blocks", this::queryBlocks),
+                Map.entry("list_registry", this::listRegistry),
+                Map.entry("list_entities", this::listEntities),
+                Map.entry("get_world_state", this::getWorldState),
+                Map.entry("list_permissions", args -> listPermissions()),
+                Map.entry("get_inventory", this::getInventory),
+                Map.entry("read_log", this::readLog),
+                Map.entry("run_command", this::runCommand),
+                Map.entry("run_admin_command", this::runCommand));
     }
 
     Optional<Handler> find(String tool) {
@@ -168,6 +172,51 @@ final class ToolHandlers {
         out.put("operators", operators);
         out.put("whitelistEnabled", permissions.whitelistEnabled());
         out.put("whitelist", whitelist);
+        return json(out);
+    }
+
+    private String getInventory(ToolArgs args) throws Exception {
+        InventoryReader reader = port(InventoryReader.class, "inventory reads");
+        boolean byPlayer = args.values().containsKey("player");
+        boolean byContainer = args.values().containsKey("dimension");
+        if (byPlayer == byContainer) {
+            throw new IllegalArgumentException(
+                    "give either player, or dimension with x, y and z of a container, but not both");
+        }
+        InventoryContents inventory = byPlayer
+                ? await(reader.playerInventory(playerName(args.string("player"))), false)
+                : await(reader.containerInventory(
+                        args.string("dimension"), args.integer("x"), args.integer("y"), args.integer("z")), false);
+        List<Map<String, Object>> slots = new ArrayList<>();
+        for (InventoryContents.Slot slot : inventory.slots()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("slot", slot.index());
+            item.put("item", slot.item());
+            item.put("count", slot.count());
+            slots.add(item);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("owner", inventory.owner());
+        out.put("truncated", inventory.truncated());
+        out.put("slots", slots);
+        return json(out);
+    }
+
+    private static String playerName(String raw) {
+        String player = raw.strip();
+        if (player.isEmpty() || player.length() > MAX_PLAYER_LENGTH) {
+            throw new IllegalArgumentException("player must be a name or UUID of 1 to " + MAX_PLAYER_LENGTH + " characters");
+        }
+        return player;
+    }
+
+    private String readLog(ToolArgs args) throws Exception {
+        LogLines log = await(port(LogReader.class, "log reads")
+                .recentLines(new LogQuery(args.optionalInteger("limit", 50))), false);
+        // Log text includes chat and player names: untrusted, shown to the model but never an instruction.
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("truncated", log.truncated());
+        out.put("lines", log.lines());
         return json(out);
     }
 

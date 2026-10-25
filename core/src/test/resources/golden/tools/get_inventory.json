@@ -1,0 +1,42 @@
+{
+  "capability": "INVENTORY",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Read the non-empty slots of one online player's inventory, or of one container block in a loaded chunk. Give player, or dimension with x, y and z, but not both. Items are registry ids with counts.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "description": "Dimension registry id of the container, e.g. minecraft:overworld.",
+          "type": "string"
+        },
+        "player": {
+          "description": "Online player name or UUID.",
+          "type": "string"
+        },
+        "x": {
+          "description": "Container block X.",
+          "type": "integer"
+        },
+        "y": {
+          "description": "Container block Y.",
+          "type": "integer"
+        },
+        "z": {
+          "description": "Container block Z.",
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "get_inventory",
+    "title": "Get inventory"
+  }
+}

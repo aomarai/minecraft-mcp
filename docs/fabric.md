@@ -32,6 +32,8 @@ All five tools in `docs/tools.md` are served.
 | `list_entities` | Entities within 1-64 blocks of a point in a dimension, nearest first, with their type as a registry id. Loaded chunks only; nothing is loaded or generated. A freshly spawned entity can take a moment to appear while its chunk finishes loading |
 | `get_world_state` | A dimension's game time, day time, weather, difficulty and every game rule, enumerated from the game so mod rules are included |
 | `list_permissions` | The operator list (name, uuid, level) and whitelist from the server's own lists. Names come from the profile cache; a uuid the server has never seen is `unknown` |
+| `get_inventory` | An online player's inventory (by name or UUID) or the container block at a position in a loaded chunk: non-empty slots as registry id and count, at most 256. Custom item names are never returned |
+| `read_log` | The newest server log lines from a 1000-line buffer fed by a log4j appender attached when the server starts. It holds lines logged after MCP started, not the log file's history |
 | `run_command`, `run_admin_command` | Through the game's Brigadier dispatcher, so vanilla and modded commands both work |
 
 - **Main thread:** every read and write is queued with `MinecraftServer.execute` (see `MainThread`

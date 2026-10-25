@@ -21,12 +21,12 @@ class ToolCatalogTest {
     void defaultsAreGroupedByScope() {
         ToolCatalog catalog = ToolCatalog.defaults();
         assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities",
-                        "get_world_state", "list_permissions"),
+                        "get_world_state", "list_permissions", "get_inventory", "read_log"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
         assertEquals(List.of("run_command"), names(catalog.byScope(ToolPolicy.Scope.ACT)));
         assertEquals(List.of("run_admin_command"), names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
         assertEquals(ToolCatalog.defaults().tools().size(), catalog.tools().size());
-        assertEquals(9, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
+        assertEquals(11, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
     }
 
     @Test
@@ -124,6 +124,8 @@ class ToolCatalogTest {
                 "list_entities", Capability.ENTITIES,
                 "get_world_state", Capability.WORLD_STATE,
                 "list_permissions", Capability.PERMISSIONS,
+                "get_inventory", Capability.INVENTORY,
+                "read_log", Capability.LOGS,
                 "run_command", Capability.COMMANDS,
                 "run_admin_command", Capability.COMMANDS);
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
