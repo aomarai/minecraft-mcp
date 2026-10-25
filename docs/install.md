@@ -1,8 +1,9 @@
 # Install and connect
 
 This page takes a server operator from nothing to an AI client talking to a Minecraft server. Pick the
-install for your server, then connect a client. Every step was run against a real server in the
-project's tests; the numbers and messages below are the real ones.
+install for your server, then connect a client. The server side is exercised against real servers in the
+project's tests (the log lines and messages below are the real ones); the client snippets follow each host's
+documented format and are not run in CI.
 
 **Which one do I need?**
 
@@ -71,7 +72,7 @@ and talks to it through RCON, Query and the server's log.
    ```
 
    ```text
-   Minecraft MCP (universal) listening on 127.0.0.1:25599, read-only, 11 tools
+   Minecraft MCP (universal) listening on 127.0.0.1:25599, read-only, 14 tools
    Configuration: /path/to/mcp-config/minecraft-mcp.json (created; it holds the token, which is not shown here)
    ```
 
@@ -104,7 +105,7 @@ Open the file to copy it:
 In the game or at the server console, `/mcp status` says what is running (it never shows the token):
 
 ```text
-MCP server is listening on 127.0.0.1:25599, read-only, 19 tools
+MCP server is listening on 127.0.0.1:25599, read-only, 20 tools
 ```
 
 - **Let the AI change things:** set `"allowWrites": true` (commands like `say`, `give`, `teleport`, filling a
@@ -118,8 +119,8 @@ All the settings: [configuration.md](configuration.md). What is protected and ho
 
 ## Connect a client
 
-Every client needs two things: the URL `http://127.0.0.1:25599/mcp` (the client must run on the same machine;
-for another machine see the remote access guide) and the token as a bearer token. Below, `<TOKEN>` is the value
+Every client needs two things: the URL `http://127.0.0.1:25599/mcp` (the client must run on the same machine; plain
+HTTP to another machine is deliberately unsupported, see [security.md](security.md)) and the token as a bearer token. Below, `<TOKEN>` is the value
 from `minecraft-mcp.json`. Do not paste a real token into a screenshot, a chat or a repository.
 
 ### Claude Code
