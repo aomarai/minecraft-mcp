@@ -131,7 +131,8 @@ expect "a volume over the cap is refused" "$(call 7 query_blocks '{"dimension":"
 echo "== policy-gated write"
 expect "run_command runs through Brigadier" "$(call 8 run_command '{"command":"say smoke test"}')" '"isError":false'
 expect "a write command takes effect" "$(call 9 run_command '{"command":"time set 6000"}')" '"isError":false'
-expect "and a read sees it" "$(call 10 run_command '{"command":"time query daytime"}')" 'The time is 6000'
+# The game ticks between the two commands, so allow a few ticks of drift: 6000 becomes 600x or 60xx.
+expect "and a read sees it" "$(call 10 run_command '{"command":"time query daytime"}')" 'The time is 60'
 expect "a bad command is an error" "$(call 11 run_command '{"command":"nonsense"}')" '"isError":true'
 
 echo "== policy refusals and confirmation"
