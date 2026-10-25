@@ -30,7 +30,7 @@ Two tiers, one core:
   Query protocol and log tailing. Works on vanilla, Paper, Forge, Fabric, or anything else that
   can enable RCON. Reduced, command-centric tool set.
 - **Shared core:** protocol handling, tool schemas, policy engine, audit log. Adapters implement
-  the `GameAccess` port; the core imports no Minecraft classes.
+  the capability ports (`CommandRunner`, `PlayerReader`, `WorldReader`, `RuntimeInfo`); the core imports no Minecraft classes.
 
 See [docs/architecture.md](docs/architecture.md) for the module boundaries, threading contract,
 and adapter design. See [docs/security.md](docs/security.md) for the threat model.
