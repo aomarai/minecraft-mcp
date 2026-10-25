@@ -78,6 +78,11 @@ public final class McpCore implements AutoCloseable {
         return connector.getLocalPort();
     }
 
+    /** The servlet transport, exposed to tests that exercise shutdown behavior. */
+    HttpServletStreamableServerTransportProvider transport() {
+        return transport;
+    }
+
     /** The MCP server instance, for registering tools/resources in later issues. */
     public McpSyncServer server() {
         return mcp;

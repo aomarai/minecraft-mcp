@@ -29,8 +29,5 @@ pitest {
     threads.set(4)
     outputFormats.set(listOf("HTML", "XML"))
     timestampedReports.set(false)
-    // Known survivor: removing McpSyncServer.closeGracefully() in McpCore.close()
-    // is unobservable because the Jetty stop that follows tears down the same
-    // sessions. Everything else must be killed.
-    mutationThreshold.set(98)
+    mutationThreshold.set(100)
 }

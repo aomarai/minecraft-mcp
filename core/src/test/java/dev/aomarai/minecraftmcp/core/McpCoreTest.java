@@ -76,4 +76,31 @@ class McpCoreTest {
         core.close();
         assertThrows(ConnectException.class, () -> new Socket("127.0.0.1", port).close());
     }
+
+    @Test
+    void closeShutsTheMcpTransportDownGracefully() throws Exception {
+        McpCore core = new McpCore("127.0.0.1", 0);
+        core.close();
+
+        int[] status = {0};
+        java.lang.reflect.InvocationHandler request = (proxy, method, args) -> switch (method.getName()) {
+            case "getRequestURI" -> McpCore.DEFAULT_ENDPOINT;
+            case "getMethod" -> "POST";
+            default -> null;
+        };
+        java.lang.reflect.InvocationHandler response = (proxy, method, args) -> {
+            if (method.getName().equals("sendError")) {
+                status[0] = (Integer) args[0];
+            }
+            return null;
+        };
+        ClassLoader loader = McpCoreTest.class.getClassLoader();
+        jakarta.servlet.http.HttpServletRequest req = (jakarta.servlet.http.HttpServletRequest)
+                java.lang.reflect.Proxy.newProxyInstance(loader, new Class<?>[]{jakarta.servlet.http.HttpServletRequest.class}, request);
+        jakarta.servlet.http.HttpServletResponse resp = (jakarta.servlet.http.HttpServletResponse)
+                java.lang.reflect.Proxy.newProxyInstance(loader, new Class<?>[]{jakarta.servlet.http.HttpServletResponse.class}, response);
+
+        core.transport().service(req, resp);
+        assertEquals(503, status[0], "a closed core must refuse new MCP requests");
+    }
 }
