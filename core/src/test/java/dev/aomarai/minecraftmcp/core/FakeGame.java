@@ -1,5 +1,6 @@
 package dev.aomarai.minecraftmcp.core;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -9,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 
 /** In-memory game for tests: records every call so tests can prove what did and did not reach it. */
 final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandRunner, RegistryReader, EntityReader,
-        WorldStateReader, PermissionReader {
+        WorldStateReader, PermissionReader, InventoryReader, LogReader {
 
     final List<String> commands = new ArrayList<>();
     final List<Duration> commandTimeouts = new ArrayList<>();
@@ -17,6 +18,8 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     final List<RegistryQuery> registryQueries = new ArrayList<>();
     final List<EntityQuery> entityQueries = new ArrayList<>();
     final List<String> stateQueries = new ArrayList<>();
+    final List<String> inventoryQueries = new ArrayList<>();
+    final List<Integer> logQueries = new ArrayList<>();
     int permissionCalls;
     int infoCalls;
     int playerCalls;
@@ -33,6 +36,11 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     Permissions permissions = new Permissions(
             List.of(new Permissions.Operator("Alex", "uuid-op", 4), new Permissions.Operator("Sam", "uuid-op2", 2)),
             true, List.of(new Permissions.Whitelisted("Steve", "uuid-1")));
+    Inventory inventory = new Inventory("Steve", List.of(
+            new Inventory.Stack(0, "minecraft:diamond_sword", 1), new Inventory.Stack(36, "create:cogwheel", 64)));
+    List<String> logLines = List.of("[12:00:00] [Server thread/INFO]: Done (1.2s)!",
+            "[12:00:01] [Server thread/INFO]: Steve[/192.168.1.5:54321] logged in", "<Steve> hello");
+    IOException logFailure;
     /** When set, returned instead of a completed future, e.g. one that never completes. */
     CompletableFuture<CommandResult> pendingCommand;
     CompletableFuture<List<PlayerInfo>> pendingPlayers;
@@ -41,6 +49,7 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     CompletableFuture<EntityList> pendingEntities;
     CompletableFuture<WorldState> pendingState;
     CompletableFuture<Permissions> pendingPermissions;
+    CompletableFuture<Inventory> pendingInventory;
 
     /** Every port, on the server side. */
     GameServices services() {
@@ -61,6 +70,8 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
                 case ENTITIES -> (EntityReader) this::entitiesNear;
                 case WORLD_STATE -> (WorldStateReader) this::state;
                 case PERMISSIONS -> (PermissionReader) this::permissions;
+                case INVENTORIES -> (InventoryReader) this::inventoryOf;
+                case LOGS -> (LogReader) this::tail;
             });
         }
         return new GameServices(side, ports.toArray(new GamePort[0]));
@@ -68,7 +79,7 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
 
     int totalCalls() {
         return infoCalls + playerCalls + commands.size() + queries.size() + registryQueries.size() + entityQueries.size()
-                + stateQueries.size() + permissionCalls;
+                + stateQueries.size() + permissionCalls + inventoryQueries.size() + logQueries.size();
     }
 
     @Override
@@ -118,5 +129,20 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     public CompletableFuture<Permissions> permissions() {
         permissionCalls++;
         return pendingPermissions != null ? pendingPermissions : CompletableFuture.completedFuture(permissions);
+    }
+
+    @Override
+    public CompletableFuture<Inventory> inventoryOf(String player) {
+        inventoryQueries.add(player);
+        return pendingInventory != null ? pendingInventory : CompletableFuture.completedFuture(inventory);
+    }
+
+    @Override
+    public List<String> tail(int lines) throws IOException {
+        logQueries.add(lines);
+        if (logFailure != null) {
+            throw logFailure;
+        }
+        return logLines;
     }
 }

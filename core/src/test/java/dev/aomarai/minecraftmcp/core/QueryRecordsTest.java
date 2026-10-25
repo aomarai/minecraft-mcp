@@ -138,6 +138,17 @@ class QueryRecordsTest {
     }
 
     @Test
+    void inventoryCopiesItsStacks() {
+        List<Inventory.Stack> source = new ArrayList<>(List.of(new Inventory.Stack(0, "minecraft:stone", 3)));
+        Inventory inventory = new Inventory("Steve", source);
+        source.clear();
+
+        assertEquals("Steve", inventory.player());
+        assertEquals(List.of(new Inventory.Stack(0, "minecraft:stone", 3)), inventory.stacks());
+        assertThrows(UnsupportedOperationException.class, () -> inventory.stacks().clear());
+    }
+
+    @Test
     void entityListCopiesItsEntities() {
         List<EntityList.EntityInfo> source = new ArrayList<>(List.of(new EntityList.EntityInfo("minecraft:pig", "u", "Pig", 1, 2, 3)));
         EntityList list = new EntityList("minecraft:overworld", source, false);

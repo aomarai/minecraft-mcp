@@ -30,16 +30,22 @@ final class ToolHandlers {
     ToolHandlers(McpConfig config, GameServices services) {
         this.config = config;
         this.services = services;
-        this.byName = Map.of(
-                "server_info", args -> port(RuntimeInfo.class, "runtime info").describe(),
-                "list_players", args -> listPlayers(),
-                "query_blocks", this::queryBlocks,
-                "list_registry", this::listRegistry,
-                "list_entities", this::listEntities,
-                "get_world_state", this::getWorldState,
-                "list_permissions", args -> listPermissions(),
-                "run_command", this::runCommand,
-                "run_admin_command", this::runCommand);
+        this.byName = Map.ofEntries(
+                entry("server_info", args -> port(RuntimeInfo.class, "runtime info").describe()),
+                entry("list_players", args -> listPlayers()),
+                entry("query_blocks", this::queryBlocks),
+                entry("list_registry", this::listRegistry),
+                entry("list_entities", this::listEntities),
+                entry("get_world_state", this::getWorldState),
+                entry("list_permissions", args -> listPermissions()),
+                entry("get_inventory", this::getInventory),
+                entry("read_log", this::readLog),
+                entry("run_command", this::runCommand),
+                entry("run_admin_command", this::runCommand));
+    }
+
+    private static Map.Entry<String, Handler> entry(String name, Handler handler) {
+        return Map.entry(name, handler);
     }
 
     Optional<Handler> find(String tool) {
@@ -168,6 +174,36 @@ final class ToolHandlers {
         out.put("operators", operators);
         out.put("whitelistEnabled", permissions.whitelistEnabled());
         out.put("whitelist", whitelist);
+        return json(out);
+    }
+
+    private String getInventory(ToolArgs args) throws Exception {
+        Inventory inventory = await(port(InventoryReader.class, "inventory reads")
+                .inventoryOf(args.string("player")), false);
+        List<Map<String, Object>> stacks = new ArrayList<>();
+        for (Inventory.Stack stack : inventory.stacks()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("slot", stack.slot());
+            item.put("item", stack.item());
+            item.put("count", stack.count());
+            stacks.add(item);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("player", inventory.player());
+        out.put("stacks", stacks);
+        return json(out);
+    }
+
+    private String readLog(ToolArgs args) throws Exception {
+        int lines = args.optionalInteger("lines", 50);
+        if (lines < 1 || lines > LogReader.MAX_LINES) {
+            throw new IllegalArgumentException("lines must be between 1 and " + LogReader.MAX_LINES);
+        }
+        List<String> tail = port(LogReader.class, "log reads").tail(lines);
+        Map<String, Object> out = new LinkedHashMap<>();
+        // The log contains chat and player names. Say so in the data itself, not only in the docs.
+        out.put("untrusted", true);
+        out.put("lines", tail.stream().map(LogRedaction::redact).toList());
         return json(out);
     }
 

@@ -1,6 +1,7 @@
 package dev.aomarai.minecraftmcp.fabric;
 
 import dev.aomarai.minecraftmcp.core.ConfigException;
+import dev.aomarai.minecraftmcp.core.FileLogReader;
 import dev.aomarai.minecraftmcp.core.GameServices;
 import dev.aomarai.minecraftmcp.core.McpConfig;
 import dev.aomarai.minecraftmcp.core.McpController;
@@ -77,6 +78,8 @@ public final class McpFabricMod implements ModInitializer {
                 new FabricEntityReader(server),
                 new FabricWorldStateReader(server),
                 new FabricPermissionReader(server),
+                new FabricInventoryReader(server),
+                new FileLogReader(FabricLoader.getInstance().getGameDir().resolve("logs").resolve("latest.log")),
                 new FabricCommandRunner(server, commandLevel));
     }
 

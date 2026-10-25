@@ -1,0 +1,28 @@
+{
+  "capability": "INVENTORIES",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Read what an online player carries: item registry ids and counts by slot (0-35 main, 36-39 armor from the boots up, 40 off hand). Custom item names are not included.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "player": {
+          "description": "Name of an online player.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "player"
+      ],
+      "type": "object"
+    },
+    "name": "get_inventory",
+    "title": "Get inventory"
+  }
+}
