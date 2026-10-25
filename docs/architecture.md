@@ -76,9 +76,9 @@ dry-run mode that validates before applying.
 
 ## Version and loader strategy
 
-- **Stonecutter** provides source-level multi-version conditionals.
-- **Modstitch** unifies official Fabric Loom and NeoGradle in one project with per-loader source
-  sets. One codebase, one artifact per loader.
+- **Stonecutter** builds each loader's adapter for every Minecraft version from one source tree: a
+  controller per loader and a node per version (`docs/version-matrix.md`). Fabric uses Loom and
+  NeoForge will use ModDevGradle, directly; one artifact per loader and version.
 - Start with 1.21.1 and 26.2/26.3; widen deliberately.
 - Mixins are a last resort. Prefer loader APIs and registry access. Any mixin must be
   version-gated and kept small.

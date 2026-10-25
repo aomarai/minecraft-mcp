@@ -27,7 +27,7 @@ jobs:
       - run: ./gradlew build --no-daemon --refresh-dependencies
       - run: ./gradlew :core:pitest :stdio-shim:pitest --no-daemon
       # Fabric game tests: a real server with fake players joining, chatting, dying and leaving.
-      - run: ./gradlew :adapters:fabric:runGameTest --no-daemon
+      - run: ./gradlew :adapters:fabric:1.21.1:runGameTest --no-daemon
       # A jar that compiles is not a jar that loads: start a real Fabric server with it.
       - name: Fabric smoke test (Docker)
-        run: bash scripts/smoke/run-in-docker.sh adapters/fabric/build/libs/minecraft-mcp-*+1.21.1-fabric.jar
+        run: bash scripts/smoke/run-in-docker.sh adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-*+1.21.1-fabric.jar

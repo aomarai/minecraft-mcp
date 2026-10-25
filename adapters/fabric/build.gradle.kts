@@ -5,9 +5,20 @@ plugins {
     id("com.gradleup.shadow") version "9.6.1"
 }
 
-val minecraftVersion = "1.21.1"
-val fabricLoaderVersion = "0.20.1"
-val fabricApiVersion = "0.116.17+1.21.1"
+// This script is shared by every version node of the Fabric adapter; versions/<node>/gradle.properties
+// supplies what differs. See docs/version-matrix.md, "Adding a target".
+val minecraftVersion = property("minecraft_version") as String
+val fabricLoaderVersion = property("fabric_loader_version") as String
+val fabricApiVersion = property("fabric_api_version") as String
+val javaVersion = (property("java_version") as String).toInt()
+
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(javaVersion))
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(javaVersion)
+}
 
 // Everything in `shade` is packed into the mod jar and relocated, so it cannot clash with
 // another mod or with libraries the game ships.
@@ -27,7 +38,7 @@ dependencies {
     implementation(project(":core"))
 }
 
-// Game tests run in a real dedicated server with fake players (`./gradlew :adapters:fabric:runGameTest`).
+// Game tests run in a real dedicated server with fake players (`./gradlew :adapters:fabric:1.21.1:runGameTest`).
 // `eula` accepts the Minecraft EULA for that disposable development server only.
 fabricApi {
     configureTests {

@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
 # Smoke test: start a real headless Fabric server with the mod and exercise it over MCP.
 #
-#   scripts/smoke/fabric-smoke.sh <path-to-mod-jar>
+#   scripts/smoke/fabric-smoke.sh <path-to-mod-jar> [node-gradle.properties]
 #
 # Needs bash, curl, Java 21 and network access (Fabric launcher, Fabric API, Mojang server jar).
 # Everything happens in a throwaway directory that is removed on exit. Exits non-zero, with the
 # server log, if the mod does not load, the endpoint does not start, or any check fails.
 #
 # The eula=true written below accepts the Minecraft EULA for this disposable test server only;
-# nothing is redistributed. The versions must match adapters/fabric/build.gradle.kts.
+# nothing is redistributed. The game, loader and Fabric API versions come from the node's own
+# gradle.properties (default: the 1.21.1 node), so the test always runs what the jar was built for.
 set -u
 
-MINECRAFT_VERSION="1.21.1"
-FABRIC_LOADER_VERSION="0.20.1"
+NODE_PROPERTIES="${2:-$(cd "$(dirname "$0")/../.." && pwd)/adapters/fabric/versions/1.21.1/gradle.properties}"
+property() { sed -n "s/^$1=//p" "$NODE_PROPERTIES" | tr -d ''; }
+MINECRAFT_VERSION="$(property minecraft_version)"
+FABRIC_LOADER_VERSION="$(property fabric_loader_version)"
+FABRIC_API_VERSION="$(property fabric_api_version)"
+[ -n "$MINECRAFT_VERSION" ] && [ -n "$FABRIC_LOADER_VERSION" ] && [ -n "$FABRIC_API_VERSION" ]   || { echo "FAIL: cannot read the versions from $NODE_PROPERTIES"; exit 2; }
 FABRIC_INSTALLER_VERSION="1.1.2"
-FABRIC_API_VERSION="0.116.17+1.21.1"
 START_TIMEOUT_SECONDS="${SMOKE_START_TIMEOUT:-300}"
 PORT=25599
 
