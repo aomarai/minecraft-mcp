@@ -108,6 +108,45 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void commandListsComeFromTheFileAndAreWrittenEmptyOnFirstRun() throws IOException {
+        ConfigLoader.load(file(), Map.of());
+        String created = Files.readString(file());
+        assertTrue(created.contains("\"allowedCommands\": []"), created);
+        assertTrue(created.contains("\"destructiveCommands\": []"), created);
+
+        writeConfig("{\"token\": \"" + TOKEN + "\", \"allowedCommands\": [\"MyMod:Status\", \"say\"],"
+                + " \"destructiveCommands\": [\"minecraft:give\"]}");
+        McpConfig config = ConfigLoader.load(file(), Map.of()).config();
+        assertEquals(java.util.Set.of("mymod:status", "say"), config.allowedCommands());
+        assertEquals(java.util.Set.of("give"), config.destructiveCommands());
+    }
+
+    @Test
+    void commandListsCanBeOverriddenFromTheEnvironmentAsCommaSeparatedNames() throws IOException {
+        writeConfig("{\"token\": \"" + TOKEN + "\", \"allowedCommands\": [\"say\"]}");
+
+        McpConfig config = ConfigLoader.load(file(), Map.of(
+                "MINECRAFT_MCP_ALLOWED_COMMANDS", " mymod:a , mymod:b ,, ",
+                "MINECRAFT_MCP_DESTRUCTIVE_COMMANDS", "give")).config();
+
+        assertEquals(java.util.Set.of("mymod:a", "mymod:b"), config.allowedCommands());
+        assertEquals(java.util.Set.of("give"), config.destructiveCommands());
+        assertTrue(Files.readString(file()).contains("\"say\""), "the environment is never written back");
+        assertEquals(java.util.Set.of(), ConfigLoader.load(file(), Map.of("MINECRAFT_MCP_ALLOWED_COMMANDS", ""))
+                .config().allowedCommands(), "an empty variable clears the list");
+    }
+
+    @Test
+    void badCommandListsFailWithAClearMessage() throws IOException {
+        writeConfig("{\"allowedCommands\": \"say\"}");
+        assertEquals("allowedCommands must be a list of strings", failure(file(), Map.of()).getMessage());
+        writeConfig("{\"destructiveCommands\": [\"kill\", 5]}");
+        assertEquals("destructiveCommands must be a list of strings", failure(file(), Map.of()).getMessage());
+        writeConfig("{\"allowedCommands\": [\"two words\"], \"token\": \"" + TOKEN + "\"}");
+        assertTrue(failure(file(), Map.of()).getMessage().contains("allowedCommands must be single command names"));
+    }
+
+    @Test
     void generatedTokensDiffer() {
         assertNotEquals(ConfigLoader.generateToken(), ConfigLoader.generateToken());
     }

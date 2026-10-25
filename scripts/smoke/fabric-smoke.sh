@@ -133,10 +133,10 @@ expect "run_command runs through Brigadier" "$(call 8 run_command '{"command":"s
 expect "a write command takes effect" "$(call 9 run_command '{"command":"time set 6000"}')" '"isError":false'
 # The game ticks between the two commands, so allow a few ticks of drift: 6000 becomes 600x or 60xx.
 expect "and a read sees it" "$(call 10 run_command '{"command":"time query daytime"}')" 'The time is 60'
-expect "a bad command is an error" "$(call 11 run_command '{"command":"nonsense"}')" '"isError":true'
+expect "an unrecognised command is not a plain write" "$(call 11 run_command '{"command":"nonsense"}')" 'this command needs admin access; use run_admin_command'
 
 echo "== policy refusals and confirmation"
-expect "a destructive command through run_command is refused" "$(call 12 run_command '{"command":"stop"}')" 'destructive commands must use run_admin_command'
+expect "a destructive command through run_command is refused" "$(call 12 run_command '{"command":"stop"}')" 'this command needs admin access; use run_admin_command'
 expect "run_admin_command needs confirm=true" "$(call 13 run_admin_command '{"command":"stop","confirm":false}')" 'admin action requires confirmation'
 sleep 1
 kill -0 "$SERVER_PID" 2>/dev/null && pass "the server is still running: nothing was stopped" || fail "the server stopped without confirmation"

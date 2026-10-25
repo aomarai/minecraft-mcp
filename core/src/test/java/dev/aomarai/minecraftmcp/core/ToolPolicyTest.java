@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ToolPolicyTest {
@@ -77,14 +79,92 @@ class ToolPolicyTest {
 
     @Test
     void onlyOneLeadingSlashIsStripped() {
-        // "//op" has root "/op", which is not a destructive root.
-        assertAllowed(new ToolPolicy(true, true).checkCommand("//op", false));
+        // "//op" has root "/op", which is nothing the policy recognises, so it is not a plain write.
+        assertTrue(new ToolPolicy(true, true).checkCommand("//op", false).requiresConfirmation());
     }
 
     @Test
     void rootMustMatchExactlyNotByPrefix() {
-        assertAllowed(new ToolPolicy(true, false).checkCommand("opx", false));
-        assertAllowed(new ToolPolicy(true, false).checkCommand("tpx 1 2 3", false));
+        // "opx" and "tpx" are not "op" and "tp"; they are unrecognised, and unrecognised needs admin.
+        assertDenied(new ToolPolicy(true, false).checkCommand("opx", false),
+                "unrecognised command 'opx' needs admin access; list it in allowedCommands to trust it");
+        assertEquals("unrecognised command 'tpx' requires confirmation",
+                new ToolPolicy(true, true).checkCommand("tpx 1 2 3", false).reason());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"say", "tell", "msg", "w", "me", "tellraw", "title", "list", "seed", "help",
+            "time", "weather", "give", "xp", "experience", "effect", "playsound", "particle"})
+    void everyKnownSafeCommandIsAPlainWrite(String root) {
+        assertAllowed(new ToolPolicy(true, false).checkCommand(root + " x", false));
+        assertDenied(new ToolPolicy(false, true).checkCommand(root + " x", false), "write commands are disabled");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"execute run say hi", "mymod:wipe_world", "function mypack:boom", "data merge", "frobnicate"})
+    void unrecognisedCommandsAreTreatedLikeDestructiveOnes(String command) {
+        String root = command.split(" ")[0];
+        ToolPolicy.Decision disabled = new ToolPolicy(true, false).checkCommand(command, true);
+        assertDenied(disabled, "unrecognised command '" + root + "' needs admin access; list it in allowedCommands to trust it");
+
+        ToolPolicy admin = new ToolPolicy(true, true);
+        ToolPolicy.Decision pending = admin.checkCommand(command, false);
+        assertTrue(pending.allowed());
+        assertTrue(pending.requiresConfirmation());
+        assertEquals("unrecognised command '" + root + "' requires confirmation", pending.reason());
+        assertAllowed(admin.checkCommand(command, true));
+    }
+
+    @Test
+    void writesAloneNeverUnlockAnUnrecognisedCommand() {
+        assertTrue(new ToolPolicy(true, false).checkCommand("mymod:wipe", true).reason().contains("needs admin access"));
+        assertFalse(new ToolPolicy(false, false).checkCommand("mymod:wipe", true).allowed());
+    }
+
+    @Test
+    void theVanillaNamespaceIsIgnoredSoAliasesCannotBypassThePolicy() {
+        ToolPolicy admin = new ToolPolicy(true, true);
+        assertEquals("destructive command requires confirmation", admin.checkCommand("minecraft:kill @e", false).reason());
+        assertEquals("destructive command requires confirmation", admin.checkCommand("/MINECRAFT:Stop", false).reason());
+        assertDenied(new ToolPolicy(true, false).checkCommand("minecraft:op Steve", true), "admin commands are disabled");
+        assertAllowed(admin.checkCommand("minecraft:say hi", false));
+    }
+
+    @Test
+    void otherNamespacesAreDifferentCommands() {
+        // "other:kill" is not vanilla's kill, so it is not known safe, and not "kill" either.
+        assertEquals("unrecognised command 'other:kill' requires confirmation",
+                new ToolPolicy(true, true).checkCommand("other:kill", false).reason());
+    }
+
+    @Test
+    void anOperatorCanTrustACommand() {
+        ToolPolicy policy = new ToolPolicy(true, false, Set.of("mymod:status"), Set.of());
+        assertAllowed(policy.checkCommand("mymod:status all", false));
+        assertDenied(new ToolPolicy(false, false, Set.of("mymod:status"), Set.of()).checkCommand("mymod:status", false),
+                "write commands are disabled");
+        assertTrue(policy.checkCommand("mymod:other", false).reason().contains("needs admin access"));
+    }
+
+    @Test
+    void anOperatorCanMarkACommandDestructive() {
+        ToolPolicy policy = new ToolPolicy(true, true, Set.of(), Set.of("give"));
+        assertEquals("destructive command requires confirmation", policy.checkCommand("give Steve diamond", false).reason());
+        assertDenied(new ToolPolicy(true, false, Set.of(), Set.of("give")).checkCommand("give Steve diamond", true),
+                "admin commands are disabled");
+    }
+
+    @Test
+    void destructiveBeatsAllowedWhenBothAreListed() {
+        ToolPolicy policy = new ToolPolicy(true, true, Set.of("mymod:wipe"), Set.of("mymod:wipe"));
+        assertEquals("destructive command requires confirmation", policy.checkCommand("mymod:wipe", false).reason());
+    }
+
+    @Test
+    void theBuiltInDestructiveListCannotBeLoosenedByAllowing() {
+        ToolPolicy policy = new ToolPolicy(true, true, Set.of("kill", "op"), Set.of());
+        assertEquals("destructive command requires confirmation", policy.checkCommand("kill @e", false).reason());
+        assertEquals("destructive command requires confirmation", policy.checkCommand("op Steve", false).reason());
     }
 
     @ParameterizedTest

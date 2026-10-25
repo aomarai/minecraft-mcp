@@ -43,7 +43,8 @@ public final class ToolDispatcher implements ToolInvoker {
 
     ToolDispatcher(McpConfig config, GameServices services, AuditLog audit, Clock clock) {
         this.config = config;
-        this.policy = new ToolPolicy(config.allowWrites(), config.allowAdmin());
+        this.policy = new ToolPolicy(config.allowWrites(), config.allowAdmin(),
+                config.allowedCommands(), config.destructiveCommands());
         this.services = services;
         this.audit = audit;
         this.clock = clock;
@@ -99,7 +100,7 @@ public final class ToolDispatcher implements ToolInvoker {
         }
         ToolPolicy.Decision command = policy.checkCommand(commandText(args), confirmed);
         if (tool.scope() == ToolPolicy.Scope.ACT && command.requiresConfirmation()) {
-            return ToolPolicy.Decision.deny("destructive commands must use run_admin_command");
+            return ToolPolicy.Decision.deny("this command needs admin access; use run_admin_command");
         }
         if (!command.allowed()) {
             return command;

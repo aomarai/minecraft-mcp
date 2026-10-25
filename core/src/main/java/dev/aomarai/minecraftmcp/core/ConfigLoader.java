@@ -10,10 +10,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Loads {@link McpConfig} and the bearer token from a JSON file, with
@@ -53,9 +56,12 @@ public final class ConfigLoader {
     private static final String ALLOW_ADMIN = "allowAdmin";
     private static final String MAX_BLOCK_VOLUME = "maxBlockVolume";
     private static final String CALL_TIMEOUT_MS = "callTimeoutMillis";
+    private static final String ALLOWED_COMMANDS = "allowedCommands";
+    private static final String DESTRUCTIVE_COMMANDS = "destructiveCommands";
     private static final String TOKEN = "token";
     private static final List<String> KEYS = List.of(
-            HOST, PORT, ALLOW_WRITES, ALLOW_ADMIN, MAX_BLOCK_VOLUME, CALL_TIMEOUT_MS, TOKEN);
+            HOST, PORT, ALLOW_WRITES, ALLOW_ADMIN, MAX_BLOCK_VOLUME, CALL_TIMEOUT_MS, ALLOWED_COMMANDS,
+            DESTRUCTIVE_COMMANDS, TOKEN);
 
     private ConfigLoader() {
     }
@@ -128,6 +134,8 @@ public final class ConfigLoader {
         map.put(ALLOW_ADMIN, d.allowAdmin());
         map.put(MAX_BLOCK_VOLUME, d.maxBlockVolume());
         map.put(CALL_TIMEOUT_MS, d.callTimeout().toMillis());
+        map.put(ALLOWED_COMMANDS, List.of());
+        map.put(DESTRUCTIVE_COMMANDS, List.of());
         return map;
     }
 
@@ -156,10 +164,12 @@ public final class ConfigLoader {
         override(values, env, ALLOW_ADMIN, "ALLOW_ADMIN", Kind.BOOLEAN);
         override(values, env, MAX_BLOCK_VOLUME, "MAX_BLOCK_VOLUME", Kind.NUMBER);
         override(values, env, CALL_TIMEOUT_MS, "CALL_TIMEOUT_MS", Kind.NUMBER);
+        override(values, env, ALLOWED_COMMANDS, "ALLOWED_COMMANDS", Kind.LIST);
+        override(values, env, DESTRUCTIVE_COMMANDS, "DESTRUCTIVE_COMMANDS", Kind.LIST);
         override(values, env, TOKEN, "TOKEN", Kind.IDENTITY);
     }
 
-    private enum Kind { IDENTITY, NUMBER, BOOLEAN }
+    private enum Kind { IDENTITY, NUMBER, BOOLEAN, LIST }
 
     private static void override(Map<String, Object> values, Map<String, String> env, String key,
                                  String suffix, Kind kind) {
@@ -172,6 +182,7 @@ public final class ConfigLoader {
             case IDENTITY -> raw;
             case NUMBER -> parseLong(name, raw);
             case BOOLEAN -> parseBoolean(name, raw);
+            case LIST -> Arrays.stream(raw.split(",")).map(String::strip).filter(item -> !item.isEmpty()).toList();
         });
     }
 
@@ -202,7 +213,9 @@ public final class ConfigLoader {
                     bool(values, ALLOW_WRITES),
                     bool(values, ALLOW_ADMIN),
                     integer(values, MAX_BLOCK_VOLUME),
-                    Duration.ofMillis(longValue(values, CALL_TIMEOUT_MS)));
+                    Duration.ofMillis(longValue(values, CALL_TIMEOUT_MS)),
+                    strings(values, ALLOWED_COMMANDS),
+                    strings(values, DESTRUCTIVE_COMMANDS));
         } catch (IllegalArgumentException e) {
             throw new ConfigException("invalid configuration: " + e.getMessage(), e);
         }
@@ -217,6 +230,13 @@ public final class ConfigLoader {
             throw new ConfigException(key + " must be a string");
         }
         return s;
+    }
+
+    private static Set<String> strings(Map<String, Object> values, String key) {
+        if (!(values.get(key) instanceof List<?> items) || !items.stream().allMatch(String.class::isInstance)) {
+            throw new ConfigException(key + " must be a list of strings");
+        }
+        return items.stream().map(String.class::cast).collect(Collectors.toUnmodifiableSet());
     }
 
     private static boolean bool(Map<String, Object> values, String key) {

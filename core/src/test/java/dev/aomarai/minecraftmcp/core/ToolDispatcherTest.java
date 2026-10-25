@@ -165,9 +165,44 @@ class ToolDispatcherTest {
         McpSchema.CallToolResult result = dispatcher(true, true).call(tool("run_command"), args("command", "op Steve"));
 
         assertTrue(result.isError());
-        assertEquals("destructive commands must use run_admin_command", text(result));
+        assertEquals("this command needs admin access; use run_admin_command", text(result));
         assertEquals(0, game.totalCalls());
-        assertAudit(0, "decision", "run_command", "deny", "destructive commands must use run_admin_command");
+        assertAudit(0, "decision", "run_command", "deny", "this command needs admin access; use run_admin_command");
+    }
+
+    @Test
+    void anUnrecognisedCommandIsNotAPlainWriteEvenWithAdmin() {
+        for (String command : new String[]{"mymod:wipe_world", "execute run say hi", "frobnicate"}) {
+            McpSchema.CallToolResult result = dispatcher(true, true).call(tool("run_command"), args("command", command));
+            assertTrue(result.isError(), command);
+            assertEquals("this command needs admin access; use run_admin_command", text(result), command);
+        }
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void anUnrecognisedCommandNeedsAdminAndConfirmationThroughTheAdminTool() {
+        ToolDispatcher d = dispatcher(true, true);
+
+        McpSchema.CallToolResult pending = d.call(tool("run_admin_command"),
+                args("command", "mymod:wipe_world", "confirm", false));
+        assertEquals("admin action requires confirmation; call again with confirm=true", text(pending));
+        assertEquals(0, game.totalCalls());
+
+        assertFalse(d.call(tool("run_admin_command"), args("command", "mymod:wipe_world", "confirm", true)).isError());
+        assertEquals(List.of("mymod:wipe_world"), game.commands);
+    }
+
+    @Test
+    void anOperatorCanTrustAModdedCommandForPlainWrites() {
+        McpConfig config = new McpConfig("127.0.0.1", 25599, true, false, 32768, Duration.ofSeconds(2),
+                java.util.Set.of("MyMod:Status"), java.util.Set.of());
+        ToolDispatcher d = dispatcher(config, game.services(), audit::add);
+
+        assertFalse(d.call(tool("run_command"), args("command", "mymod:status")).isError());
+        assertEquals(List.of("mymod:status"), game.commands);
+        assertEquals("admin commands are disabled", text(d.call(tool("run_command"), args("command", "kill @e"))),
+                "trusting one command does not loosen the destructive ones");
     }
 
     @Test
@@ -191,7 +226,7 @@ class ToolDispatcherTest {
     void failedCommandsAreReportedAsErrorsAndAudited() {
         game.commandResult = CommandResult.error("no such command");
 
-        McpSchema.CallToolResult result = dispatcher(true, false).call(tool("run_command"), args("command", "nope"));
+        McpSchema.CallToolResult result = dispatcher(true, false).call(tool("run_command"), args("command", "say nope"));
 
         assertTrue(result.isError());
         assertEquals("no such command", text(result));
@@ -201,7 +236,7 @@ class ToolDispatcherTest {
     @Test
     void multipleFeedbackLinesAreJoined() {
         game.commandResult = new CommandResult(false, "", List.of("a", "b"));
-        assertEquals("a; b", text(dispatcher(true, false).call(tool("run_command"), args("command", "x"))));
+        assertEquals("a; b", text(dispatcher(true, false).call(tool("run_command"), args("command", "say x"))));
     }
 
     // ---- admin: run_admin_command ----
@@ -326,13 +361,13 @@ class ToolDispatcherTest {
     @Test
     void anExceptionallyCompletedFutureIsReportedWithItsMessage() {
         game.pendingCommand = CompletableFuture.failedFuture(new IllegalStateException("main thread busy"));
-        assertEquals("main thread busy", text(dispatcher(true, false).call(tool("run_command"), args("command", "x"))));
+        assertEquals("main thread busy", text(dispatcher(true, false).call(tool("run_command"), args("command", "say x"))));
     }
 
     @Test
     void anExceptionWithoutAMessageIsReportedByClassName() {
         game.pendingCommand = CompletableFuture.failedFuture(new IllegalStateException());
-        assertEquals("IllegalStateException", text(dispatcher(true, false).call(tool("run_command"), args("command", "x"))));
+        assertEquals("IllegalStateException", text(dispatcher(true, false).call(tool("run_command"), args("command", "say x"))));
     }
 
     @Test
@@ -340,7 +375,7 @@ class ToolDispatcherTest {
         CompletableFuture<CommandResult> cancelled = new CompletableFuture<>();
         cancelled.cancel(true);
         game.pendingCommand = cancelled;
-        McpSchema.CallToolResult result = dispatcher(true, false).call(tool("run_command"), args("command", "x"));
+        McpSchema.CallToolResult result = dispatcher(true, false).call(tool("run_command"), args("command", "say x"));
         assertTrue(result.isError());
         assertEquals("CancellationException", text(result));
     }

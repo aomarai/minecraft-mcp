@@ -22,9 +22,13 @@ re-restricted on every load. On file systems without POSIX modes this is best ef
 | `allowAdmin` | `MINECRAFT_MCP_ALLOW_ADMIN` | `false` | `true` or `false` |
 | `maxBlockVolume` | `MINECRAFT_MCP_MAX_BLOCK_VOLUME` | `32768` | 1-1000000 |
 | `callTimeoutMillis` | `MINECRAFT_MCP_CALL_TIMEOUT_MS` | `8000` | Must be positive |
+| `allowedCommands` | `MINECRAFT_MCP_ALLOWED_COMMANDS` | `[]` | Extra commands trusted as plain writes, e.g. `["mymod:status"]`. Comma-separated in the variable. See `docs/security.md` |
+| `destructiveCommands` | `MINECRAFT_MCP_DESTRUCTIVE_COMMANDS` | `[]` | Extra commands that need admin plus confirmation. Wins over `allowedCommands` |
 | `token` | `MINECRAFT_MCP_TOKEN` | generated | At least 16 characters |
 
-Environment values win over the file and are never written back to it.
+Environment values win over the file and are never written back to it. Command names are single
+words (no spaces or slashes), case-insensitive, and the `minecraft:` prefix is ignored. An empty
+variable clears the list.
 
 ## Failure behavior
 
