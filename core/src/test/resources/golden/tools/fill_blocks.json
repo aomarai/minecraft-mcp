@@ -1,0 +1,79 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Fill a box with one block type, in one dimension. Bounded by maxBlockVolume. Use dry_run to see the volume and the exact command without changing anything. Requires write access.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "block": {
+          "description": "Block registry id, e.g. minecraft:stone.",
+          "type": "string"
+        },
+        "dimension": {
+          "description": "Dimension registry id, e.g. minecraft:overworld.",
+          "type": "string"
+        },
+        "dry_run": {
+          "description": "If true, only report the volume and the command.",
+          "type": "boolean"
+        },
+        "max_x": {
+          "description": "Upper X bound, inclusive.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "integer"
+        },
+        "max_y": {
+          "description": "Upper Y bound, inclusive.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "integer"
+        },
+        "max_z": {
+          "description": "Upper Z bound, inclusive.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "integer"
+        },
+        "min_x": {
+          "description": "Lower X bound, inclusive.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "integer"
+        },
+        "min_y": {
+          "description": "Lower Y bound, inclusive.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "integer"
+        },
+        "min_z": {
+          "description": "Lower Z bound, inclusive.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dimension",
+        "min_x",
+        "min_y",
+        "min_z",
+        "max_x",
+        "max_y",
+        "max_z",
+        "block"
+      ],
+      "type": "object"
+    },
+    "name": "fill_blocks",
+    "title": "Fill blocks"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Send a chat message to everyone, or privately to one online player. Requires write access.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "description": "One line of text, up to 256 characters.",
+          "type": "string"
+        },
+        "player": {
+          "description": "Name of an online player; omit to tell everyone.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
+    "name": "send_message",
+    "title": "Send message"
+  }
+}

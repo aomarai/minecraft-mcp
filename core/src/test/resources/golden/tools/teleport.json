@@ -1,0 +1,53 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Teleport an online player to a position, optionally in another dimension. Requires write access.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "description": "Dimension registry id; default is the player's own.",
+          "type": "string"
+        },
+        "player": {
+          "description": "Name of an online player.",
+          "type": "string"
+        },
+        "x": {
+          "description": "Target X.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "number"
+        },
+        "y": {
+          "description": "Target Y.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "number"
+        },
+        "z": {
+          "description": "Target Z.",
+          "maximum": 30000000,
+          "minimum": -30000000,
+          "type": "number"
+        }
+      },
+      "required": [
+        "player",
+        "x",
+        "y",
+        "z"
+      ],
+      "type": "object"
+    },
+    "name": "teleport",
+    "title": "Teleport player"
+  }
+}

@@ -60,6 +60,18 @@ class ToolArgsTest {
     }
 
     @Test
+    void optionalBooleansFallBackOnlyWhenAbsent() {
+        assertTrue(args().optionalBoolean("a", true));
+        assertFalse(args().optionalBoolean("a", false));
+        assertFalse(args("a", null).optionalBoolean("a", false));
+        assertTrue(args("a", true).optionalBoolean("a", false));
+        assertFalse(args("a", false).optionalBoolean("a", true));
+        for (Object bad : new Object[]{"true", 1, 0}) {
+            assertEquals("a must be true or false", failure(() -> args("a", bad).optionalBoolean("a", false)), String.valueOf(bad));
+        }
+    }
+
+    @Test
     void numbersMustBeFiniteNumbers() {
         assertEquals(1.5, args("a", 1.5).number("a"));
         assertEquals(2.0, args("a", 2).number("a"));

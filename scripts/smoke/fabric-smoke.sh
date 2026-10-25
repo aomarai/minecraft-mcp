@@ -137,7 +137,7 @@ start_session
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 TOOL_COUNT="$(printf '%s' "$TOOLS" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
-for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions get_inventory read_log run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
+for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions get_inventory read_log fill_blocks teleport give_item send_message kick_player ban_player save_world stop_server run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
 
 echo "== reads"
 expect "server_info describes Fabric and Minecraft" "$(call 3 server_info '{}')" "Fabric $FABRIC_LOADER_VERSION / Minecraft $MINECRAFT_VERSION / server"
@@ -202,6 +202,30 @@ refute "and the raw address never appears" "$LOG" '127.0.0.1:25599'
 expect "the line count is bounded" "$(call 53 read_log '{"lines":201}')" 'must have a maximum value of 200'
 expect "read_log defaults to a short tail" "$(call 54 read_log '{}')" '\"lines\":['
 
+echo "== typed write and admin tools"
+BOX='"dimension":"minecraft:overworld","min_x":10,"min_y":-58,"min_z":10,"max_x":11,"max_y":-57,"max_z":11,"block":"minecraft:emerald_block"'
+DRY="$(call 60 fill_blocks "{$BOX,\"dry_run\":true}")"
+expect "fill_blocks dry run reports the volume" "$DRY" '\"volume\":8'
+expect "and the exact command it would run" "$DRY" 'execute in minecraft:overworld run fill 10 -58 10 11 -57 11 minecraft:emerald_block'
+expect "a dry run changes nothing" "$(call 61 query_blocks '{"dimension":"minecraft:overworld","min_x":10,"min_y":-58,"min_z":10,"max_x":11,"max_y":-57,"max_z":11,"limit":10}')" '\"blocks\":[]'
+expect "fill_blocks fills the box" "$(call 62 fill_blocks "{$BOX}")" '"isError":false'
+expect "and the new blocks are read back by registry id" "$(call 63 query_blocks '{"dimension":"minecraft:overworld","min_x":10,"min_y":-58,"min_z":10,"max_x":11,"max_y":-57,"max_z":11,"limit":10}')" 'minecraft:emerald_block'
+expect "a box over the volume cap is refused" "$(call 64 fill_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":0,"min_z":0,"max_x":40,"max_y":40,"max_z":40,"block":"stone","dry_run":true}')" 'exceeds maxBlockVolume'
+expect "a malformed block id is rejected clearly" "$(call 65 fill_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":0,"min_z":0,"max_x":1,"max_y":1,"max_z":1,"block":"stone run stop"}')" 'block must be a resource location'
+expect "teleport reports the game's own error for an absent player" "$(call 66 teleport '{"player":"Nobody","x":0,"y":-50,"z":0}')" '"isError":true'
+expect "a selector in place of a player name is rejected before the game sees it" "$(call 67 teleport '{"player":"@a","x":0,"y":-50,"z":0}')" 'player must be a player name'
+expect "give_item reports the game's own error for an absent player" "$(call 68 give_item '{"player":"Nobody","item":"minecraft:diamond"}')" '"isError":true'
+expect "send_message reaches the chat" "$(call 69 send_message '{"message":"hello from the typed tool"}')" '"isError":false'
+expect "a message cannot span lines" "$(call 70 send_message '{"message":"hi\nstop"}')" 'must not contain control characters'
+expect "kick_player needs confirmation" "$(call 71 kick_player '{"player":"Nobody","confirm":false}')" 'requires confirmation'
+expect "and a confirmed kick of an absent player is the game's error" "$(call 72 kick_player '{"player":"Nobody","confirm":true}')" '"isError":true'
+expect "ban_player needs confirmation" "$(call 73 ban_player '{"player":"Nobody","confirm":false}')" 'requires confirmation'
+expect "save_world needs confirmation" "$(call 74 save_world '{"confirm":false}')" 'requires confirmation'
+expect "a confirmed save_world succeeds" "$(call 75 save_world '{"confirm":true}')" '"isError":false'
+expect "stop_server needs confirmation" "$(call 76 stop_server '{"confirm":false}')" 'requires confirmation'
+sleep 1
+kill -0 "$SERVER_PID" 2>/dev/null && pass "the server is still running: no typed admin tool acted unconfirmed" || fail "the server stopped without confirmation"
+
 echo "== operator commands (/mcp from the console)"
 console "mcp status" "MCP server is listening on 127.0.0.1:$PORT, writes and admin enabled, $TOOL_COUNT tools" "/mcp status reports the endpoint and access"
 # A bad configuration must not take the working server down.
@@ -235,8 +259,8 @@ done
 pass "neither the old nor the new token appears in the audit log or the server log"
 case "$(stat -c %a "$AUDIT" 2>/dev/null)" in 600) pass "audit log is owner-only";; *) fail "audit log permissions are $(stat -c %a "$AUDIT" 2>/dev/null)";; esac
 
-echo "== shutdown through MCP"
-expect "a confirmed stop is accepted" "$(call 16 run_admin_command '{"command":"stop","confirm":true}')" '"isError":false'
+echo "== shutdown through MCP (stop_server)"
+expect "a confirmed stop_server is accepted" "$(call 16 stop_server '{"confirm":true}')" '"isError":false'
 stop_started=$SECONDS
 for _ in $(seq 1 90); do kill -0 "$SERVER_PID" 2>/dev/null || break; sleep 1; done
 if kill -0 "$SERVER_PID" 2>/dev/null; then

@@ -98,6 +98,73 @@ public final class ToolCatalog {
                         ToolPolicy.Scope.OBSERVE, Capability.LOGS, Side.SERVER, schema(
                                 props("lines", integer("How many lines, newest last.", 1, LogReader.MAX_LINES)),
                                 List.of())),
+                new ToolDescriptor("fill_blocks", "Fill blocks",
+                        "Fill a box with one block type, in one dimension. Bounded by maxBlockVolume. "
+                                + "Use dry_run to see the volume and the exact command without changing anything. "
+                                + "Requires write access.",
+                        ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(
+                                props(
+                                        "dimension", string("Dimension registry id, e.g. minecraft:overworld."),
+                                        "min_x", integer("Lower X bound, inclusive.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "min_y", integer("Lower Y bound, inclusive.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "min_z", integer("Lower Z bound, inclusive.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "max_x", integer("Upper X bound, inclusive.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "max_y", integer("Upper Y bound, inclusive.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "max_z", integer("Upper Z bound, inclusive.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "block", string("Block registry id, e.g. minecraft:stone."),
+                                        "dry_run", bool("If true, only report the volume and the command.")),
+                                List.of("dimension", "min_x", "min_y", "min_z", "max_x", "max_y", "max_z", "block"))),
+                new ToolDescriptor("teleport", "Teleport player",
+                        "Teleport an online player to a position, optionally in another dimension. Requires write access.",
+                        ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(
+                                props(
+                                        "player", string("Name of an online player."),
+                                        "x", number("Target X.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "y", number("Target Y.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "z", number("Target Z.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "dimension", string("Dimension registry id; default is the player's own.")),
+                                List.of("player", "x", "y", "z"))),
+                new ToolDescriptor("give_item", "Give item",
+                        "Give an item to an online player. Requires write access.",
+                        ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(
+                                props(
+                                        "player", string("Name of an online player."),
+                                        "item", string("Item registry id, e.g. minecraft:diamond."),
+                                        "count", integer("How many.", 1, CommandBuilder.MAX_ITEM_COUNT)),
+                                List.of("player", "item"))),
+                new ToolDescriptor("send_message", "Send message",
+                        "Send a chat message to everyone, or privately to one online player. Requires write access.",
+                        ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(
+                                props(
+                                        "message", string("One line of text, up to 256 characters."),
+                                        "player", string("Name of an online player; omit to tell everyone.")),
+                                List.of("message"))),
+                new ToolDescriptor("kick_player", "Kick player",
+                        "Kick an online player. Requires admin access and confirm=true.",
+                        ToolPolicy.Scope.ADMIN, Capability.COMMANDS, Side.SERVER, schema(
+                                props(
+                                        "player", string("Name of an online player."),
+                                        "reason", string("Shown to the player; one line, up to 256 characters."),
+                                        "confirm", bool("Must be true to kick.")),
+                                List.of("player", "confirm"))),
+                new ToolDescriptor("ban_player", "Ban player",
+                        "Ban a player from the server. Requires admin access and confirm=true.",
+                        ToolPolicy.Scope.ADMIN, Capability.COMMANDS, Side.SERVER, schema(
+                                props(
+                                        "player", string("Player name."),
+                                        "reason", string("Shown to the player; one line, up to 256 characters."),
+                                        "confirm", bool("Must be true to ban.")),
+                                List.of("player", "confirm"))),
+                new ToolDescriptor("save_world", "Save world",
+                        "Flush all pending world data to disk. Requires admin access and confirm=true.",
+                        ToolPolicy.Scope.ADMIN, Capability.COMMANDS, Side.SERVER, schema(
+                                props("confirm", bool("Must be true to save.")),
+                                List.of("confirm"))),
+                new ToolDescriptor("stop_server", "Stop server",
+                        "Stop the game server. Requires admin access and confirm=true.",
+                        ToolPolicy.Scope.ADMIN, Capability.COMMANDS, Side.SERVER, schema(
+                                props("confirm", bool("Must be true to stop the server.")),
+                                List.of("confirm"))),
                 new ToolDescriptor("run_command", "Run command",
                         "Run a non-destructive server command through Brigadier. Requires write access.",
                         ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(

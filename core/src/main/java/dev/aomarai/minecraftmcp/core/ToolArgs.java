@@ -21,6 +21,17 @@ record ToolArgs(Map<String, Object> values) {
         return values.get(name) == null ? fallback : string(name);
     }
 
+    boolean optionalBoolean(String name, boolean fallback) {
+        Object value = values.get(name);
+        if (value == null) {
+            return fallback;
+        }
+        if (!(value instanceof Boolean flag)) {
+            throw new IllegalArgumentException(name + " must be true or false");
+        }
+        return flag;
+    }
+
     int integer(String name) {
         if (!(values.get(name) instanceof Number number) || number.doubleValue() != number.intValue()) {
             throw new IllegalArgumentException(name + " must be an integer");

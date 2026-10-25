@@ -1,0 +1,39 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Give an item to an online player. Requires write access.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "description": "How many.",
+          "maximum": 6400,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "item": {
+          "description": "Item registry id, e.g. minecraft:diamond.",
+          "type": "string"
+        },
+        "player": {
+          "description": "Name of an online player.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "player",
+        "item"
+      ],
+      "type": "object"
+    },
+    "name": "give_item",
+    "title": "Give item"
+  }
+}
