@@ -1,4 +1,6 @@
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -16,6 +18,15 @@ sonar {
         property("sonar.projectKey", "aomarai_minecraft-mcp_f6130f7f-7b1b-4688-9c1f-23c464302442")
         property("sonar.projectName", "minecraft-mcp")
     }
+}
+
+// Preparing Minecraft for a NeoForge node decompiles the game in a JVM that takes up to 4 GB. Every node
+// does it, and several at once exhaust the memory of a CI runner (the build then dies without a message),
+// so the NeoForge nodes take turns through this service.
+abstract class OneAtATime : BuildService<BuildServiceParameters.None>
+
+gradle.sharedServices.registerIfAbsent("neoformRuntime", OneAtATime::class) {
+    maxParallelUsages = 1
 }
 
 allprojects {

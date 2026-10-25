@@ -25,7 +25,6 @@ import java.util.function.Supplier;
 public final class McpCommand {
 
     private static final Logger LOG = LoggerFactory.getLogger("minecraft-mcp");
-    private static final int OPERATOR_LEVEL = 4;
 
     /** The controller's work, returning the message to show. */
     private interface Action {
@@ -64,7 +63,7 @@ public final class McpCommand {
     private static int run(CommandContext<CommandSourceStack> ctx, Supplier<McpController> controller,
                            Executor background, Action action) {
         CommandSourceStack source = ctx.getSource();
-        if (!source.hasPermission(OPERATOR_LEVEL)) {
+        if (!GameCompat.hasOperatorPermission(source)) {
             source.sendFailure(Component.literal("You do not have permission to use /mcp (operator level 4 is required)."));
             return 0;
         }

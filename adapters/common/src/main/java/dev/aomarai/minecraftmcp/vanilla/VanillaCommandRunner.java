@@ -8,8 +8,6 @@ import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.phys.Vec2;
-import net.minecraft.world.phys.Vec3;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,8 +39,7 @@ public final class VanillaCommandRunner implements CommandRunner {
 
     private CommandResult run(String command) {
         List<String> output = new ArrayList<>();
-        CommandSourceStack source = new CommandSourceStack(new Collector(output), Vec3.ZERO, Vec2.ZERO,
-                server.overworld(), permissionLevel, "MCP", Component.literal("MCP"), server, null);
+        CommandSourceStack source = GameCompat.commandSource(new Collector(output), server, permissionLevel);
         String line = command.startsWith("/") ? command.substring(1) : command;
         try {
             server.getCommands().getDispatcher().execute(line, source);

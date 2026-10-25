@@ -3,8 +3,7 @@
 `adapters/neoforge` is the NeoForge counterpart of the [Fabric adapter](fabric.md). It is built from the
 same `core` and the same `adapters/common` vanilla code, and shaded and relocated the same way, so every
 tool behaves identically. A target counts as supported when its
-Docker smoke test runs in CI ([version matrix](version-matrix.md)); it now does, so NeoForge 1.21.1 is
-supported.
+Docker smoke test runs in CI ([version matrix](version-matrix.md)); it does for NeoForge 1.21.1, 26.2 and 26.3.
 
 ## What exists
 
@@ -25,7 +24,7 @@ supported.
 ## Build
 
 ```bash
-./gradlew :adapters:neoforge:1.21.1:build
+./gradlew :adapters:neoforge:1.21.1:build   # or :26.2: / :26.3: (those need JDK 25)
 ```
 
 The loadable jar is `adapters/neoforge/versions/1.21.1/build/libs/minecraft-mcp-<version>+1.21.1-neoforge.jar`

@@ -11,8 +11,8 @@
     "main": ["dev.aomarai.minecraftmcp.fabric.McpFabricMod"]
   },
   "depends": {
-    "minecraft": "~1.21.1",
-    "java": ">=21",
+    "minecraft": "${minecraft_range}",
+    "java": "${java_range}",
     "fabricloader": ">=0.16.0",
     "fabric-api": "*"
   }

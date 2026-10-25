@@ -4,8 +4,6 @@ import dev.aomarai.minecraftmcp.core.EntityList;
 import dev.aomarai.minecraftmcp.core.EntityQuery;
 import dev.aomarai.minecraftmcp.core.EntityReader;
 import dev.aomarai.minecraftmcp.core.MainThread;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -37,11 +35,11 @@ public final class VanillaEntityReader implements EntityReader {
     private static EntityList find(ServerLevel level, EntityQuery query) {
         Vec3 centre = new Vec3(query.x(), query.y(), query.z());
         double radiusSquared = query.radius() * query.radius();
-        ResourceLocation type = query.type().isEmpty() ? null : ResourceLocation.parse(query.type());
+        String type = query.type().isEmpty() ? null : GameCompat.normalizeId(query.type());
 
         List<Entity> nearest = level.getEntities((Entity) null, new AABB(centre, centre).inflate(query.radius()),
                         entity -> entity.position().distanceToSqr(centre) <= radiusSquared
-                                && (type == null || type.equals(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()))))
+                                && (type == null || type.equals(GameCompat.entityTypeId(entity))))
                 .stream()
                 .sorted(Comparator.comparingDouble(entity -> entity.position().distanceToSqr(centre)))
                 .limit(query.limit() + 1L)
@@ -56,7 +54,7 @@ public final class VanillaEntityReader implements EntityReader {
 
     private static EntityList.EntityInfo describe(Entity entity) {
         return new EntityList.EntityInfo(
-                BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString(),
+                GameCompat.entityTypeId(entity),
                 entity.getUUID().toString(),
                 entity.getName().getString(),
                 entity.getX(), entity.getY(), entity.getZ());

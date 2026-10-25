@@ -43,8 +43,8 @@ module boundaries. If a change contradicts those documents, update the documents
 scripts/smoke/run-in-docker.sh <fabric|neoforge> <jar>   # real headless-server smoke test (CI runs it; needs Docker)
 ```
 
-JDK 21 is required for the core and 1.21.x nodes. JDK 25 is required for 26.x nodes once those
-are added. Use the Gradle wrapper; do not install a global Gradle.
+JDK 21 runs Gradle and is required for the core and 1.21.x nodes. JDK 25 is also required, for the 26.x
+nodes, so a plain `./gradlew build` needs both installed. Use the Gradle wrapper; do not install a global Gradle.
 
 ## Quality gates
 
@@ -179,7 +179,8 @@ Do not commit build output, IDE files, local config, or `.claude/` worktrees.
   mixins are the top cross-version maintenance cost.
 - **Shade and relocate** Jackson, servlet containers, and logging libraries. Minecraft ships
   Gson and Netty; collisions are real.
-- **26.x is unobfuscated** (Mojang names). 1.21.x still needs Yarn or Mojmap remapping.
+- **26.x is unobfuscated** (Mojang names). 1.21.x still needs Loom remapping. Version differences go in
+  `GameCompat` (`adapters/common/src/compat/{legacy,modern}`), not scattered through the shared code.
 - **Fabric and NeoForge metadata differ.** Keep loader metadata in per-loader source sets.
 - **Paper/Spigot is not a mod loader.** A plugin goes in `plugins/`, not `mods/`. Use the
   universal RCON tier or a separate plugin adapter.

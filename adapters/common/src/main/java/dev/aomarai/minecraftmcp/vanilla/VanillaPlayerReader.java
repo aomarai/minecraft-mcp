@@ -27,10 +27,10 @@ public final class VanillaPlayerReader implements PlayerReader {
 
     private PlayerInfo describe(ServerPlayer player) {
         return new PlayerInfo(
-                player.getGameProfile().getName(),
+                player.getName().getString(),
                 player.getUUID().toString(),
-                player.level().dimension().location().toString(),
+                GameCompat.idOf(player.level().dimension()),
                 player.getX(), player.getY(), player.getZ(),
-                server.getPlayerList().isOp(player.getGameProfile()));
+                GameCompat.isOp(server, player));
     }
 }

@@ -13,10 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Java 21 runs Gradle and builds the 1.21.x nodes; the 26.x nodes need a Java 25 toolchain. The
+      # first version listed is JAVA_HOME; the other is found through JAVA_HOME_25_X64 below.
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: |
+            21
+            25
+      - name: Let Gradle find both JDKs
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64" >> ~/.gradle/gradle.properties
       - uses: gradle/actions/setup-gradle@v6
         with:
           # Dependency verification compares downloaded artifacts against the
@@ -24,12 +32,36 @@ jobs:
           # artifacts resolved before the metadata changed, which then fail
           # verification. Disable caching so every run verifies fresh downloads.
           cache-disabled: true
+      # Builds the core and every Fabric and NeoForge version node (see docs/version-matrix.md).
       - run: ./gradlew build --no-daemon --refresh-dependencies
       - run: ./gradlew :core:pitest :stdio-shim:pitest --no-daemon
       # Fabric game tests: a real server with fake players joining, chatting, dying and leaving.
       - run: ./gradlew :adapters:fabric:1.21.1:runGameTest --no-daemon
-      # A jar that compiles is not a jar that loads: start a real Fabric server with it.
-      - name: Fabric smoke test (Docker)
-        run: bash scripts/smoke/run-in-docker.sh fabric adapters/fabric/versions/1.21.1/build/libs/minecraft-mcp-*+1.21.1-fabric.jar
-      - name: NeoForge smoke test (Docker)
-        run: bash scripts/smoke/run-in-docker.sh neoforge adapters/neoforge/versions/1.21.1/build/libs/minecraft-mcp-*+1.21.1-neoforge.jar
+      - name: Collect the mod jars
+        run: |
+          mkdir jars
+          cp adapters/*/versions/*/build/libs/minecraft-mcp-*.jar jars/
+          ls -l jars
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mod-jars
+          path: jars/
+          retention-days: 1
+
+  # A jar that compiles is not a jar that loads: start a real server with each one, in parallel.
+  smoke:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        loader: [fabric, neoforge]
+        node: ["1.21.1", "26.2", "26.3"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: mod-jars
+          path: jars
+      - name: Smoke test (Docker)
+        run: bash scripts/smoke/run-in-docker.sh ${{ matrix.loader }} jars/minecraft-mcp-*+${{ matrix.node }}-${{ matrix.loader }}.jar adapters/${{ matrix.loader }}/versions/${{ matrix.node }}/gradle.properties
