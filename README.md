@@ -43,7 +43,7 @@ Two tiers, one core:
 See [docs/architecture.md](docs/architecture.md) for the module boundaries, threading contract,
 and adapter design. See [docs/security.md](docs/security.md) for the threat model.
 
-## Target matrix (initial)
+## Target matrix
 
 | Target | Minecraft | Java | Notes |
 |---|---|---|---|
@@ -54,14 +54,14 @@ and adapter design. See [docs/security.md](docs/security.md) for the threat mode
 | Universal (RCON) | any | 21+ | no mod install; reduced tools |
 | Quilt | 1.21.x | 21 | Fabric jar expected to run; not separately tested at first |
 
-The matrix is intentionally narrow at the start. Widening to every 1.21.x patch is tracked as
-an issue, not promised here.
+The matrix is intentionally narrow. A target counts as supported only when its smoke test runs in CI;
+see [docs/version-matrix.md](docs/version-matrix.md) for the state and the known limitations.
 
 ## Server and client tools
 
 Tools are tied to a side. A dedicated server offers server tools (reading the world, running
-commands, administration) and never client-only ones such as `take_screenshot`; a game client would
-offer only its own. See [docs/tools.md](docs/tools.md) and [docs/architecture.md](docs/architecture.md).
+commands, administration) and never client-only ones; a game client would offer only its own (client tools
+are the post-v1 epic). See [docs/tools.md](docs/tools.md) and [docs/architecture.md](docs/architecture.md).
 
 ## Security defaults
 
@@ -84,8 +84,8 @@ adapters/fabric/      Fabric mod adapter (Stonecutter nodes under versions/)
 adapters/neoforge/    NeoForge mod adapter (Stonecutter nodes under versions/)
 adapters/common/      vanilla-only code both mod adapters compile in
 adapters/rcon/        universal tier: standalone jar for servers without a mod (RCON, Query, log)
-stdio-shim/           stdio-to-HTTP shim for stdio-only MCP hosts (placeholder)
-docs/                 architecture, security, version matrix, releasing
+stdio-shim/           stdio-to-HTTP shim for stdio-only MCP hosts
+docs/                 install, configuration, security, tools, version matrix, releasing, remote access
 ```
 
 ## Development
@@ -103,6 +103,18 @@ The Gradle wrapper is committed. CI runs the same build on every push and pull r
 
 Phases, sequencing, and label conventions live in [docs/roadmap.md](docs/roadmap.md). Live status is
 tracked in GitHub Milestones and the epic issues.
+
+## Documentation
+
+| Need | Read |
+|---|---|
+| Install and connect a client | [docs/install.md](docs/install.md) |
+| Config keys and the token | [docs/configuration.md](docs/configuration.md) |
+| Tools | [docs/tools.md](docs/tools.md) |
+| Reach it from another machine | [docs/remote-access.md](docs/remote-access.md) |
+| No-mod servers | [docs/universal.md](docs/universal.md) |
+| Threat model | [docs/security.md](docs/security.md) |
+| Releasing | [docs/release.md](docs/release.md), [docs/release-checklist.md](docs/release-checklist.md) |
 
 ## Contributing
 
