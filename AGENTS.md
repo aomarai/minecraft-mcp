@@ -35,16 +35,76 @@ module boundaries. If a change contradicts those documents, update the documents
 ## Build and test
 
 ```bash
-./gradlew build          # compile + tests for all modules
+./gradlew build          # compile + tests + coverage gate for all modules
 ./gradlew :core:test     # core tests only
-./gradlew :core:pitest   # mutation testing (slow; run in CI, not part of build)
+./gradlew :core:pitest   # mutation testing (slow; CI runs it after build)
 ```
-
-`build` enforces 100% JaCoCo line and branch coverage (`jacocoTestCoverageVerification`). `:core:pitest` enforces a
-mutation-score threshold; reports land in `core/build/reports/{jacoco,pitest}`.
 
 JDK 21 is required for the core and 1.21.x nodes. JDK 25 is required for 26.x nodes once those
 are added. Use the Gradle wrapper; do not install a global Gradle.
+
+## Quality gates
+
+These are enforced by the build and CI. Never lower a threshold, add an exclusion, or skip a
+check to get green; add a test that pins real behavior instead.
+
+- **Coverage:** `build` fails below 100% JaCoCo line and branch coverage.
+- **Mutation:** `:core:pitest` fails below 100% mutation score. A surviving mutant means a
+  behavior no test pins down. Fix the test, or simplify the code if the mutant is truly
+  equivalent (for example a redundant call).
+- **Reports:** `core/build/reports/jacoco` and `core/build/reports/pitest`.
+- **Assert behavior, not execution.** Check exact values, messages and boundaries (min, max,
+  min-1, max+1). A test that only calls code satisfies coverage and fails mutation testing.
+- **Platform-dependent code** (file modes, line endings, paths) behaves differently on Windows
+  and Linux, and CI runs Linux. Guard POSIX-only assertions with `Assumptions`, and verify on
+  Linux (WSL or Docker) before claiming a green result from Windows.
+- **Smoke tests:** unit tests do not prove a mod loads; see the headless-server rule below.
+
+## Dependencies
+
+- Dependency verification is on. After adding or bumping anything, regenerate
+  `gradle/verification-metadata.xml` with `./gradlew build :core:pitest --write-verification-metadata sha256`
+  and review the diff; commit it with the change.
+- Adding a dependency needs a reason in the PR. Prefer what the MCP SDK already provides
+  (for example its `McpJsonMapper`) over a new library.
+- Pin exact versions. Do not use dynamic versions or `latest`.
+
+## Conventions
+
+- **Tools:** names and argument names are `snake_case`. Every input schema has
+  `additionalProperties: false` and an explicit `required` list. Annotations derive from the
+  policy scope (`OBSERVE` read-only, `ADMIN` destructive); do not hand-set them.
+- **Adding a tool:** add a `ToolDescriptor` to `ToolCatalog`, regenerate the golden file with
+  `GOLDEN_UPDATE=true ./gradlew :core:test`, review the `tools-list.json` diff, update
+  `docs/tools.md`, and add tests. A tool change that does not touch the golden file is a bug.
+- **Ports:** adapters implement small capability ports (`CommandRunner`, `PlayerReader`,
+  `WorldReader`, `RuntimeInfo`), not one large interface. A new tool group adds a port.
+- **Java:** prefer records and immutability, no nulls in public APIs, `List.copyOf` on inputs,
+  validate in constructors and fail with messages that name the field.
+- **Bounded by default:** every query has a cap, every call a timeout. No unbounded loops over
+  world data, entity lists or logs.
+
+## Security rules for code
+
+- Never log or print a token, and keep secrets out of `toString()`. Add a test when you
+  handle one.
+- Treat everything from the game (chat, signs, books, logs, entity names) as untrusted data.
+  It may be shown to the model but can never authorize a command or change policy.
+- Policy and tool-level checks run before anything reaches Brigadier. Do not add a path that
+  skips them, and do not widen a default (bind address, write access, admin) without asking.
+- New destructive tools need a policy check, confirmation, and an audit entry.
+- Report vulnerabilities privately per `SECURITY.md`; do not put exploit details in issues.
+
+## Stop and ask first
+
+Do not decide these on your own; raise them in the issue or PR and wait:
+
+- the v1 tool list, the auth model, or the remote-access policy;
+- a new dependency, module boundary change, or public tool name/schema change;
+- relaxing any security default;
+- CI, release or secrets changes;
+- adding a loader or Minecraft version target (its smoke test must exist first);
+- anything hard to reverse (history rewrites, deleting branches, closing issues).
 
 ## Workflow
 
@@ -52,9 +112,15 @@ are added. Use the Gradle wrapper; do not install a global Gradle.
 2. Branch from `main`: `feat/<issue>-<slug>`, `fix/<issue>-<slug>`, `docs/<slug>`, `chore/<slug>`.
 3. Implement the smallest change that satisfies the acceptance criteria.
 4. Add or update tests. Behavior changes without tests are incomplete.
-5. Run `./gradlew build`.
-6. Open a PR with `Closes #<issue>`, a short summary, and the verification commands you ran.
-7. Do not merge your own PR unless the owner explicitly asks.
+5. Run `./gradlew build` and `./gradlew :core:pitest`.
+6. Open a PR with `Closes #<issue>`, `Part of #<epic>`, a short summary, and the verification
+   commands you ran with their real results. State plainly what was not verified.
+7. Read CI after pushing and fix failures. Do not merge your own PR unless the owner
+   explicitly asks.
+8. Keep the Part of #<epic> checklist in sync when you finish a child issue.
+
+Commit messages: short imperative subject, then a body explaining why when it is not obvious.
+Do not commit build output, IDE files, local config, or `.claude/` worktrees.
 
 ## Issue conventions
 
@@ -78,10 +144,21 @@ are added. Use the Gradle wrapper; do not install a global Gradle.
   needs a Docker smoke test that starts the server and calls `initialize` + `tools/list` + one
   read + one write.
 
+## Where things live
+
+| Need | Read |
+|---|---|
+| Module boundaries, threading | `docs/architecture.md` |
+| Threat model, defaults | `docs/security.md` |
+| Config keys and token handling | `docs/configuration.md` |
+| Tool catalog and conventions | `docs/tools.md` |
+| Supported loaders and versions | `docs/version-matrix.md` |
+| Milestones and order of work | `docs/roadmap.md` (issues are the source of truth) |
+
 ## Definition of done
 
 - Acceptance criteria met and demonstrated with real output.
-- `./gradlew build` green.
+- `./gradlew build` and `./gradlew :core:pitest` green (100% coverage, 100% mutation score).
 - Docs updated (README, architecture, security, version matrix) when behavior or configuration
   changes.
 - No new secret, no new unbounded query, no new blocking call on the main thread.
