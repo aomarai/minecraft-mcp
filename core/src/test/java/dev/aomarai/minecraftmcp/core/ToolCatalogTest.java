@@ -21,12 +21,12 @@ class ToolCatalogTest {
     void defaultsAreGroupedByScope() {
         ToolCatalog catalog = ToolCatalog.defaults();
         assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities",
-                        "get_world_state", "list_permissions"),
+                        "get_world_state", "list_permissions", "get_inventory", "read_log"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
         assertEquals(List.of("run_command"), names(catalog.byScope(ToolPolicy.Scope.ACT)));
         assertEquals(List.of("run_admin_command"), names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
         assertEquals(ToolCatalog.defaults().tools().size(), catalog.tools().size());
-        assertEquals(9, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
+        assertEquals(11, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
     }
 
     @Test
@@ -116,16 +116,18 @@ class ToolCatalogTest {
 
     @Test
     void everyDefaultToolDeclaresTheCapabilityItsHandlerNeeds() {
-        java.util.Map<String, Capability> expected = java.util.Map.of(
-                "server_info", Capability.RUNTIME_INFO,
-                "list_players", Capability.PLAYERS,
-                "query_blocks", Capability.WORLD,
-                "list_registry", Capability.REGISTRIES,
-                "list_entities", Capability.ENTITIES,
-                "get_world_state", Capability.WORLD_STATE,
-                "list_permissions", Capability.PERMISSIONS,
-                "run_command", Capability.COMMANDS,
-                "run_admin_command", Capability.COMMANDS);
+        java.util.Map<String, Capability> expected = java.util.Map.ofEntries(
+                java.util.Map.entry("server_info", Capability.RUNTIME_INFO),
+                java.util.Map.entry("list_players", Capability.PLAYERS),
+                java.util.Map.entry("query_blocks", Capability.WORLD),
+                java.util.Map.entry("list_registry", Capability.REGISTRIES),
+                java.util.Map.entry("list_entities", Capability.ENTITIES),
+                java.util.Map.entry("get_world_state", Capability.WORLD_STATE),
+                java.util.Map.entry("list_permissions", Capability.PERMISSIONS),
+                java.util.Map.entry("get_inventory", Capability.INVENTORIES),
+                java.util.Map.entry("read_log", Capability.LOGS),
+                java.util.Map.entry("run_command", Capability.COMMANDS),
+                java.util.Map.entry("run_admin_command", Capability.COMMANDS));
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
             assertEquals(expected.get(tool.name()), tool.capability(), tool.name());
             assertEquals(Side.SERVER, tool.side(), tool.name());

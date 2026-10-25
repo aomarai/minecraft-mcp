@@ -56,6 +56,11 @@ expect_eventually() {
   fail "$1 (expected to find: $2) got: $(printf '%s' "$out" | tr '\n' ' ' | tail -c 400)"
 }
 
+# refute <label> <haystack> <needle>: the opposite of expect.
+refute() {
+  if printf '%s' "$2" | grep -qF -- "$3"; then fail "$1 (found: $3)"; else pass "$1"; fi
+}
+
 mcp() { # mcp <json> [extra curl args]: POST a JSON-RPC message with the token and session
   curl -s --max-time 30 -X POST "http://127.0.0.1:$PORT/mcp" \
     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
@@ -132,7 +137,7 @@ start_session
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 TOOL_COUNT="$(printf '%s' "$TOOLS" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
-for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
+for tool in server_info list_players query_blocks list_registry list_entities get_world_state list_permissions get_inventory read_log run_command run_admin_command; do expect "tools/list has $tool" "$TOOLS" "\"name\":\"$tool\""; done
 
 echo "== reads"
 expect "server_info describes Fabric and Minecraft" "$(call 3 server_info '{}')" "Fabric $FABRIC_LOADER_VERSION / Minecraft $MINECRAFT_VERSION / server"
@@ -185,6 +190,17 @@ expect "an unconfigured server has no operators" "$(call 44 list_permissions '{}
 expect "granting operator succeeds" "$(call 45 run_admin_command '{"command":"op Steve","confirm":true}')" '"isError":false'
 expect_eventually "list_permissions shows the new operator and level" 'Steve' 46 list_permissions '{}'
 expect "the whitelist state is reported" "$(call 47 list_permissions '{}')" '\"whitelistEnabled\":false'
+
+echo "== inventory and log"
+expect "get_inventory of someone who is not online says so" "$(call 50 get_inventory '{"player":"Nobody"}')" "player 'Nobody' is not online"
+expect "get_inventory needs a player name" "$(call 51 get_inventory '{}')" "required property 'player' not found"
+LOG="$(call 52 read_log '{"lines":200}')"
+expect "read_log returns the server log" "$LOG" 'Done ('
+expect "and flags it untrusted" "$LOG" '\"untrusted\":true'
+expect "IP addresses in it are masked" "$LOG" '[ip]'
+refute "and the raw address never appears" "$LOG" '127.0.0.1:25599'
+expect "the line count is bounded" "$(call 53 read_log '{"lines":201}')" 'must have a maximum value of 200'
+expect "read_log defaults to a short tail" "$(call 54 read_log '{}')" '\"lines\":['
 
 echo "== operator commands (/mcp from the console)"
 console "mcp status" "MCP server is listening on 127.0.0.1:$PORT, writes and admin enabled, $TOOL_COUNT tools" "/mcp status reports the endpoint and access"

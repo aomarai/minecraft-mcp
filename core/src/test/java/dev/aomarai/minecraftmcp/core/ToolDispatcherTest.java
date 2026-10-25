@@ -270,6 +270,86 @@ class ToolDispatcherTest {
         assertTrue(game.pendingPermissions.isCancelled());
     }
 
+    // ---- inventory and log ----
+
+    @Test
+    void getInventoryReturnsItemIdsAndCountsBySlotAndNothingElse() {
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("get_inventory"), args("player", "Steve"));
+
+        assertFalse(result.isError());
+        assertEquals("{\"player\":\"Steve\",\"stacks\":[{\"slot\":0,\"item\":\"minecraft:diamond_sword\",\"count\":1},"
+                + "{\"slot\":36,\"item\":\"create:cogwheel\",\"count\":64}]}", text(result));
+        assertEquals(List.of("Steve"), game.inventoryQueries);
+    }
+
+    @Test
+    void getInventoryOfSomeoneWhoIsNotOnlineIsAnErrorWithTheGamesReason() {
+        game.pendingInventory = CompletableFuture.failedFuture(new IllegalArgumentException("player 'Nobody' is not online"));
+
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("get_inventory"), args("player", "Nobody"));
+
+        assertTrue(result.isError());
+        assertEquals("player 'Nobody' is not online", text(result));
+    }
+
+    @Test
+    void getInventoryNeedsAPlayerName() {
+        assertEquals("player must be a string", text(dispatcher(false, false).call(tool("get_inventory"), args("player", 5))));
+        assertEquals("player must be a string", text(dispatcher(false, false).call(tool("get_inventory"), Map.of())));
+        assertEquals(0, game.totalCalls());
+    }
+
+    @Test
+    void readLogMasksIpAddressesFlagsTheTextUntrustedAndDefaultsToFiftyLines() {
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("read_log"), Map.of());
+
+        assertFalse(result.isError());
+        assertEquals("{\"untrusted\":true,\"lines\":[\"[12:00:00] [Server thread/INFO]: Done (1.2s)!\","
+                + "\"[12:00:01] [Server thread/INFO]: Steve[/[ip]] logged in\",\"<Steve> hello\"]}", text(result));
+        assertEquals(List.of(50), game.logQueries);
+    }
+
+    @Test
+    void readLogPassesTheRequestedNumberOfLinesAndCutsLongOnes() {
+        game.logLines = List.of("x".repeat(500));
+
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("read_log"), args("lines", 7));
+
+        assertEquals(List.of(7), game.logQueries);
+        assertTrue(text(result).contains("x".repeat(400) + "..."), text(result));
+        assertFalse(text(result).contains("x".repeat(401)));
+    }
+
+    @Test
+    void readLogLineCountIsBoundedBeforeTheLogIsTouched() {
+        ToolDispatcher d = dispatcher(false, false);
+        assertEquals("lines must be between 1 and 200", text(d.call(tool("read_log"), args("lines", 0))));
+        assertEquals("lines must be between 1 and 200", text(d.call(tool("read_log"), args("lines", 201))));
+        assertEquals("lines must be an integer", text(d.call(tool("read_log"), args("lines", "ten"))));
+        assertEquals(0, game.totalCalls());
+        assertFalse(d.call(tool("read_log"), args("lines", 1)).isError());
+        assertFalse(d.call(tool("read_log"), args("lines", 200)).isError());
+    }
+
+    @Test
+    void aLogThatCannotBeReadIsAnErrorNotACrash() {
+        game.logFailure = new java.io.IOException("disk on fire");
+
+        McpSchema.CallToolResult result = dispatcher(false, false).call(tool("read_log"), Map.of());
+
+        assertTrue(result.isError());
+        assertEquals("disk on fire", text(result));
+    }
+
+    @Test
+    void anInventoryReadThatTimesOutIsCancelled() {
+        game.pendingInventory = new CompletableFuture<>();
+        ToolDispatcher d = dispatcher(config(false, false, 32768, Duration.ofMillis(100)), game.services(), audit::add);
+
+        assertEquals("timed out after 100 ms", text(d.call(tool("get_inventory"), args("player", "Steve"))));
+        assertTrue(game.pendingInventory.isCancelled());
+    }
+
     // ---- act: run_command ----
 
     @Test
@@ -454,6 +534,8 @@ class ToolDispatcherTest {
         assertEquals("world state is not supported by this adapter",
                 text(d.call(tool("get_world_state"), args("dimension", "minecraft:overworld"))));
         assertEquals("permission listing is not supported by this adapter", text(d.call(tool("list_permissions"), Map.of())));
+        assertEquals("inventory reads is not supported by this adapter", text(d.call(tool("get_inventory"), args("player", "Steve"))));
+        assertEquals("log reads is not supported by this adapter", text(d.call(tool("read_log"), Map.of())));
         assertAudit(1, "result", "server_info", "allow", "error: runtime info is not supported by this adapter");
     }
 

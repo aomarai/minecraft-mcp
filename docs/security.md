@@ -41,6 +41,15 @@ never the header or token, and are not written to the audit file, so an anonymou
 fill it. There is no lockout; a 256-bit generated token is not guessable, and the server binds to
 loopback by default. Rotating the token requires a restart of the transport.
 
+## Untrusted text in tool results
+
+Some read tools return text that players control: entity names (`list_entities`), and the whole
+server log (`read_log`). The core never lets such text influence a decision: the policy looks only at
+the tool, its arguments and the configuration. The tools mark it anyway, so a client can treat it as
+data: the `read_log` result carries `"untrusted": true`, and the descriptions of `list_entities` and
+`read_log` say so. `get_inventory` leaves item names out entirely. `read_log` also masks IPv4
+addresses and cuts very long lines, so it does not leak players' addresses or flood the client.
+
 ## Policy gate and audit
 
 Every tool call goes through `ToolDispatcher`:
