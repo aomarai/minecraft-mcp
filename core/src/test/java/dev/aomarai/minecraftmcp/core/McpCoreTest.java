@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 
 import java.net.ConnectException;
 import java.net.Socket;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -35,8 +37,13 @@ class McpCoreTest {
                 assertNotEquals(Boolean.TRUE, init.capabilities().tools().listChanged());
 
                 McpSchema.ListToolsResult tools = client.listTools();
-                assertNotNull(tools.tools());
-                assertTrue(tools.tools().isEmpty(), "catalog starts empty");
+                assertEquals(
+                        List.of("server_info", "list_players", "query_blocks", "run_command", "run_admin_command"),
+                        tools.tools().stream().map(McpSchema.Tool::name).toList());
+
+                McpSchema.CallToolResult called = client.callTool(
+                        new McpSchema.CallToolRequest("server_info", Map.of()));
+                assertTrue(called.isError(), "handlers are not implemented until the policy gate lands");
             }
         }
     }
