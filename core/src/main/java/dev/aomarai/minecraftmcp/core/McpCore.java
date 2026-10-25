@@ -59,7 +59,6 @@ public final class McpCore implements AutoCloseable {
         jetty.addConnector(connector);
 
         ServletContextHandler context = new ServletContextHandler();
-        context.setContextPath("/");
         context.addServlet(new ServletHolder(transport), DEFAULT_ENDPOINT + "/*");
         jetty.setHandler(context);
     }
@@ -69,9 +68,19 @@ public final class McpCore implements AutoCloseable {
         jetty.start();
     }
 
+    /** The host the listener is bound to. */
+    public String host() {
+        return connector.getHost();
+    }
+
     /** The actual bound port. Useful when constructed with port {@code 0}. */
     public int port() {
         return connector.getLocalPort();
+    }
+
+    /** The servlet transport, exposed to tests that exercise shutdown behavior. */
+    HttpServletStreamableServerTransportProvider transport() {
+        return transport;
     }
 
     /** The MCP server instance, for registering tools/resources in later issues. */

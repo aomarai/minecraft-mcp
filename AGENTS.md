@@ -37,7 +37,11 @@ module boundaries. If a change contradicts those documents, update the documents
 ```bash
 ./gradlew build          # compile + tests for all modules
 ./gradlew :core:test     # core tests only
+./gradlew :core:pitest   # mutation testing (slow; run in CI, not part of build)
 ```
+
+`build` enforces 100% JaCoCo line and branch coverage (`jacocoTestCoverageVerification`). `:core:pitest` enforces a
+mutation-score threshold; reports land in `core/build/reports/{jacoco,pitest}`.
 
 JDK 21 is required for the core and 1.21.x nodes. JDK 25 is required for 26.x nodes once those
 are added. Use the Gradle wrapper; do not install a global Gradle.

@@ -3,6 +3,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
@@ -53,5 +54,26 @@ subprojects {
             xml.required.set(true)
             html.required.set(true)
         }
+    }
+
+    // Coverage gate: every line and branch of production code must be exercised.
+    // Modules without classes (placeholder adapters) skip the check automatically.
+    tasks.withType<JacocoCoverageVerification>().configureEach {
+        violationRules {
+            rule {
+                limit {
+                    counter = "LINE"
+                    minimum = "1.0".toBigDecimal()
+                }
+                limit {
+                    counter = "BRANCH"
+                    minimum = "1.0".toBigDecimal()
+                }
+            }
+        }
+    }
+
+    tasks.named("check") {
+        dependsOn(tasks.withType<JacocoCoverageVerification>())
     }
 }
