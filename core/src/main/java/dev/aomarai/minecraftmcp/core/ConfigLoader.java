@@ -4,12 +4,10 @@ import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.json.TypeRef;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
@@ -25,8 +23,8 @@ import java.util.Map;
  * <ul>
  *   <li>A missing file is created with secure defaults (loopback, read-only,
  *       admin disabled) and a freshly generated random token.</li>
- *   <li>The file is restricted to its owner (mode {@code 0600} on POSIX)
- *       before any secret is written, and re-restricted on every load.</li>
+ *   <li>The file is restricted to its owner (see {@link OwnerOnlyFile}) before
+ *       any secret is written, and re-restricted on every load.</li>
  *   <li>The token is never logged and never part of {@link Loaded#toString()}.</li>
  *   <li>Environment variables win over file values but are never written back
  *       to the file.</li>
@@ -85,7 +83,7 @@ public final class ConfigLoader {
         if (generated) {
             write(mapper, file, persisted);
         } else {
-            restrictToOwner(file);
+            OwnerOnlyFile.restrict(file);
         }
 
         Map<String, Object> effective = defaults();
@@ -232,11 +230,8 @@ public final class ConfigLoader {
     }
 
     private static void write(McpJsonMapper mapper, Path file, Map<String, Object> values) throws IOException {
-        Files.createDirectories(file.toAbsolutePath().getParent());
-        // Create without truncating, so the file exists before it is restricted.
-        Files.writeString(file, "", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         // Restrict before writing so the secret never sits in a world-readable file.
-        restrictToOwner(file);
+        OwnerOnlyFile.prepare(file);
 
         StringBuilder out = new StringBuilder("{\n");
         int i = 0;
@@ -247,15 +242,5 @@ public final class ConfigLoader {
         }
         out.append("}\n");
         Files.writeString(file, out, StandardCharsets.UTF_8);
-    }
-
-    /** Owner read/write only. Mode 0600 on POSIX; best effort where the file system has no such modes. */
-    private static void restrictToOwner(Path file) {
-        File f = file.toFile();
-        f.setReadable(false, false);
-        f.setWritable(false, false);
-        f.setExecutable(false, false);
-        f.setReadable(true, true);
-        f.setWritable(true, true);
     }
 }
