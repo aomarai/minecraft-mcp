@@ -1,28 +1,28 @@
 #!/usr/bin/env bash
-# Smoke test: start a real headless Fabric server with the mod and exercise it over MCP.
+# Smoke test: start a real headless Fabric or NeoForge server with the mod and exercise it over MCP.
 #
-#   scripts/smoke/fabric-smoke.sh <path-to-mod-jar> [node-gradle.properties]
+#   scripts/smoke/smoke.sh <fabric|neoforge> <path-to-mod-jar> [node-gradle.properties]
 #
-# Needs bash, curl, Java 21 and network access (Fabric launcher, Fabric API, Mojang server jar).
-# Everything happens in a throwaway directory that is removed on exit. Exits non-zero, with the
-# server log, if the mod does not load, the endpoint does not start, or any check fails.
+# Needs bash, curl, Java 21 and network access (the loader's installer, Fabric API for Fabric, the
+# Mojang server jar). Everything happens in a throwaway directory that is removed on exit. Exits
+# non-zero, with the server log, if the mod does not load, the endpoint does not start, or any check
+# fails. The checks are the same for both loaders: only setting the server up and starting it differs.
 #
 # The eula=true written below accepts the Minecraft EULA for this disposable test server only;
-# nothing is redistributed. The game, loader and Fabric API versions come from the node's own
-# gradle.properties (default: the 1.21.1 node), so the test always runs what the jar was built for.
+# nothing is redistributed. The game and loader versions come from the node's own gradle.properties
+# (default: the loader's 1.21.1 node), so the test always runs what the jar was built for.
 set -u
 
-NODE_PROPERTIES="${2:-$(cd "$(dirname "$0")/../.." && pwd)/adapters/fabric/versions/1.21.1/gradle.properties}"
-property() { sed -n "s/^$1=//p" "$NODE_PROPERTIES" | tr -d ''; }
+LOADER="${1:?usage: smoke.sh <fabric|neoforge> <mod-jar> [node-gradle.properties]}"
+case "$LOADER" in fabric|neoforge) ;; *) echo "FAIL: unknown loader '$LOADER' (fabric or neoforge)"; exit 2 ;; esac
+NODE_PROPERTIES="${3:-$(cd "$(dirname "$0")/../.." && pwd)/adapters/$LOADER/versions/1.21.1/gradle.properties}"
+property() { sed -n "s/^$1=//p" "$NODE_PROPERTIES" | tr -d '\r'; }
 MINECRAFT_VERSION="$(property minecraft_version)"
-FABRIC_LOADER_VERSION="$(property fabric_loader_version)"
-FABRIC_API_VERSION="$(property fabric_api_version)"
-[ -n "$MINECRAFT_VERSION" ] && [ -n "$FABRIC_LOADER_VERSION" ] && [ -n "$FABRIC_API_VERSION" ]   || { echo "FAIL: cannot read the versions from $NODE_PROPERTIES"; exit 2; }
-FABRIC_INSTALLER_VERSION="1.1.2"
+[ -n "$MINECRAFT_VERSION" ] || { echo "FAIL: cannot read the versions from $NODE_PROPERTIES"; exit 2; }
 START_TIMEOUT_SECONDS="${SMOKE_START_TIMEOUT:-300}"
 PORT=25599
 
-JAR="${1:?usage: fabric-smoke.sh <mod-jar>}"
+JAR="${2:?usage: smoke.sh <fabric|neoforge> <mod-jar>}"
 JAR="$(cd "$(dirname "$JAR")" && pwd)/$(basename "$JAR")"
 [ -f "$JAR" ] || { echo "FAIL: mod jar not found: $JAR"; exit 2; }
 
@@ -98,10 +98,31 @@ console() {
 
 echo "== preparing server in $WORK"
 cd "$WORK" && mkdir mods || exit 2
-curl -fsSLo server.jar "https://meta.fabricmc.net/v2/versions/loader/$MINECRAFT_VERSION/$FABRIC_LOADER_VERSION/$FABRIC_INSTALLER_VERSION/server/jar" \
-  || { echo "FAIL: cannot download the Fabric server launcher"; exit 2; }
-curl -fsSLo mods/fabric-api.jar "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$FABRIC_API_VERSION/fabric-api-$FABRIC_API_VERSION.jar" \
-  || { echo "FAIL: cannot download Fabric API"; exit 2; }
+case "$LOADER" in
+  fabric)
+    FABRIC_LOADER_VERSION="$(property fabric_loader_version)"
+    FABRIC_API_VERSION="$(property fabric_api_version)"
+    [ -n "$FABRIC_LOADER_VERSION" ] && [ -n "$FABRIC_API_VERSION" ] || { echo "FAIL: missing Fabric versions in $NODE_PROPERTIES"; exit 2; }
+    LOADER_VERSION="$FABRIC_LOADER_VERSION"
+    LOADER_LABEL="Fabric $FABRIC_LOADER_VERSION"
+    curl -fsSLo server.jar "https://meta.fabricmc.net/v2/versions/loader/$MINECRAFT_VERSION/$FABRIC_LOADER_VERSION/1.1.2/server/jar" \
+      || { echo "FAIL: cannot download the Fabric server launcher"; exit 2; }
+    curl -fsSLo mods/fabric-api.jar "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$FABRIC_API_VERSION/fabric-api-$FABRIC_API_VERSION.jar" \
+      || { echo "FAIL: cannot download Fabric API"; exit 2; }
+    LAUNCH=(java -Xmx1G -jar server.jar nogui)
+    ;;
+  neoforge)
+    NEOFORGE_VERSION="$(property neoforge_version)"
+    [ -n "$NEOFORGE_VERSION" ] || { echo "FAIL: missing neoforge_version in $NODE_PROPERTIES"; exit 2; }
+    LOADER_VERSION="$NEOFORGE_VERSION"
+    LOADER_LABEL="NeoForge $NEOFORGE_VERSION"
+    curl -fsSLo installer.jar "https://maven.neoforged.net/releases/net/neoforged/neoforge/$NEOFORGE_VERSION/neoforge-$NEOFORGE_VERSION-installer.jar" \
+      || { echo "FAIL: cannot download the NeoForge installer"; exit 2; }
+    java -jar installer.jar --installServer > install.log 2>&1 \
+      || { echo "FAIL: the NeoForge server did not install. Log:"; tail -n 30 install.log; exit 2; }
+    LAUNCH=(java -Xmx1G @user_jvm_args.txt "@libraries/net/neoforged/neoforge/$NEOFORGE_VERSION/unix_args.txt" nogui)
+    ;;
+esac
 cp "$JAR" mods/minecraft-mcp.jar
 echo "eula=true" > eula.txt
 printf 'online-mode=false\nlevel-type=flat\ngenerate-structures=false\nview-distance=4\nsimulation-distance=4\n' > server.properties
@@ -111,7 +132,7 @@ mkfifo console
 # Writes and admin come from the environment, which wins over the generated config file. The token is the
 # generated one from that file, so that rotating it can be tested.
 MINECRAFT_MCP_ALLOW_WRITES=true MINECRAFT_MCP_ALLOW_ADMIN=true \
-  java -Xmx1G -jar server.jar nogui < console > server.log 2>&1 &
+  "${LAUNCH[@]}" < console > server.log 2>&1 &
 SERVER_PID=$!
 exec 3>console
 
@@ -146,7 +167,7 @@ for tool in server_info list_players query_blocks list_registry list_entities ge
 refute "a dedicated server does not offer the client-only screenshot tool" "$TOOLS" '"name":"take_screenshot"'
 
 echo "== reads"
-expect "server_info describes Fabric and Minecraft" "$(call 3 server_info '{}')" "Fabric $FABRIC_LOADER_VERSION / Minecraft $MINECRAFT_VERSION / server"
+expect "server_info describes the loader and Minecraft" "$(call 3 server_info '{}')" "$LOADER_LABEL / Minecraft $MINECRAFT_VERSION / server"
 expect "list_players on an empty server" "$(call 4 list_players '{}')" '{\"players\":[]}'
 FLAT="$(call 5 query_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":-64,"min_z":0,"max_x":0,"max_y":-64,"max_z":0,"limit":10}')"
 expect "query_blocks returns registry ids" "$FLAT" 'minecraft:bedrock'

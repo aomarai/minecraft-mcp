@@ -71,8 +71,9 @@ Do not expose the HTTP endpoint to the internet without TLS and an authenticated
 
 ```text
 core/                 loader-agnostic protocol, tools, policy, audit
-adapters/fabric/      Fabric mod adapter (placeholder)
-adapters/neoforge/    NeoForge mod adapter (placeholder)
+adapters/fabric/      Fabric mod adapter (Stonecutter nodes under versions/)
+adapters/neoforge/    NeoForge mod adapter (Stonecutter nodes under versions/)
+adapters/common/      vanilla-only code both mod adapters compile in
 adapters/rcon/        protocol-only fallback (placeholder)
 stdio-shim/           stdio-to-HTTP shim for stdio-only MCP hosts (placeholder)
 docs/                 architecture, security, version matrix
