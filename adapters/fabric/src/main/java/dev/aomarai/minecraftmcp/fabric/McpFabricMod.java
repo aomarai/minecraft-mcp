@@ -2,6 +2,7 @@ package dev.aomarai.minecraftmcp.fabric;
 
 import dev.aomarai.minecraftmcp.core.ConfigException;
 import dev.aomarai.minecraftmcp.core.GameServices;
+import dev.aomarai.minecraftmcp.core.McpConfig;
 import dev.aomarai.minecraftmcp.core.McpService;
 import dev.aomarai.minecraftmcp.core.Side;
 import net.fabricmc.api.ModInitializer;
@@ -23,6 +24,10 @@ import java.nio.file.Path;
 public final class McpFabricMod implements ModInitializer {
 
     private static final Logger LOG = LoggerFactory.getLogger("minecraft-mcp");
+    /** Vanilla permission level 2: /give, /setblock, /tp, /kill ... */
+    private static final int GAMEMASTER_LEVEL = 2;
+    /** Vanilla permission level 4: everything, including /stop. */
+    private static final int ADMIN_LEVEL = 4;
 
     private McpService service;
 
@@ -34,16 +39,27 @@ public final class McpFabricMod implements ModInitializer {
 
     private void start(MinecraftServer server) {
         Path configDir = FabricLoader.getInstance().getConfigDir();
-        GameServices services = new GameServices(new FabricRuntimeInfo(server), null, null, null, Side.SERVER);
         try {
             service = McpService.start(configDir.resolve("minecraft-mcp.json"),
-                    configDir.resolve("minecraft-mcp-audit.jsonl"), services);
+                    configDir.resolve("minecraft-mcp-audit.jsonl"), config -> servicesFor(server, config));
             LOG.info("MCP server listening on port {}", service.port());
         } catch (ConfigException e) {
             LOG.error("MCP server not started: {}", e.getMessage());
         } catch (Exception e) {
             LOG.error("MCP server failed to start", e);
         }
+    }
+
+    private static GameServices servicesFor(MinecraftServer server, McpConfig config) {
+        // Commands run at the lowest level that fits what is enabled, so the game itself refuses
+        // admin commands unless admin access is on. The core's policy has already decided by then.
+        int commandLevel = config.allowAdmin() ? ADMIN_LEVEL : GAMEMASTER_LEVEL;
+        return new GameServices(
+                new FabricRuntimeInfo(server),
+                new FabricPlayerReader(server),
+                new FabricWorldReader(server),
+                new FabricCommandRunner(server, commandLevel),
+                Side.SERVER);
     }
 
     private void stop() {

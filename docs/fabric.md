@@ -19,11 +19,28 @@ read-only, with a generated bearer token, owner-only) and `config/minecraft-mcp-
 A bad configuration or a port in use is logged and leaves the game server running without MCP; it
 never crashes the game.
 
-## What it provides today
+## What it provides
 
-The adapter currently provides runtime information only, so `tools/list` contains `server_info`
-(`Fabric <loader> / Minecraft <version> / server`). Players, block queries and commands arrive with
-issue #15; the catalog grows automatically as the adapter provides more capabilities.
+All five tools in `docs/tools.md` are served.
+
+| Tool | How |
+|---|---|
+| `server_info` | `Fabric <loader> / Minecraft <version> / server` |
+| `list_players` | Name, UUID, dimension id, position and operator status of connected players |
+| `query_blocks` | Blocks in a bounded box of one dimension, as registry ids (`minecraft:stone`, `create:cogwheel`). Air, positions outside the world and unloaded chunks are skipped, and chunks are never loaded or generated. The box is capped by `maxBlockVolume` and the result by `limit` (`truncated` says when more exist) |
+| `run_command`, `run_admin_command` | Through the game's Brigadier dispatcher, so vanilla and modded commands both work |
+
+- **Main thread:** every read and write is queued with `MinecraftServer.execute` (see `MainThread`
+  in `core`). The HTTP threads never touch world state. A call that times out before the game
+  thread reaches it is skipped.
+- **Registry-driven:** dimensions and blocks are resolved by registry id, never by a hardcoded
+  vanilla list. An unknown dimension is reported together with the available ones.
+- **Command permission level:** commands run from a dedicated "MCP" source (not the console, not a
+  player) at vanilla permission level 2, or level 4 only when `allowAdmin` is on. The core's policy
+  decides first; this is a second line of defense, so the game itself refuses admin commands unless
+  admin access is enabled.
+- **Not covered by a test mod:** that a block from another mod resolves is true by construction
+  (the block registry is queried by id), but nothing in CI loads a third-party block yet.
 
 ## Build
 
@@ -50,5 +67,16 @@ the remapped, shaded jar; the other jars in that folder are intermediate and wil
 ## Testing
 
 Loader glue cannot be unit tested without a running game, so the line/branch coverage gate is off
-for this module. The classes are kept tiny, the logic lives in `core` (where the gate applies), and
-the Docker smoke test (issue #20) starts a real Fabric server with the jar.
+for this module. The classes are kept tiny, the logic lives in `core` (where the gate applies:
+`MainThread`, `BlockScanner`, `McpService`), and a smoke test starts a real Fabric server with the
+jar:
+
+```bash
+scripts/smoke/fabric-smoke.sh adapters/fabric/build/libs/minecraft-mcp-<version>+1.21.1-fabric.jar
+```
+
+It needs bash, curl, Java 21 and network access, works in a throwaway directory, and checks:
+loading, the token, `initialize`/`tools/list`, reads, a write that takes effect, the policy
+refusals, the confirm flow, audit and file permissions, and a clean shutdown driven through MCP.
+Running it sets `eula=true` in that disposable server, which accepts the Minecraft EULA for the
+test only. Issue #20 wires it into CI in Docker.
