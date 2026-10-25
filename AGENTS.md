@@ -39,6 +39,7 @@ module boundaries. If a change contradicts those documents, update the documents
 ./gradlew :core:test     # core tests only
 ./gradlew :core:pitest   # mutation testing (slow; CI runs it after build)
 ./gradlew :stdio-shim:pitest   # mutation testing for the shim (CI runs it too)
+./gradlew :adapters:rcon:pitest   # mutation testing for the universal tier (CI runs it too)
 ./gradlew :adapters:fabric:1.21.1:runGameTest   # game tests with fake players on a real server (CI runs it)
 scripts/smoke/run-in-docker.sh <fabric|neoforge> <jar>   # real headless-server smoke test (CI runs it; needs Docker)
 ```
@@ -161,6 +162,10 @@ Do not decide these on your own; raise them in the issue or PR and wait:
 7. Read CI after pushing and fix failures. Do not merge your own PR unless the owner
    explicitly asks.
 8. Keep the Part of #<epic> checklist in sync when you finish a child issue.
+9. After a PR is merged, delete its branch: the remote one (GitHub can do this itself with the repository
+   setting "Automatically delete head branches"; if that is off, run `git push origin --delete <branch>`)
+   and the local one (`git branch -d <branch>`; a squash-merged branch needs `-D`, after checking the PR
+   merged). Never delete a branch with an open PR or unmerged work, and never touch `main`.
 
 Commit messages: short imperative subject, then a body explaining why when it is not obvious.
 Do not commit build output, IDE files, local config, or `.claude/` worktrees.
