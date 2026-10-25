@@ -88,7 +88,15 @@ jobs:
         # map the SONAR_HOST_URL environment variable to sonar.host.url.
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # MEMORY BOUND: the ARC runner pod is limited to 1.5 GiB and shares a
+        # 5.79 GiB node with the media stack and SonarQube itself. The 2 GiB
+        # daemon heap in gradle.properties cannot fit; the scanner was SIGKILLed
+        # during "Indexing files..." (exit 137). Override the daemon heap for
+        # this job only, so build-and-test on ubuntu-latest keeps its 2 GiB.
+        # Gradle honors -Dorg.gradle.jvmargs on the command line (verified).
         run: >-
           ./gradlew build jacocoTestReport sonar
           -Dsonar.host.url="$SONAR_HOST_URL"
+          -Dorg.gradle.jvmargs="-Xmx896m -XX:MaxMetaspaceSize=256m -Dfile.encoding=UTF-8"
+          --no-parallel --max-workers=2
           --info
