@@ -25,7 +25,8 @@ moving), so use a dry run, not a real tag, to try the pipeline.
    anywhere stops the release.
 3. **package**: checks that there is exactly one jar for each loader and version node in the repository,
    named `minecraft-mcp-<version>+<minecraft>-<loader>.jar`, plus the universal jar,
-   `minecraft-mcp-<version>-universal.jar`. A missing or extra jar fails the release (it fails closed).
+   `minecraft-mcp-<version>-universal.jar`, and the stdio shim, `minecraft-mcp-<version>-stdio-shim.jar`. A
+   missing or extra jar fails the release (it fails closed).
    Then it writes `SHA256SUMS`.
 4. **publish**: only for a real tag. Creates the GitHub release from the tag.
 
