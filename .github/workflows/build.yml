@@ -25,3 +25,4 @@ jobs:
           # verification. Disable caching so every run verifies fresh downloads.
           cache-disabled: true
       - run: ./gradlew build --no-daemon --refresh-dependencies
+      - run: ./gradlew :core:pitest --no-daemon
