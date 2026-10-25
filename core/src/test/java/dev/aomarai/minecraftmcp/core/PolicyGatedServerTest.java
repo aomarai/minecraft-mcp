@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+import static dev.aomarai.minecraftmcp.core.ToolResults.text;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -27,19 +28,11 @@ class PolicyGatedServerTest {
     @TempDir
     Path dir;
 
-    private static String text(McpSchema.CallToolResult result) {
-        return ((McpSchema.TextContent) result.content().get(0)).text();
-    }
-
     private McpCore core(boolean writes, boolean admin, FakeGame game, Path auditFile) {
         McpConfig config = new McpConfig("127.0.0.1", 25599, writes, admin, 32768, Duration.ofSeconds(5));
         ToolDispatcher dispatcher = new ToolDispatcher(config, game.services(),
                 new JsonlAuditLog(auditFile, List.of(TOKEN)));
         return new McpCore("127.0.0.1", 0, ToolCatalog.defaults().availableFor(game.services()), dispatcher, TOKEN);
-    }
-
-    private static McpSyncClient client(McpCore core) {
-        return McpTestClients.client(core);
     }
 
     @Test
@@ -48,7 +41,7 @@ class PolicyGatedServerTest {
         Path auditFile = dir.resolve("audit.jsonl");
         try (McpCore core = core(true, true, game, auditFile)) {
             core.start();
-            try (McpSyncClient client = client(core)) {
+            try (McpSyncClient client = McpTestClients.client(core)) {
                 client.initialize();
                 assertEquals(5, client.listTools().tools().size());
 
@@ -100,7 +93,7 @@ class PolicyGatedServerTest {
         Path auditFile = dir.resolve("audit.jsonl");
         try (McpCore core = core(false, false, game, auditFile)) {
             core.start();
-            try (McpSyncClient client = client(core)) {
+            try (McpSyncClient client = McpTestClients.client(core)) {
                 client.initialize();
                 McpSchema.CallToolResult write = client.callTool(
                         new McpSchema.CallToolRequest("run_command", Map.of("command", "say hi")));
