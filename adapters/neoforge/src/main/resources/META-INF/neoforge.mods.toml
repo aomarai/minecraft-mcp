@@ -1,0 +1,24 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "See LICENSE"
+
+[[mods]]
+modId = "minecraft_mcp"
+version = "${version}"
+displayName = "Minecraft MCP"
+description = "A Model Context Protocol server for this Minecraft server. Read-only and loopback-only by default."
+authors = "aomarai"
+
+[[dependencies.minecraft_mcp]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neoforge_range}"
+ordering = "NONE"
+side = "SERVER"
+
+[[dependencies.minecraft_mcp]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_range}"
+ordering = "NONE"
+side = "SERVER"

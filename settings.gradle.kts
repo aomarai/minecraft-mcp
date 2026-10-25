@@ -24,13 +24,16 @@ stonecutter {
         version("1.21.1")
         vcsVersion = "1.21.1"
     }
+    create(":adapters:neoforge") {
+        version("1.21.1")
+        vcsVersion = "1.21.1"
+    }
 }
 
 rootProject.name = "minecraft-mcp"
 
 include(
     "core",
-    "adapters:neoforge",
     "adapters:rcon",
     "stdio-shim",
 )
