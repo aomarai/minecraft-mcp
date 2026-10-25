@@ -82,14 +82,16 @@ jobs:
         # inherit the build's committed memory and pushed the container over its
         # 1.5 GiB limit during "Indexing files..." (exit 137).
         #
-        # MEMORY BOUND: the ARC runner pod is limited to 1.5 GiB and shares a
-        # 5.79 GiB node with the media stack and SonarQube itself. 896m was still
-        # too high once the Gradle client (~100m) and the daemon's metaspace,
-        # code cache and thread stacks were counted; 704m leaves headroom.
+        # MEMORY BOUND: the runner pod limit is 2 GiB, sized to the ~2.6 GiB of
+        # headroom on lenovo-worker. The previous 1.5 GiB pod forced a
+        # 704m/192m JVM clamp, and :adapters:fabric:shadowJar exhausted
+        # metaspace on the Minecraft/Fabric class load, failing the build with
+        # "Metaspace". 1024m heap + 384m metaspace peaks near 1.3 GiB, leaving
+        # room for the Gradle client and code cache inside 2 GiB.
         # build-and-test on ubuntu-latest keeps its 2 GiB heap.
         run: >-
           ./gradlew build jacocoTestReport --no-daemon
-          -Dorg.gradle.jvmargs="-Xmx704m -XX:MaxMetaspaceSize=192m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx1024m -XX:MaxMetaspaceSize=384m -Dfile.encoding=UTF-8"
           --no-parallel --max-workers=2
 
       - name: Analyze
@@ -103,6 +105,6 @@ jobs:
         run: >-
           ./gradlew sonar --no-daemon
           -Dsonar.host.url="$SONAR_HOST_URL"
-          -Dorg.gradle.jvmargs="-Xmx704m -XX:MaxMetaspaceSize=192m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx1024m -XX:MaxMetaspaceSize=384m -Dfile.encoding=UTF-8"
           --no-parallel --max-workers=2
           --info
