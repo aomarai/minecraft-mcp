@@ -49,11 +49,8 @@ public final class LogTailer implements AutoCloseable {
 
     private final Path file;
     private final Sink events;
-    private final ScheduledExecutorService poller = Executors.newSingleThreadScheduledExecutor(task -> {
-        Thread thread = new Thread(task, "minecraft-mcp-log-tail");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final ScheduledExecutorService poller =
+            Executors.newSingleThreadScheduledExecutor(DaemonThreads.named("minecraft-mcp-log-tail"));
     private final Function<Path, Object> identityOf;
     private long position;
     private boolean positioned;
