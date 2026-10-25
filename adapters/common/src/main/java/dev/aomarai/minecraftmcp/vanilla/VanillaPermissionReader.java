@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import com.mojang.authlib.GameProfile;
 import dev.aomarai.minecraftmcp.core.MainThread;
@@ -19,13 +19,13 @@ import java.util.concurrent.CompletableFuture;
  * <p>The game lists names; the UUID comes from the server's profile cache and is {@code unknown}
  * for someone it has never seen.</p>
  */
-final class FabricPermissionReader implements PermissionReader {
+public final class VanillaPermissionReader implements PermissionReader {
 
     private static final String UNKNOWN_UUID = "unknown";
 
     private final MinecraftServer server;
 
-    FabricPermissionReader(MinecraftServer server) {
+    public VanillaPermissionReader(MinecraftServer server) {
         this.server = server;
     }
 

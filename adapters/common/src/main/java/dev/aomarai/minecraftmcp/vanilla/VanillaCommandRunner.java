@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.aomarai.minecraftmcp.core.CommandResult;
@@ -24,12 +24,12 @@ import java.util.concurrent.CompletableFuture;
  * second line of defense that stops the game itself from running admin commands unless admin
  * access is enabled.</p>
  */
-final class FabricCommandRunner implements CommandRunner {
+public final class VanillaCommandRunner implements CommandRunner {
 
     private final MinecraftServer server;
     private final int permissionLevel;
 
-    FabricCommandRunner(MinecraftServer server, int permissionLevel) {
+    public VanillaCommandRunner(MinecraftServer server, int permissionLevel) {
         this.server = server;
         this.permissionLevel = permissionLevel;
     }

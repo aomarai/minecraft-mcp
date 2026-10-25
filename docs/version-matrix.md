@@ -17,7 +17,7 @@ here as planned. Current state:
 | Target | State |
 |---|---|
 | Fabric 1.21.1 | Supported (node `adapters/fabric/versions/1.21.1`). CI starts a real headless server in Docker with the jar and checks loading, auth, reads, a write, the policy refusals, audit and shutdown (`scripts/smoke/run-in-docker.sh`) |
-| NeoForge 1.21.1 | Scaffolded (`adapters/neoforge/versions/1.21.1`, [docs/neoforge.md](neoforge.md)): loads and answers `server_info`. Not supported until its Docker smoke test runs in CI (#24) |
+| NeoForge 1.21.1 | Scaffolded (`adapters/neoforge/versions/1.21.1`, [docs/neoforge.md](neoforge.md)): every tool works (the Fabric smoke suite passes against it by hand). Not supported until its Docker smoke test runs in CI (#24) |
 | Everything else | Planned |
 
 ## Initial targets

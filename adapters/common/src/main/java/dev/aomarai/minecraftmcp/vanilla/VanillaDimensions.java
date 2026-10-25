@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -9,9 +9,9 @@ import net.minecraft.server.level.ServerLevel;
 import java.util.stream.Collectors;
 
 /** Finds a dimension by its registry id, so modded dimensions work like vanilla ones. */
-final class FabricDimensions {
+final class VanillaDimensions {
 
-    private FabricDimensions() {
+    private VanillaDimensions() {
     }
 
     /** Call on the main thread. An unknown dimension is reported together with the available ones. */

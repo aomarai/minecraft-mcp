@@ -27,6 +27,14 @@ Fabric adapter      NeoForge adapter    RCON adapter
 Dependencies point inward. `core` must not import Fabric, NeoForge, Bukkit, or Minecraft classes.
 Adapters depend on `core`, never the reverse.
 
+The Fabric and NeoForge adapters share one more layer. Minecraft's own classes are the same on both
+loaders (Mojang names), so everything that needs only vanilla classes lives once in `adapters/common`
+and is compiled into each loader jar: the readers and the command runner behind the ports, the `/mcp`
+command, and `McpHost`, which owns the server lifecycle, the event buffer and the choice of ports. A
+loader adapter is then a few classes: its entry point, its `RuntimeInfo`, and the callbacks that
+publish events. Anything that needs a loader API stays in that loader's module; `adapters/common` must
+never import `net.fabricmc` or `net.neoforged`.
+
 ## Core responsibilities
 
 - MCP server lifecycle and Streamable HTTP transport.

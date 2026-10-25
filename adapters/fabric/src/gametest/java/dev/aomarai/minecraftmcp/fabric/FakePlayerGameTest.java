@@ -6,6 +6,8 @@ import dev.aomarai.minecraftmcp.core.EventType;
 import dev.aomarai.minecraftmcp.core.GameEvent;
 import dev.aomarai.minecraftmcp.core.Inventory;
 import dev.aomarai.minecraftmcp.core.PlayerInfo;
+import dev.aomarai.minecraftmcp.vanilla.VanillaInventoryReader;
+import dev.aomarai.minecraftmcp.vanilla.VanillaPlayerReader;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
@@ -55,8 +57,8 @@ public final class FakePlayerGameTest implements FabricGameTest {
         helper.assertTrue(types(before).equals(List.of(EventType.JOIN)), "joining is recorded: " + types(before));
 
         player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 3));
-        var listed = new FabricPlayerReader(server).listPlayers();
-        var inventory = new FabricInventoryReader(server).inventoryOf("Steve");
+        var listed = new VanillaPlayerReader(server).listPlayers();
+        var inventory = new VanillaInventoryReader(server).inventoryOf("Steve");
 
         ServerMessageEvents.CHAT_MESSAGE.invoker().onChatMessage(
                 PlayerChatMessage.system("hello\nworld"), player, ChatType.bind(ChatType.CHAT, player));
