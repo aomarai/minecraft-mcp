@@ -6,6 +6,7 @@ import dev.aomarai.minecraftmcp.core.GameServices;
 import dev.aomarai.minecraftmcp.core.McpConfig;
 import dev.aomarai.minecraftmcp.core.McpController;
 import dev.aomarai.minecraftmcp.core.Side;
+import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -70,7 +71,7 @@ public final class McpFabricMod implements ModInitializer {
         // Commands run at the lowest level that fits what is enabled, so the game itself refuses
         // admin commands unless admin access is on. The core's policy has already decided by then.
         int commandLevel = config.allowAdmin() ? ADMIN_LEVEL : GAMEMASTER_LEVEL;
-        return new GameServices(Side.SERVER,
+        return new GameServices(side(),
                 new FabricRuntimeInfo(server),
                 new FabricPlayerReader(server),
                 new FabricWorldReader(server),
@@ -81,6 +82,11 @@ public final class McpFabricMod implements ModInitializer {
                 new FabricInventoryReader(server),
                 new FileLogReader(FabricLoader.getInstance().getGameDir().resolve("logs").resolve("latest.log")),
                 new FabricCommandRunner(server, commandLevel));
+    }
+
+    /** Dedicated server or client, as the loader reports it, so client-only tools are never offered by a server. */
+    private static Side side() {
+        return FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT ? Side.CLIENT : Side.SERVER;
     }
 
     private void stop() {

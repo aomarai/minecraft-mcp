@@ -25,7 +25,10 @@ class GameServicesTest {
     void oneObjectCanProvideEveryPort() {
         GameServices all = game.services();
 
-        assertEquals(Set.of(Capability.values()), all.capabilities());
+        // FakeGame is a server-side game: it provides every capability except the client-only one.
+        Set<Capability> serverCapabilities = new java.util.HashSet<>(Set.of(Capability.values()));
+        serverCapabilities.remove(Capability.SCREENSHOTS);
+        assertEquals(serverCapabilities, all.capabilities());
         assertSame(game, all.find(RuntimeInfo.class).orElseThrow());
         assertSame(game, all.find(RegistryReader.class).orElseThrow());
         assertSame(game, all.find(EntityReader.class).orElseThrow());
@@ -59,6 +62,7 @@ class GameServicesTest {
     void everyCapabilityMapsToADistinctPortType() {
         assertEquals(Capability.values().length,
                 java.util.Arrays.stream(Capability.values()).map(Capability::portType).distinct().count());
+        assertEquals(ScreenshotCapture.class, Capability.SCREENSHOTS.portType());
         assertEquals(RegistryReader.class, Capability.REGISTRIES.portType());
         assertEquals(EntityReader.class, Capability.ENTITIES.portType());
     }

@@ -1,0 +1,21 @@
+{
+  "capability": "SCREENSHOTS",
+  "side": "CLIENT",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Capture the game window. Client only: a dedicated server never offers this tool.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "name": "take_screenshot",
+    "title": "Take screenshot"
+  }
+}

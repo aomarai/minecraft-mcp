@@ -72,6 +72,8 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
                 case PERMISSIONS -> (PermissionReader) this::permissions;
                 case INVENTORIES -> (InventoryReader) this::inventoryOf;
                 case LOGS -> (LogReader) this::tail;
+                case SCREENSHOTS -> new ScreenshotCapture() {
+                };
             });
         }
         return new GameServices(side, ports.toArray(new GamePort[0]));

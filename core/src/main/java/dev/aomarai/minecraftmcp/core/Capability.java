@@ -11,7 +11,9 @@ public enum Capability {
     WORLD_STATE(WorldStateReader.class),
     PERMISSIONS(PermissionReader.class),
     INVENTORIES(InventoryReader.class),
-    LOGS(LogReader.class);
+    LOGS(LogReader.class),
+    /** Client side only. */
+    SCREENSHOTS(ScreenshotCapture.class);
 
     private final Class<? extends GamePort> portType;
 

@@ -115,18 +115,24 @@ class ToolCatalogGoldenTest {
             try (McpSyncClient client = McpTestClients.client(core, TestCores.TOKEN)) {
                 client.initialize();
                 for (McpSchema.Tool tool : client.listTools().tools()) {
-                    ToolDescriptor descriptor = declared.get(tool.name());
-                    Map<String, Object> document = new LinkedHashMap<>();
-                    document.put("capability", descriptor.capability().name());
-                    document.put("side", descriptor.side().name());
-                    document.put("tool", McpJsonDefaults.getMapper()
-                            .convertValue(tool, new TypeRef<Map<String, Object>>() {
-                            }));
-                    rendered.put(tool.name(), render(document));
+                    rendered.put(tool.name(), render(document(declared.get(tool.name()), tool)));
                 }
             }
         }
+        // Tools that run on the client are not served by this server, so render them from their descriptors.
+        for (ToolDescriptor descriptor : declared.values()) {
+            rendered.computeIfAbsent(descriptor.name(), name -> render(document(descriptor, descriptor.toTool())));
+        }
         return rendered;
+    }
+
+    private static Map<String, Object> document(ToolDescriptor descriptor, McpSchema.Tool tool) {
+        Map<String, Object> document = new LinkedHashMap<>();
+        document.put("capability", descriptor.capability().name());
+        document.put("side", descriptor.side().name());
+        document.put("tool", McpJsonDefaults.getMapper().convertValue(tool, new TypeRef<Map<String, Object>>() {
+        }));
+        return document;
     }
 
     /** Pretty-prints with sorted keys so the golden file is independent of map ordering. */

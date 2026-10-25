@@ -165,6 +165,9 @@ public final class ToolCatalog {
                         ToolPolicy.Scope.ADMIN, Capability.COMMANDS, Side.SERVER, schema(
                                 props("confirm", bool("Must be true to stop the server.")),
                                 List.of("confirm"))),
+                new ToolDescriptor("take_screenshot", "Take screenshot",
+                        "Capture the game window. Client only: a dedicated server never offers this tool.",
+                        ToolPolicy.Scope.OBSERVE, Capability.SCREENSHOTS, Side.CLIENT, schema(props(), List.of())),
                 new ToolDescriptor("run_command", "Run command",
                         "Run a non-destructive server command through Brigadier. Requires write access.",
                         ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(
@@ -189,9 +192,14 @@ public final class ToolCatalog {
      */
     public ToolCatalog availableFor(GameServices services) {
         Set<Capability> provided = services.capabilities();
-        return new ToolCatalog(tools.stream()
-                .filter(tool -> tool.side() == services.side() && provided.contains(tool.capability()))
+        return new ToolCatalog(onSide(services.side()).tools.stream()
+                .filter(tool -> provided.contains(tool.capability()))
                 .toList());
+    }
+
+    /** Only the tools that run on {@code side}: a dedicated server's tools, or a client's. */
+    public ToolCatalog onSide(Side side) {
+        return new ToolCatalog(tools.stream().filter(tool -> tool.side() == side).toList());
     }
 
     public List<ToolDescriptor> byScope(ToolPolicy.Scope scope) {

@@ -27,7 +27,7 @@ class McpCoreTest {
                 assertNotEquals(Boolean.TRUE, init.capabilities().tools().listChanged());
 
                 McpSchema.ListToolsResult tools = client.listTools();
-                assertEquals(ToolCatalog.defaults().tools().stream().map(ToolDescriptor::name).toList(),
+                assertEquals(ToolCatalog.defaults().onSide(Side.SERVER).tools().stream().map(ToolDescriptor::name).toList(),
                         tools.tools().stream().map(McpSchema.Tool::name).toList());
 
                 McpSchema.CallToolResult called = client.callTool(

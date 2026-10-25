@@ -21,14 +21,14 @@ class ToolCatalogTest {
     void defaultsAreGroupedByScope() {
         ToolCatalog catalog = ToolCatalog.defaults();
         assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities",
-                        "get_world_state", "list_permissions", "get_inventory", "read_log"),
+                        "get_world_state", "list_permissions", "get_inventory", "read_log", "take_screenshot"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
         assertEquals(List.of("fill_blocks", "teleport", "give_item", "send_message", "run_command"),
                 names(catalog.byScope(ToolPolicy.Scope.ACT)));
         assertEquals(List.of("kick_player", "ban_player", "save_world", "stop_server", "run_admin_command"),
                 names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
         assertEquals(ToolCatalog.defaults().tools().size(), catalog.tools().size());
-        assertEquals(19, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
+        assertEquals(20, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
     }
 
     @Test
@@ -88,7 +88,7 @@ class ToolCatalogTest {
             }
             GameServices services = services(Side.SERVER, subset.toArray(new Capability[0]));
             List<String> expected = all.tools().stream()
-                    .filter(tool -> subset.contains(tool.capability()))
+                    .filter(tool -> tool.side() == Side.SERVER && subset.contains(tool.capability()))
                     .map(ToolDescriptor::name).toList();
             assertEquals(expected, names(all.availableFor(services).tools()), subset.toString());
         }
@@ -102,13 +102,52 @@ class ToolCatalogTest {
                         "ban_player", "save_world", "stop_server", "run_command", "run_admin_command"),
                 names(all.availableFor(services(Side.SERVER, Capability.RUNTIME_INFO, Capability.COMMANDS)).tools()));
         assertEquals(List.of(), names(all.availableFor(GameServices.none()).tools()));
-        assertEquals(all.tools().size(), all.availableFor(services(Side.SERVER, Capability.values())).tools().size());
+        assertEquals(all.onSide(Side.SERVER).tools().size(),
+                all.availableFor(services(Side.SERVER, Capability.values())).tools().size());
+    }
+
+    @Test
+    void aDedicatedServerNeverAdvertisesClientTools() {
+        ToolCatalog all = ToolCatalog.defaults();
+        // Even an adapter that wrongly claims every capability, screenshots included, gets no client tool.
+        List<String> advertised = names(all.availableFor(services(Side.SERVER, Capability.values())).tools());
+
+        assertFalse(advertised.contains("take_screenshot"));
+        assertEquals(all.tools().size() - 1, advertised.size());
+    }
+
+    @Test
+    void aSinglePlayerClientAdvertisesItsClientTools() {
+        ToolCatalog all = ToolCatalog.defaults();
+
+        assertEquals(List.of("take_screenshot"),
+                names(all.availableFor(services(Side.CLIENT, Capability.SCREENSHOTS)).tools()));
+        assertEquals(List.of("take_screenshot"),
+                names(all.availableFor(services(Side.CLIENT, Capability.values())).tools()),
+                "a client offers the client tools and none of the server ones");
+        assertEquals(List.of(), names(all.availableFor(services(Side.CLIENT)).tools()));
+    }
+
+    @Test
+    void onSideKeepsOnlyThatSidesToolsInOrder() {
+        ToolCatalog all = ToolCatalog.defaults();
+
+        assertEquals(List.of("take_screenshot"), names(all.onSide(Side.CLIENT).tools()));
+        assertEquals(all.tools().size() - 1, all.onSide(Side.SERVER).tools().size());
+        assertFalse(names(all.onSide(Side.SERVER).tools()).contains("take_screenshot"));
+        assertEquals("server_info", all.onSide(Side.SERVER).tools().get(0).name());
+    }
+
+    @Test
+    void everyClientToolIsDeclaredOnTheClientSide() {
+        for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
+            assertEquals(tool.capability() == Capability.SCREENSHOTS, tool.side() == Side.CLIENT, tool.name());
+        }
     }
 
     @Test
     void toolsOnTheOtherSideAreNeverAdvertised() {
         ToolCatalog all = ToolCatalog.defaults();
-        assertEquals(List.of(), names(all.availableFor(services(Side.CLIENT, Capability.values())).tools()));
         ToolDescriptor clientTool = new ToolDescriptor("client_tool", "C", "A client tool.",
                 ToolPolicy.Scope.OBSERVE, Capability.WORLD, Side.CLIENT, EMPTY);
         ToolCatalog mixed = new ToolCatalog(List.of(all.tools().get(0), clientTool));
@@ -139,10 +178,10 @@ class ToolCatalogTest {
                 java.util.Map.entry("kick_player", Capability.COMMANDS),
                 java.util.Map.entry("ban_player", Capability.COMMANDS),
                 java.util.Map.entry("save_world", Capability.COMMANDS),
-                java.util.Map.entry("stop_server", Capability.COMMANDS));
+                java.util.Map.entry("stop_server", Capability.COMMANDS),
+                java.util.Map.entry("take_screenshot", Capability.SCREENSHOTS));
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
             assertEquals(expected.get(tool.name()), tool.capability(), tool.name());
-            assertEquals(Side.SERVER, tool.side(), tool.name());
         }
     }
 
