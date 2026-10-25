@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.RegistryPage;
@@ -21,11 +21,11 @@ import java.util.stream.Stream;
  * dynamic ones the server holds (biomes, dimension types, ...). Whatever mods register shows up
  * without any code here naming it.
  */
-final class FabricRegistryReader implements RegistryReader {
+public final class VanillaRegistryReader implements RegistryReader {
 
     private final MinecraftServer server;
 
-    FabricRegistryReader(MinecraftServer server) {
+    public VanillaRegistryReader(MinecraftServer server) {
         this.server = server;
     }
 

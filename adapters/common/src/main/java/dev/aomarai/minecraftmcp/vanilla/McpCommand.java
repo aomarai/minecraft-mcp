@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -22,7 +22,7 @@ import java.util.function.Supplier;
  * game thread; the reply is sent back on it. The token is never shown: after a rotation the
  * operator reads the new one from the owner-only config file.</p>
  */
-final class McpCommand {
+public final class McpCommand {
 
     private static final Logger LOG = LoggerFactory.getLogger("minecraft-mcp");
     private static final int OPERATOR_LEVEL = 4;
@@ -35,7 +35,7 @@ final class McpCommand {
     private McpCommand() {
     }
 
-    static void register(CommandDispatcher<CommandSourceStack> dispatcher, Supplier<McpController> controller,
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, Supplier<McpController> controller,
                          Executor background) {
         dispatcher.register(Commands.literal("mcp")
                 .then(Commands.literal("status").executes(ctx -> run(ctx, controller, background, McpCommand::status)))

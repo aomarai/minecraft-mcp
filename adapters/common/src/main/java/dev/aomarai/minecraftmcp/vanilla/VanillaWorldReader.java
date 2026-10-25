@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import dev.aomarai.minecraftmcp.core.BlockQuery;
 import dev.aomarai.minecraftmcp.core.BlockScanner;
@@ -19,18 +19,18 @@ import java.util.concurrent.CompletableFuture;
  * dimensions and blocks work without special handling. It never loads or generates chunks:
  * positions in unloaded chunks are skipped by the scan.
  */
-final class FabricWorldReader implements WorldReader {
+public final class VanillaWorldReader implements WorldReader {
 
     private final MinecraftServer server;
 
-    FabricWorldReader(MinecraftServer server) {
+    public VanillaWorldReader(MinecraftServer server) {
         this.server = server;
     }
 
     @Override
     public CompletableFuture<WorldSnapshot> snapshot(BlockQuery query) {
         return MainThread.call(server, () -> {
-            ServerLevel level = FabricDimensions.level(server, query.dimension());
+            ServerLevel level = VanillaDimensions.level(server, query.dimension());
             return BlockScanner.scan(query, (x, y, z) -> blockAt(level, x, y, z));
         });
     }

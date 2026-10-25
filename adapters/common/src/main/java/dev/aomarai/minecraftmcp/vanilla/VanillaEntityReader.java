@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import dev.aomarai.minecraftmcp.core.EntityList;
 import dev.aomarai.minecraftmcp.core.EntityQuery;
@@ -21,17 +21,17 @@ import java.util.concurrent.CompletableFuture;
  * chunk is loaded or generated. Entity types are matched and reported by registry id, so modded
  * entities work unchanged.
  */
-final class FabricEntityReader implements EntityReader {
+public final class VanillaEntityReader implements EntityReader {
 
     private final MinecraftServer server;
 
-    FabricEntityReader(MinecraftServer server) {
+    public VanillaEntityReader(MinecraftServer server) {
         this.server = server;
     }
 
     @Override
     public CompletableFuture<EntityList> entitiesNear(EntityQuery query) {
-        return MainThread.call(server, () -> find(FabricDimensions.level(server, query.dimension()), query));
+        return MainThread.call(server, () -> find(VanillaDimensions.level(server, query.dimension()), query));
     }
 
     private static EntityList find(ServerLevel level, EntityQuery query) {
@@ -49,7 +49,7 @@ final class FabricEntityReader implements EntityReader {
 
         List<EntityList.EntityInfo> entities = nearest.stream()
                 .limit(query.limit())
-                .map(FabricEntityReader::describe)
+                .map(VanillaEntityReader::describe)
                 .toList();
         return new EntityList(query.dimension(), entities, nearest.size() > query.limit());
     }

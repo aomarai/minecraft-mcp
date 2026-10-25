@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.PlayerInfo;
@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Lists the connected players, read on the main thread. */
-final class FabricPlayerReader implements PlayerReader {
+public final class VanillaPlayerReader implements PlayerReader {
 
     private final MinecraftServer server;
 
-    FabricPlayerReader(MinecraftServer server) {
+    public VanillaPlayerReader(MinecraftServer server) {
         this.server = server;
     }
 

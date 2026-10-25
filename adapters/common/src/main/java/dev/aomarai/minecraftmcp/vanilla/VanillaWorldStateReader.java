@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.WorldState;
@@ -15,17 +15,17 @@ import java.util.concurrent.CompletableFuture;
  * A dimension's time, weather, difficulty and game rules, read on the main thread. The game rules
  * are enumerated from the game, so rules added by mods are included.
  */
-final class FabricWorldStateReader implements WorldStateReader {
+public final class VanillaWorldStateReader implements WorldStateReader {
 
     private final MinecraftServer server;
 
-    FabricWorldStateReader(MinecraftServer server) {
+    public VanillaWorldStateReader(MinecraftServer server) {
         this.server = server;
     }
 
     @Override
     public CompletableFuture<WorldState> state(String dimension) {
-        return MainThread.call(server, () -> describe(dimension, FabricDimensions.level(server, dimension)));
+        return MainThread.call(server, () -> describe(dimension, VanillaDimensions.level(server, dimension)));
     }
 
     private static WorldState describe(String dimension, ServerLevel level) {

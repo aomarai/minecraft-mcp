@@ -1,4 +1,4 @@
-package dev.aomarai.minecraftmcp.fabric;
+package dev.aomarai.minecraftmcp.vanilla;
 
 import dev.aomarai.minecraftmcp.core.Inventory;
 import dev.aomarai.minecraftmcp.core.InventoryReader;
@@ -17,11 +17,11 @@ import java.util.concurrent.CompletableFuture;
  * An online player's inventory, read on the main thread. Items are reported by registry id and count
  * only, so modded items work and player-controlled item names never reach the AI.
  */
-final class FabricInventoryReader implements InventoryReader {
+public final class VanillaInventoryReader implements InventoryReader {
 
     private final MinecraftServer server;
 
-    FabricInventoryReader(MinecraftServer server) {
+    public VanillaInventoryReader(MinecraftServer server) {
         this.server = server;
     }
 

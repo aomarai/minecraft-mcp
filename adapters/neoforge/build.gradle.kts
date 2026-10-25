@@ -17,6 +17,11 @@ java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(javaVersion))
 }
 
+// Code that needs only vanilla Minecraft classes is shared by every loader adapter (adapters/common).
+sourceSets.main {
+    java.srcDir(rootProject.file("adapters/common/src/main/java"))
+}
+
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(javaVersion)
 }
