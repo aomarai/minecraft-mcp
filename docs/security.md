@@ -15,7 +15,7 @@ are:
 ## Defaults
 
 - Bind host: `127.0.0.1`.
-- Auth: generated bearer token in `config/minecraft-mcp.json`, file mode `0600`.
+- Auth: generated bearer token in `config/minecraft-mcp.json`, file mode `0600`. See `docs/configuration.md`.
 - Writes: disabled (`allowWrites=false`).
 - Admin commands: disabled (`allowAdmin=false`).
 - Destructive commands: require `confirm=true` in the tool call, even when admin is enabled.
