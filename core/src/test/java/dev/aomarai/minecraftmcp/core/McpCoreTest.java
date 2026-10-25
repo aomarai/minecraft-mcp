@@ -19,10 +19,10 @@ class McpCoreTest {
 
     @Test
     void initializesAndListsToolsOverStreamableHttp() throws Exception {
-        try (McpCore core = new McpCore("127.0.0.1", 0)) {
+        try (McpCore core = TestCores.full(new FakeGame())) {
             core.start();
 
-            try (McpSyncClient client = client(core)) {
+            try (McpSyncClient client = McpTestClients.client(core, TestCores.TOKEN)) {
                 McpSchema.InitializeResult init = client.initialize();
                 assertNotNull(init.protocolVersion());
                 assertEquals("minecraft-mcp", init.serverInfo().name());
@@ -37,7 +37,18 @@ class McpCoreTest {
 
                 McpSchema.CallToolResult called = client.callTool(
                         new McpSchema.CallToolRequest("server_info", Map.of()));
-                assertTrue(called.isError(), "no game is attached, so the call reports the missing port");
+                assertFalse(called.isError());
+            }
+        }
+    }
+
+    @Test
+    void aCoreWithNoGameAdvertisesNoTools() throws Exception {
+        try (McpCore core = new McpCore("127.0.0.1", 0)) {
+            core.start();
+            try (McpSyncClient client = client(core)) {
+                client.initialize();
+                assertTrue(client.listTools().tools().isEmpty());
             }
         }
     }

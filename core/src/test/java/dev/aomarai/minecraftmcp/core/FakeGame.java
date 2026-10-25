@@ -24,7 +24,7 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     CompletableFuture<WorldSnapshot> pendingSnapshot;
 
     GameServices services() {
-        return new GameServices(this, this, this, this);
+        return new GameServices(this, this, this, this, Side.SERVER);
     }
 
     int totalCalls() {

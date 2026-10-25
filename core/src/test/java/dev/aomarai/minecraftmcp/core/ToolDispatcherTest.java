@@ -277,7 +277,8 @@ class ToolDispatcherTest {
     @Test
     void toolsWithoutAHandlerAreReported() {
         ToolDescriptor custom = new ToolDescriptor("custom_tool", "Custom", "A custom tool.",
-                ToolPolicy.Scope.OBSERVE, McpSchema.JsonSchema.builder().type("object").build());
+                ToolPolicy.Scope.OBSERVE, Capability.WORLD, Side.SERVER,
+                McpSchema.JsonSchema.builder().type("object").build());
 
         McpSchema.CallToolResult result = dispatcher(false, false).call(custom, Map.of());
 

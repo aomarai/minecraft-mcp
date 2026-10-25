@@ -1,0 +1,21 @@
+{
+  "capability": "RUNTIME_INFO",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Describe the game runtime: loader, Minecraft version and side.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "name": "server_info",
+    "title": "Server info"
+  }
+}

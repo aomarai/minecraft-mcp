@@ -1,0 +1,28 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Run a non-destructive server command through Brigadier. Requires write access.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "description": "Command without the leading slash.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "type": "object"
+    },
+    "name": "run_command",
+    "title": "Run command"
+  }
+}

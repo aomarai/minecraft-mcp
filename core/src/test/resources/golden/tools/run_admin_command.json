@@ -1,0 +1,33 @@
+{
+  "capability": "COMMANDS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Run a destructive or administrative command. Requires admin access and confirm=true.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "description": "Command without the leading slash.",
+          "type": "string"
+        },
+        "confirm": {
+          "description": "Must be true to run the command.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "command",
+        "confirm"
+      ],
+      "type": "object"
+    },
+    "name": "run_admin_command",
+    "title": "Run admin command"
+  }
+}

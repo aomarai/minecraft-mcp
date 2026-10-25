@@ -1,0 +1,65 @@
+{
+  "capability": "WORLD",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Read blocks in a bounded box of one dimension. Blocks are identified by registry id.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "description": "Dimension registry id, e.g. minecraft:overworld.",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum blocks to return.",
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_x": {
+          "description": "Upper X bound, inclusive.",
+          "type": "integer"
+        },
+        "max_y": {
+          "description": "Upper Y bound, inclusive.",
+          "type": "integer"
+        },
+        "max_z": {
+          "description": "Upper Z bound, inclusive.",
+          "type": "integer"
+        },
+        "min_x": {
+          "description": "Lower X bound, inclusive.",
+          "type": "integer"
+        },
+        "min_y": {
+          "description": "Lower Y bound, inclusive.",
+          "type": "integer"
+        },
+        "min_z": {
+          "description": "Lower Z bound, inclusive.",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dimension",
+        "min_x",
+        "min_y",
+        "min_z",
+        "max_x",
+        "max_y",
+        "max_z",
+        "limit"
+      ],
+      "type": "object"
+    },
+    "name": "query_blocks",
+    "title": "Query blocks"
+  }
+}

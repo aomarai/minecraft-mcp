@@ -16,7 +16,7 @@ class ToolDescriptorTest {
             .type("object").properties(Map.of()).required(List.of()).additionalProperties(false).build();
 
     private static ToolDescriptor descriptor(String name, ToolPolicy.Scope scope) {
-        return new ToolDescriptor(name, "Title", "Description", scope, EMPTY);
+        return new ToolDescriptor(name, "Title", "Description", scope, Capability.WORLD, Side.SERVER, EMPTY);
     }
 
     @Test
@@ -75,30 +75,34 @@ class ToolDescriptorTest {
         McpSchema.JsonSchema bad = McpSchema.JsonSchema.builder()
                 .type("object").properties(Map.of("minX", Map.of("type", "integer"))).build();
         assertThrows(IllegalArgumentException.class,
-                () -> new ToolDescriptor("t", "T", "D", ToolPolicy.Scope.OBSERVE, bad));
+                () -> new ToolDescriptor("t", "T", "D", ToolPolicy.Scope.OBSERVE, Capability.WORLD, Side.SERVER, bad));
     }
 
     @Test
     void acceptsSchemaWithoutProperties() {
         McpSchema.JsonSchema none = McpSchema.JsonSchema.builder().type("object").build();
-        assertDoesNotThrow(() -> new ToolDescriptor("t", "T", "D", ToolPolicy.Scope.OBSERVE, none));
+        assertDoesNotThrow(() -> new ToolDescriptor("t", "T", "D", ToolPolicy.Scope.OBSERVE, Capability.WORLD, Side.SERVER, none));
     }
 
     @Test
     void rejectsBlankTitleAndDescription() {
         assertThrows(IllegalArgumentException.class,
-                () -> new ToolDescriptor("t", " ", "D", ToolPolicy.Scope.OBSERVE, EMPTY));
+                () -> new ToolDescriptor("t", " ", "D", ToolPolicy.Scope.OBSERVE, Capability.WORLD, Side.SERVER, EMPTY));
         assertThrows(IllegalArgumentException.class,
-                () -> new ToolDescriptor("t", "T", " ", ToolPolicy.Scope.OBSERVE, EMPTY));
+                () -> new ToolDescriptor("t", "T", " ", ToolPolicy.Scope.OBSERVE, Capability.WORLD, Side.SERVER, EMPTY));
     }
 
     @Test
     void rejectsNulls() {
         ToolPolicy.Scope s = ToolPolicy.Scope.OBSERVE;
-        assertThrows(NullPointerException.class, () -> new ToolDescriptor(null, "T", "D", s, EMPTY));
-        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", null, "D", s, EMPTY));
-        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", "T", null, s, EMPTY));
-        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", "T", "D", null, EMPTY));
-        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", "T", "D", s, null));
+        Capability c = Capability.WORLD;
+        Side side = Side.SERVER;
+        assertThrows(NullPointerException.class, () -> new ToolDescriptor(null, "T", "D", s, c, side, EMPTY));
+        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", null, "D", s, c, side, EMPTY));
+        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", "T", null, s, c, side, EMPTY));
+        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", "T", "D", null, c, side, EMPTY));
+        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", "T", "D", s, null, side, EMPTY));
+        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", "T", "D", s, c, null, EMPTY));
+        assertThrows(NullPointerException.class, () -> new ToolDescriptor("t", "T", "D", s, c, side, null));
     }
 }

@@ -44,10 +44,10 @@ public final class McpCore implements AutoCloseable {
 
     /**
      * A core with no game attached, the secure defaults and a freshly generated
-     * token (see {@link #token()}); every tool call reports the missing port.
+     * token (see {@link #token()}). With no game attached it advertises no tools.
      */
     public McpCore(String host, int port) {
-        this(host, port, ToolCatalog.defaults(), new ToolDispatcher(
+        this(host, port, ToolCatalog.defaults().availableFor(GameServices.none()), new ToolDispatcher(
                 McpConfig.defaults(), GameServices.none(), AuditLog.discarding()), ConfigLoader.generateToken());
     }
 

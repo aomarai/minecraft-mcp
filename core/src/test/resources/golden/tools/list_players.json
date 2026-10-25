@@ -1,0 +1,21 @@
+{
+  "capability": "PLAYERS",
+  "side": "SERVER",
+  "tool": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List online players with position, dimension and operator status.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "name": "list_players",
+    "title": "List players"
+  }
+}

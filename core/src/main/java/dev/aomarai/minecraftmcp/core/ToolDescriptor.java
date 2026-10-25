@@ -10,6 +10,10 @@ import java.util.regex.Pattern;
  * input schema. Annotations are derived from the scope so they cannot drift
  * from the policy vocabulary in {@link ToolPolicy.Scope}.
  *
+ * <p>{@code capability} is the port the tool needs and {@code side} is where it
+ * runs; {@link ToolCatalog#availableFor} only keeps tools whose capability the
+ * adapter provides on the adapter's side.</p>
+ *
  * <p>Naming convention: tool names and argument names are {@code snake_case}
  * ({@code [a-z][a-z0-9_]*}). The constructor rejects anything else.</p>
  *
@@ -21,6 +25,8 @@ public record ToolDescriptor(
         String title,
         String description,
         ToolPolicy.Scope scope,
+        Capability capability,
+        Side side,
         McpSchema.JsonSchema inputSchema) {
 
     private static final Pattern NAME = Pattern.compile("[a-z][a-z0-9_]*");
@@ -30,6 +36,8 @@ public record ToolDescriptor(
         Objects.requireNonNull(title, "title");
         Objects.requireNonNull(description, "description");
         Objects.requireNonNull(scope, "scope");
+        Objects.requireNonNull(capability, "capability");
+        Objects.requireNonNull(side, "side");
         Objects.requireNonNull(inputSchema, "inputSchema");
         requireName("tool name", name);
         if (title.isBlank()) {
