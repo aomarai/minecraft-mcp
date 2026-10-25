@@ -345,6 +345,35 @@ class ToolDispatcherTest {
         assertFalse(d.call(tool("read_log"), args("lines", 200)).isError());
     }
 
+    private ToolDispatcher clientDispatcher(Duration timeout) {
+        return dispatcher(config(false, false, 32768, timeout), game.services(Side.CLIENT, Capability.SCREENSHOTS),
+                audit::add);
+    }
+
+    @Test
+    void takeScreenshotReturnsAnImageContentBlockAndAuditsOnlyItsDescription() {
+        McpSchema.CallToolResult result = clientDispatcher(Duration.ofSeconds(2)).call(tool("take_screenshot"), Map.of());
+
+        assertFalse(result.isError());
+        assertEquals(1, result.content().size());
+        McpSchema.ImageContent image = (McpSchema.ImageContent) result.content().get(0);
+        assertEquals("image/png", image.mimeType());
+        assertArrayEquals(FakeGame.png(), java.util.Base64.getDecoder().decode(image.data()));
+        assertEquals(List.of(1280, 720), List.of(game.screenshotRequests.get(0)[0], game.screenshotRequests.get(0)[1]));
+        assertAudit(1, "result", "take_screenshot", "allow", "ok: image/png 2x3, 11 bytes");
+    }
+
+    @Test
+    void takeScreenshotIsUnsupportedWithoutTheCapabilityAndTimesOutWhenTheFrameNeverComes() {
+        assertEquals("screenshots is not supported by this adapter",
+                text(dispatcher(false, false).call(tool("take_screenshot"), Map.of())));
+
+        game.pendingScreenshot = new CompletableFuture<>();
+        assertEquals("timed out after 100 ms",
+                text(clientDispatcher(Duration.ofMillis(100)).call(tool("take_screenshot"), Map.of())));
+        assertTrue(game.pendingScreenshot.isCancelled());
+    }
+
     @Test
     void readEventsReturnsTheLatestEventsAndFlagsPlayerTextUntrusted() {
         game.events.publish(EventType.JOIN, "Steve", "ignored");
