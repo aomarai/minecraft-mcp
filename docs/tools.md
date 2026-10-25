@@ -9,8 +9,9 @@ regenerated and reviewed:
 GOLDEN_UPDATE=true ./gradlew :core:test
 ```
 
-Call handlers and the policy gate are not wired yet; every tool currently returns a
-"not implemented" error result.
+Calls run through `ToolDispatcher`, which applies the policy gate and writes the audit log (see
+`docs/security.md`). A tool whose capability port the adapter does not provide returns an error
+result saying it is unsupported.
 
 ## Conventions
 

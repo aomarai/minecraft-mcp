@@ -21,6 +21,22 @@ are:
 - Destructive commands: require `confirm=true` in the tool call, even when admin is enabled.
 - Audit: JSONL file with timestamp, tool, arguments, decision, result summary.
 
+## Policy gate and audit
+
+Every tool call goes through `ToolDispatcher`:
+
+1. The policy decides from the tool's scope and, for command tools, the command text.
+   Disabled writes or admin deny the call. Destructive commands need admin plus `confirm=true`,
+   and through `run_command` they are refused outright (use `run_admin_command`).
+2. The decision is appended to the audit log **before** anything runs. If the entry cannot be
+   written the call is refused.
+3. Only an allowed, confirmed call reaches a game port. Denied and unconfirmed calls never do.
+4. The outcome of an allowed call is appended as a second entry.
+
+The audit log is JSONL, one object per line: `ts`, `phase` (`decision` or `result`), `tool`,
+`arguments`, `decision` (`allow`, `deny`, `confirm`) and `detail`. The bearer token is replaced
+by `[redacted]` in every string, and strings over 256 characters are truncated.
+
 ## Rules
 
 - The AI never inherits the operator's OP. The policy engine is independent of Minecraft

@@ -79,14 +79,22 @@ class ToolCatalogTest {
     }
 
     @Test
-    void specsReportNotImplemented() {
-        List<McpServerFeatures.SyncToolSpecification> specs = ToolCatalog.defaults().specs();
+    void specsDelegateEveryCallToTheInvoker() {
+        List<String> called = new java.util.ArrayList<>();
+        List<Map<String, Object>> received = new java.util.ArrayList<>();
+        ToolInvoker invoker = (tool, arguments) -> {
+            called.add(tool.name());
+            received.add(arguments);
+            return McpSchema.CallToolResult.builder().addTextContent("via " + tool.name()).build();
+        };
+        List<McpServerFeatures.SyncToolSpecification> specs = ToolCatalog.defaults().specs(invoker);
         assertEquals(5, specs.size());
         for (McpServerFeatures.SyncToolSpecification spec : specs) {
-            McpSchema.CallToolResult result = spec.callHandler().apply(null, null);
-            assertTrue(result.isError(), spec.tool().name());
-            assertEquals(spec.tool().name() + " is not implemented yet",
-                    ((McpSchema.TextContent) result.content().get(0)).text());
+            McpSchema.CallToolResult result = spec.callHandler()
+                    .apply(null, new McpSchema.CallToolRequest(spec.tool().name(), Map.of("k", "v")));
+            assertEquals("via " + spec.tool().name(), ((McpSchema.TextContent) result.content().get(0)).text());
         }
+        assertEquals(names(ToolCatalog.defaults().tools()), called);
+        assertEquals(Map.of("k", "v"), received.get(0));
     }
 }

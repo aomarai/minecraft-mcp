@@ -43,7 +43,7 @@ class McpCoreTest {
 
                 McpSchema.CallToolResult called = client.callTool(
                         new McpSchema.CallToolRequest("server_info", Map.of()));
-                assertTrue(called.isError(), "handlers are not implemented until the policy gate lands");
+                assertTrue(called.isError(), "no game is attached, so the call reports the missing port");
             }
         }
     }
