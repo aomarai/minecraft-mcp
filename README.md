@@ -1,5 +1,11 @@
 # minecraft-mcp
 
+[![build-and-test](https://github.com/aomarai/minecraft-mcp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/aomarai/minecraft-mcp/actions/workflows/build.yml)
+[![license: MIT](https://img.shields.io/github/license/aomarai/minecraft-mcp)](LICENSE)
+[![Java: 21+](https://img.shields.io/badge/Java-21%2B-orange)](docs/architecture.md)
+[![Minecraft: 1.21.1 | 26.x](https://img.shields.io/badge/Minecraft-1.21.1%20%7C%2026.x-green)](docs/version-matrix.md)
+[![status: pre-release](https://img.shields.io/badge/status-pre--release-yellow)](docs/roadmap.md)
+
 An MCP (Model Context Protocol) server for Minecraft: Java Edition that is designed to be
 **drop-in**, **mod-friendly**, and **as loader/version agnostic as possible**.
 
