@@ -28,8 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-build
-      - run: ./gradlew :core:build :stdio-shim:build --no-daemon --refresh-dependencies
-      - run: ./gradlew :core:pitest :stdio-shim:pitest --no-daemon
+      - run: ./gradlew :core:build :stdio-shim:build :adapters:rcon:build --no-daemon --refresh-dependencies
+      - run: ./gradlew :core:pitest :stdio-shim:pitest :adapters:rcon:pitest --no-daemon
 
   fabric:
     runs-on: ubuntu-latest
