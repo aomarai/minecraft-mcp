@@ -21,11 +21,13 @@ import java.util.function.IntSupplier;
  *
  * <ol>
  *   <li><b>Host check (403):</b> the {@code Host} header must be exactly a
- *       loopback name or the configured bind host, with the real listening
- *       port. This defeats DNS rebinding, where a hostile web page resolves its
- *       own name to 127.0.0.1 to reach a local server.</li>
+ *       loopback name, the configured bind host or one of the configured
+ *       {@code allowedHosts}, with the real listening port. This defeats DNS
+ *       rebinding, where a hostile web page resolves its own name to 127.0.0.1
+ *       to reach a local server.</li>
  *   <li><b>Origin check (403):</b> if an {@code Origin} header is present it
- *       must be {@code http://} plus one of those same authorities. Browsers
+ *       must be the scheme ({@code http://}, or {@code https://} when the endpoint
+ *       serves TLS) plus one of those same authorities. Browsers
  *       always send {@code Origin} on cross-site requests; MCP clients that are
  *       not browsers send none.</li>
  *   <li><b>Bearer token (401):</b> {@code Authorization: Bearer <token>} is the
@@ -52,8 +54,13 @@ final class BearerAuthFilter implements Filter {
     private final byte[] expected;
     private final String bindHost;
     private final IntSupplier port;
+    private final Exposure exposure;
 
     BearerAuthFilter(String token, String bindHost, IntSupplier port) {
+        this(token, bindHost, port, Exposure.LOCAL);
+    }
+
+    BearerAuthFilter(String token, String bindHost, IntSupplier port, Exposure exposure) {
         Objects.requireNonNull(token, "token");
         if (token.length() < ConfigLoader.MIN_TOKEN_LENGTH) {
             throw new IllegalArgumentException(
@@ -62,6 +69,7 @@ final class BearerAuthFilter implements Filter {
         this.expected = token.getBytes(StandardCharsets.UTF_8);
         this.bindHost = Objects.requireNonNull(bindHost, "bindHost");
         this.port = port;
+        this.exposure = Objects.requireNonNull(exposure, "exposure");
     }
 
     @Override
@@ -76,7 +84,7 @@ final class BearerAuthFilter implements Filter {
             return;
         }
         String origin = req.getHeader("Origin");
-        if (origin != null && authorities.stream().noneMatch(a -> ("http://" + a).equals(lower(origin)))) {
+        if (origin != null && authorities.stream().noneMatch(a -> (exposure.scheme() + "://" + a).equals(lower(origin)))) {
             reject(req, resp, HttpServletResponse.SC_FORBIDDEN, "unexpected Origin header");
             return;
         }
@@ -101,6 +109,7 @@ final class BearerAuthFilter implements Filter {
         if (!WILDCARD_HOSTS.contains(bindHost)) {
             names.add(bindHost.contains(":") && !bindHost.startsWith("[") ? "[" + bindHost + "]" : bindHost);
         }
+        names.addAll(exposure.allowedHosts());
         Set<String> authorities = new LinkedHashSet<>();
         for (String name : names) {
             authorities.add(name.toLowerCase(java.util.Locale.ROOT) + ":" + port.getAsInt());

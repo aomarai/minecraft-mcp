@@ -15,6 +15,8 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -55,6 +57,9 @@ public final class ConfigLoader {
     private static final String ALLOW_WRITES = "allowWrites";
     private static final String ALLOW_ADMIN = "allowAdmin";
     private static final String ALLOW_REMOTE = "allowRemote";
+    private static final String ALLOWED_HOSTS = "allowedHosts";
+    private static final String TLS_KEYSTORE = "tlsKeystore";
+    private static final String TLS_KEYSTORE_PASSWORD = "tlsKeystorePassword";
     private static final String MAX_BLOCK_VOLUME = "maxBlockVolume";
     private static final String CALL_TIMEOUT_MS = "callTimeoutMillis";
     private static final String ALLOWED_COMMANDS = "allowedCommands";
@@ -63,7 +68,8 @@ public final class ConfigLoader {
     /** A section the universal tier reads for itself (see {@link #universalSection}); the core only checks its shape. */
     private static final String UNIVERSAL = "universal";
     private static final List<String> KEYS = List.of(
-            HOST, PORT, ALLOW_WRITES, ALLOW_ADMIN, ALLOW_REMOTE, MAX_BLOCK_VOLUME, CALL_TIMEOUT_MS, ALLOWED_COMMANDS,
+            HOST, PORT, ALLOW_WRITES, ALLOW_ADMIN, ALLOW_REMOTE, ALLOWED_HOSTS, TLS_KEYSTORE,
+            TLS_KEYSTORE_PASSWORD, MAX_BLOCK_VOLUME, CALL_TIMEOUT_MS, ALLOWED_COMMANDS,
             DESTRUCTIVE_COMMANDS, TOKEN, UNIVERSAL);
 
     private ConfigLoader() {
@@ -105,7 +111,7 @@ public final class ConfigLoader {
         if (token.length() < MIN_TOKEN_LENGTH) {
             throw new ConfigException(TOKEN + " must be at least " + MIN_TOKEN_LENGTH + " characters");
         }
-        McpConfig config = build(effective);
+        McpConfig config = build(effective, file.toAbsolutePath().getParent());
         LOG.log(System.Logger.Level.INFO, "Loaded configuration from {0}", file);
         return new Loaded(config, token, created);
     }
@@ -180,6 +186,9 @@ public final class ConfigLoader {
         map.put(ALLOW_WRITES, d.allowWrites());
         map.put(ALLOW_ADMIN, d.allowAdmin());
         map.put(ALLOW_REMOTE, d.allowRemote());
+        map.put(ALLOWED_HOSTS, List.of());
+        map.put(TLS_KEYSTORE, "");
+        map.put(TLS_KEYSTORE_PASSWORD, "");
         map.put(MAX_BLOCK_VOLUME, d.maxBlockVolume());
         map.put(CALL_TIMEOUT_MS, d.callTimeout().toMillis());
         map.put(ALLOWED_COMMANDS, List.of());
@@ -214,6 +223,9 @@ public final class ConfigLoader {
         override(values, env, ALLOW_WRITES, "ALLOW_WRITES", Kind.BOOLEAN);
         override(values, env, ALLOW_ADMIN, "ALLOW_ADMIN", Kind.BOOLEAN);
         override(values, env, ALLOW_REMOTE, "ALLOW_REMOTE", Kind.BOOLEAN);
+        override(values, env, ALLOWED_HOSTS, "ALLOWED_HOSTS", Kind.LIST);
+        override(values, env, TLS_KEYSTORE, "TLS_KEYSTORE", Kind.IDENTITY);
+        override(values, env, TLS_KEYSTORE_PASSWORD, "TLS_KEYSTORE_PASSWORD", Kind.IDENTITY);
         override(values, env, MAX_BLOCK_VOLUME, "MAX_BLOCK_VOLUME", Kind.NUMBER);
         override(values, env, CALL_TIMEOUT_MS, "CALL_TIMEOUT_MS", Kind.NUMBER);
         override(values, env, ALLOWED_COMMANDS, "ALLOWED_COMMANDS", Kind.LIST);
@@ -257,7 +269,7 @@ public final class ConfigLoader {
         throw new ConfigException(name + " must be true or false, got: " + raw);
     }
 
-    private static McpConfig build(Map<String, Object> values) {
+    private static McpConfig build(Map<String, Object> values, Path configDir) {
         try {
             return new McpConfig(
                     text(values, HOST),
@@ -268,10 +280,36 @@ public final class ConfigLoader {
                     Duration.ofMillis(longValue(values, CALL_TIMEOUT_MS)),
                     strings(values, ALLOWED_COMMANDS),
                     strings(values, DESTRUCTIVE_COMMANDS),
-                    bool(values, ALLOW_REMOTE));
+                    bool(values, ALLOW_REMOTE),
+                    strings(values, ALLOWED_HOSTS),
+                    tls(values, configDir));
         } catch (IllegalArgumentException e) {
             throw new ConfigException("invalid configuration: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * The keystore settings. A password without a keystore is an error rather than a quiet fall back to plain HTTP:
+     * someone who typed a password believes the endpoint is encrypted.
+     */
+    private static Optional<Tls> tls(Map<String, Object> values, Path configDir) {
+        String store = Objects.requireNonNullElse(text(values, TLS_KEYSTORE), "").strip();
+        String password = Objects.requireNonNullElse(text(values, TLS_KEYSTORE_PASSWORD), "");
+        if (store.isEmpty()) {
+            if (!password.isEmpty()) {
+                throw new ConfigException(TLS_KEYSTORE_PASSWORD + " is set but " + TLS_KEYSTORE
+                        + " is not, so the endpoint would still speak plain HTTP");
+            }
+            return Optional.empty();
+        }
+        Path keystore = configDir.resolve(store).normalize();
+        if (!Files.isRegularFile(keystore)) {
+            throw new ConfigException(TLS_KEYSTORE + " does not exist: " + keystore);
+        }
+        if (password.isEmpty()) {
+            throw new ConfigException(TLS_KEYSTORE_PASSWORD + " must be set when " + TLS_KEYSTORE + " is");
+        }
+        return Optional.of(new Tls(keystore, password));
     }
 
     private static String text(Map<String, Object> values, String key) {
