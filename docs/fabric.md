@@ -27,7 +27,7 @@ separate endpoint** for the tools only a client can serve, so the two never shar
 
 | | Integrated server | Client |
 |---|---|---|
-| Tools | everything in this document | `take_screenshot`, `get_screen`, `click_screen_element`, `type_in_screen`, `scroll_screen` |
+| Tools | everything in this document | `take_screenshot`, the screen tools and the player tools (`move_to`, `look_at`, `jump`, `break_block`, `place_block`, `interact`) |
 | Config | `config/minecraft-mcp.json` | `config/minecraft-mcp-client.json` |
 | Audit log | `config/minecraft-mcp-audit.jsonl` | `config/minecraft-mcp-client-audit.jsonl` |
 | Default port | 25599 | 25598 |
@@ -43,7 +43,7 @@ walking its children, so a mod whose screen is built from ordinary widgets shows
 the screen's own mouse and keyboard handling, on the client thread, only while no loading overlay is up. The three
 acting tools need `allowWrites` in `minecraft-mcp-client.json` (or `MINECRAFT_MCP_CLIENT_ALLOW_WRITES=true`), like
 every write. Not done yet: item slots of container screens (the `slot` role exists for them), a handler for owo-lib
-screens, and own-player control (#37).
+screens. Player tools act on the local player only; see `docs/tools.md`.
 
 **State:** captured from a real client on Minecraft 1.21.1 and 26.2 (a virtual display in Docker). There is no CI
 test for the client yet (issue #39), so by the project's own rule the client is not listed as a supported target.

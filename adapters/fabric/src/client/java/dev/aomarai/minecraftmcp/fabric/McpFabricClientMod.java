@@ -7,6 +7,7 @@ import dev.aomarai.minecraftmcp.core.McpController;
 import dev.aomarai.minecraftmcp.core.Side;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,10 +25,12 @@ public final class McpFabricClientMod implements ClientModInitializer {
     private static final Logger LOG = LoggerFactory.getLogger("minecraft-mcp");
     private static final int DEFAULT_PORT = 25598;
 
+    private final FabricClientPlayer player = new FabricClientPlayer();
     private volatile McpController controller;
 
     @Override
     public void onInitializeClient() {
+        ClientTickEvents.END_CLIENT_TICK.register(player::tick);
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> start());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> stop());
     }
@@ -36,7 +39,8 @@ public final class McpFabricClientMod implements ClientModInitializer {
         Path configDir = FabricLoader.getInstance().getConfigDir();
         Path configFile = configDir.resolve("minecraft-mcp-client.json");
         McpController created = new McpController(configFile, configDir.resolve("minecraft-mcp-client-audit.jsonl"),
-                config -> new GameServices(Side.CLIENT, new FabricClientScreenshots(), new FabricClientScreens()),
+                config -> new GameServices(Side.CLIENT, new FabricClientScreenshots(), new FabricClientScreens(),
+                        player),
                 ConfigLoader.scopedEnvironment(System.getenv(), "CLIENT"));
         controller = created;
         try {

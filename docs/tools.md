@@ -25,6 +25,16 @@ tool (such as `take_screenshot`) even if an adapter wrongly claimed the capabili
 only its own tools. A core with no game attached advertises no tools; an RCON-style adapter with only runtime
 info and commands advertises `server_info`, `run_command` and `run_admin_command`.
 
+## Local player control (client only)
+
+`move_to`, `look_at`, `jump`, `break_block`, `place_block` and `interact` drive **the local player and nobody
+else**: no tool takes a player name, so none can act on another player. They use the same inputs a person has (the
+forward and jump keys, the view direction, the game mode's dig and use calls), so the server still applies its own
+rules: reach, permissions, spawn protection, anti-cheat. They run one step per client tick on the main thread, never
+block it, give up after a fixed number of ticks, and let go of the keys when they finish, fail, are interrupted by a
+newer action or are cancelled by the call timeout. They need `allowWrites` and refuse while a screen is open or the
+player is not in a world.
+
 ## Events
 
 Chat, joins, leaves and player deaths are kept in a bounded in-memory feed (`EventFeed` port, the newest
@@ -104,5 +114,11 @@ read-only tools); they are not enforcement. The policy gate decides what actuall
 | `click_screen_element` | ACT | `element` (an id from `get_screen`). **Client only.** A left click at the middle of the element, through the screen's own event handling, so what is on top gets the click. Refused if the id no longer matches (the screen changed), the element is disabled, there is no screen, or a loading overlay is up |
 | `type_in_screen` | ACT | `text` (1-256 characters). **Client only.** Types into the focused text field; refused if none is focused |
 | `scroll_screen` | ACT | `amount` (-20 to 20 wheel notches, not 0), optional `element`. **Client only.** Scrolls over the element, or over the middle of the screen |
+| `move_to` | ACT | `x`, `y`, `z`. **Client only.** Walks the local player toward the point by holding the forward key, turning to face it and hopping one-block steps, for at most 100 ticks (5 s). Answers where it arrived, or fails saying how far away it stopped |
+| `look_at` | ACT | `x`, `y`, `z`. **Client only.** Turns the local player to face the point |
+| `jump` | ACT | none. **Client only.** One jump; fails if the player is not on the ground |
+| `break_block` | ACT | `x`, `y`, `z` (integers). **Client only.** Digs the block with the game's own dig calls until it breaks, at most 100 ticks. Fails if it is beyond reach (4.5 blocks) or there is no block |
+| `place_block` | ACT | `x`, `y`, `z` (integers). **Client only.** Places the block in the main hand at an empty position, against a neighbouring block. Fails if the hand holds no block, the position is taken, or nothing is next to it |
+| `interact` | ACT | `x`, `y`, `z` (integers). **Client only.** Uses the main hand on the block, like a right click (doors, buttons, chests) |
 | `run_command` | ACT | `command` |
 | `run_admin_command` | ADMIN | `command`, `confirm` (must be true) |

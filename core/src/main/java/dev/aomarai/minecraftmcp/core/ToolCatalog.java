@@ -215,6 +215,41 @@ public final class ToolCatalog {
                                                 -ScreenControl.MAX_SCROLL, ScreenControl.MAX_SCROLL),
                                         "element", string("Element id from get_screen; the middle of the screen if omitted.")),
                                 List.of("amount"))),
+                new ToolDescriptor("move_to", "Move to",
+                        "Walk the local player toward a point, as if holding the forward key, for a few seconds at most. "
+                                + "Client only. Requires write access." + ON_REQUEST_ONLY,
+                        ToolPolicy.Scope.ACT, Capability.PLAYER_CONTROL, Side.CLIENT, schema(
+                                props(
+                                        "x", number("Target X.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "y", number("Target Y.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "z", number("Target Z.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE)),
+                                List.of("x", "y", "z"))),
+                new ToolDescriptor("look_at", "Look at",
+                        "Turn the local player to face a point. Client only. Requires write access." + ON_REQUEST_ONLY,
+                        ToolPolicy.Scope.ACT, Capability.PLAYER_CONTROL, Side.CLIENT, schema(
+                                props(
+                                        "x", number("Target X.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "y", number("Target Y.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                                        "z", number("Target Z.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE)),
+                                List.of("x", "y", "z"))),
+                new ToolDescriptor("jump", "Jump",
+                        "Make the local player jump once. Client only. Requires write access." + ON_REQUEST_ONLY,
+                        ToolPolicy.Scope.ACT, Capability.PLAYER_CONTROL, Side.CLIENT, schema(props(), List.of())),
+                new ToolDescriptor("break_block", "Break block",
+                        "Dig the block at a position within the local player's reach until it breaks, for a few seconds "
+                                + "at most. The server still decides whether it may be broken. Client only. "
+                                + "Requires write access." + ON_REQUEST_ONLY,
+                        ToolPolicy.Scope.ACT, Capability.PLAYER_CONTROL, Side.CLIENT, blockPosition()),
+                new ToolDescriptor("place_block", "Place block",
+                        "Place the block in the local player's main hand at an empty position within reach, against a "
+                                + "neighbouring block. The server still decides whether it may be placed. Client only. "
+                                + "Requires write access." + ON_REQUEST_ONLY,
+                        ToolPolicy.Scope.ACT, Capability.PLAYER_CONTROL, Side.CLIENT, blockPosition()),
+                new ToolDescriptor("interact", "Interact with block",
+                        "Use the local player's main hand on the block at a position within reach, like a right click: "
+                                + "opens a door or chest, presses a button. Client only. Requires write access."
+                                + ON_REQUEST_ONLY,
+                        ToolPolicy.Scope.ACT, Capability.PLAYER_CONTROL, Side.CLIENT, blockPosition()),
                 new ToolDescriptor("run_command", "Run command",
                         "Run a non-destructive server command through Brigadier. Requires write access." + ON_REQUEST_ONLY,
                         ToolPolicy.Scope.ACT, Capability.COMMANDS, Side.SERVER, schema(
@@ -282,6 +317,15 @@ public final class ToolCatalog {
 
     private static Map<String, Object> string(String description) {
         return props("type", "string", "description", description);
+    }
+
+    private static McpSchema.JsonSchema blockPosition() {
+        return schema(
+                props(
+                        "x", integer("Block X.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                        "y", integer("Block Y.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE),
+                        "z", integer("Block Z.", -CommandBuilder.MAX_COORDINATE, CommandBuilder.MAX_COORDINATE)),
+                List.of("x", "y", "z"));
     }
 
     private static Map<String, Object> roleProperty() {

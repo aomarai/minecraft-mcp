@@ -57,6 +57,12 @@ final class ToolHandlers {
                 entry("click_screen_element", this::clickScreenElement),
                 entry("type_in_screen", this::typeInScreen),
                 entry("scroll_screen", this::scrollScreen),
+                entry("move_to", this::moveTo),
+                entry("look_at", this::lookAt),
+                entry("jump", args -> await(player().jump(), true)),
+                entry("break_block", this::breakBlock),
+                entry("place_block", this::placeBlock),
+                entry("interact", this::interact),
                 entry("fill_blocks", this::fillBlocks),
                 entry("teleport", this::teleport),
                 entry("give_item", this::giveItem),
@@ -288,6 +294,48 @@ final class ToolHandlers {
                     + ScreenControl.MAX_SCROLL + ", and not 0");
         }
         return await(port(ScreenControl.class, "screen control").scroll(args.optionalString("element", ""), amount), true);
+    }
+
+    private PlayerController player() {
+        return port(PlayerController.class, "player control");
+    }
+
+    private String moveTo(ToolArgs args) throws Exception {
+        return await(player().moveTo(point(args, "x"), point(args, "y"), point(args, "z")), true);
+    }
+
+    private String lookAt(ToolArgs args) throws Exception {
+        return await(player().lookAt(point(args, "x"), point(args, "y"), point(args, "z")), true);
+    }
+
+    private String breakBlock(ToolArgs args) throws Exception {
+        return await(player().breakBlock(block(args, "x"), block(args, "y"), block(args, "z")), true);
+    }
+
+    private String placeBlock(ToolArgs args) throws Exception {
+        return await(player().placeBlock(block(args, "x"), block(args, "y"), block(args, "z")), true);
+    }
+
+    private String interact(ToolArgs args) throws Exception {
+        return await(player().interact(block(args, "x"), block(args, "y"), block(args, "z")), true);
+    }
+
+    private static double point(ToolArgs args, String name) {
+        double value = args.number(name);
+        if (Math.abs(value) > CommandBuilder.MAX_COORDINATE) {
+            throw new IllegalArgumentException(name + " must be between -" + CommandBuilder.MAX_COORDINATE + " and "
+                    + CommandBuilder.MAX_COORDINATE);
+        }
+        return value;
+    }
+
+    private static int block(ToolArgs args, String name) {
+        int value = args.integer(name);
+        if (Math.abs((long) value) > CommandBuilder.MAX_COORDINATE) {
+            throw new IllegalArgumentException(name + " must be between -" + CommandBuilder.MAX_COORDINATE + " and "
+                    + CommandBuilder.MAX_COORDINATE);
+        }
+        return value;
     }
 
     private String readLog(ToolArgs args) throws Exception {

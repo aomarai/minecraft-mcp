@@ -13,7 +13,7 @@ class ToolCatalogTest {
 
     /** The tools only a game client can serve, in catalog order. */
     private static final List<String> CLIENT_TOOLS = List.of("take_screenshot", "get_screen", "click_screen_element",
-            "type_in_screen", "scroll_screen");
+            "type_in_screen", "scroll_screen", "move_to", "look_at", "jump", "break_block", "place_block", "interact");
 
     private static final McpSchema.JsonSchema EMPTY = McpSchema.JsonSchema.builder().type("object").build();
 
@@ -29,12 +29,13 @@ class ToolCatalogTest {
                         "get_screen"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
         assertEquals(List.of("fill_blocks", "teleport", "give_item", "send_message", "click_screen_element",
-                        "type_in_screen", "scroll_screen", "run_command"),
+                        "type_in_screen", "scroll_screen", "move_to", "look_at", "jump", "break_block", "place_block",
+                        "interact", "run_command"),
                 names(catalog.byScope(ToolPolicy.Scope.ACT)));
         assertEquals(List.of("kick_player", "ban_player", "save_world", "stop_server", "run_admin_command"),
                 names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
         assertEquals(ToolCatalog.defaults().tools().size(), catalog.tools().size());
-        assertEquals(25, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
+        assertEquals(31, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
     }
 
     @Test
@@ -131,6 +132,8 @@ class ToolCatalogTest {
         assertEquals(List.of("get_screen"), names(all.availableFor(services(Side.CLIENT, Capability.SCREENS)).tools()));
         assertEquals(List.of("click_screen_element", "type_in_screen", "scroll_screen"),
                 names(all.availableFor(services(Side.CLIENT, Capability.SCREEN_CONTROL)).tools()));
+        assertEquals(List.of("move_to", "look_at", "jump", "break_block", "place_block", "interact"),
+                names(all.availableFor(services(Side.CLIENT, Capability.PLAYER_CONTROL)).tools()));
         assertEquals(CLIENT_TOOLS,
                 names(all.availableFor(services(Side.CLIENT, Capability.values())).tools()),
                 "a client offers the client tools and none of the server ones");
@@ -193,7 +196,13 @@ class ToolCatalogTest {
                 java.util.Map.entry("get_screen", Capability.SCREENS),
                 java.util.Map.entry("click_screen_element", Capability.SCREEN_CONTROL),
                 java.util.Map.entry("type_in_screen", Capability.SCREEN_CONTROL),
-                java.util.Map.entry("scroll_screen", Capability.SCREEN_CONTROL));
+                java.util.Map.entry("scroll_screen", Capability.SCREEN_CONTROL),
+                java.util.Map.entry("move_to", Capability.PLAYER_CONTROL),
+                java.util.Map.entry("look_at", Capability.PLAYER_CONTROL),
+                java.util.Map.entry("jump", Capability.PLAYER_CONTROL),
+                java.util.Map.entry("break_block", Capability.PLAYER_CONTROL),
+                java.util.Map.entry("place_block", Capability.PLAYER_CONTROL),
+                java.util.Map.entry("interact", Capability.PLAYER_CONTROL));
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
             assertEquals(expected.get(tool.name()), tool.capability(), tool.name());
         }
