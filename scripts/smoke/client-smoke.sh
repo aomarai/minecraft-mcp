@@ -70,7 +70,7 @@ use_client
 echo "== the client offers the client tools and none of the server ones"
 tools="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 for tool in take_screenshot get_screen click_screen_element type_in_screen scroll_screen move_to look_at jump \
-    break_block place_block interact; do
+    break_block place_block interact open_inventory; do
   expect "tools/list has $tool" "$tools" "\"name\":\"$tool\""
 done
 for tool in run_command list_players query_blocks stop_server; do
@@ -237,6 +237,22 @@ for step in "0 3" "0 -3" "3 0" "-3 0"; do
   case "$out" in *"arrived at"*) arrived="$out"; break ;; *"did not arrive"*) ;; *) break ;; esac
 done
 expect "move_to arrives in some direction" "$arrived" "arrived at"
+
+echo "== a container screen lists its slots"
+use_client
+expect "open_inventory opens the inventory" "$(c open_inventory '{}')" "opened the inventory"
+slots=""
+for _ in $(seq 1 10); do
+  slots="$(text_of "$(c get_screen '{"role":"slot","limit":300}')")"
+  case "$slots" in *'"role":"slot"'*) break ;; esac
+  sleep 1
+done
+expect "get_screen lists the inventory screen's slots" "$slots" '"role":"slot"'
+expect "an empty slot says so" "$slots" '"label":"empty"'
+expect "a held stack shows its registry id and count" "$slots" 'minecraft:'
+[ "$(printf '%s' "$slots" | grep -o '"role":"slot"' | wc -l)" -ge 36 ] && pass "the inventory's slots are listed" || fail "fewer than 36 slots listed"
+slot="$(printf '%s' "$slots" | grep -o '"id":"[0-9]*:slot"' | head -1 | sed 's/"id":"\(.*\)"/\1/')"
+expect "a slot can be clicked through the screen's own input handling" "$(c click_screen_element "{\"element\":\"$slot\"}")" "clicked slot"
 
 echo
 if [ "$FAILURES" -gt 0 ]; then

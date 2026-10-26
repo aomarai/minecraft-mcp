@@ -151,6 +151,11 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
                     public CompletableFuture<String> scroll(String element, int notches) {
                         return FakeGame.this.scroll(element, notches);
                     }
+
+                    @Override
+                    public CompletableFuture<String> openInventory() {
+                        return FakeGame.this.openInventory();
+                    }
                 };
             });
         }
@@ -176,6 +181,11 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     @Override
     public CompletableFuture<String> scroll(String element, int notches) {
         return act("scroll " + element + " " + notches, "scrolled " + notches);
+    }
+
+    @Override
+    public CompletableFuture<String> openInventory() {
+        return act("open_inventory", "opened the inventory");
     }
 
     @Override

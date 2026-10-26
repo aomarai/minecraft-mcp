@@ -51,6 +51,7 @@ class SecurityDefaultsTest {
             Map.entry("click_screen_element", Map.of("element", "0:button")),
             Map.entry("type_in_screen", Map.of("text", "hello")),
             Map.entry("scroll_screen", Map.of("amount", 3)),
+            Map.entry("open_inventory", Map.of()),
             Map.entry("move_to", Map.of("x", 1, "y", 2, "z", 3)),
             Map.entry("look_at", Map.of("x", 1, "y", 2, "z", 3)),
             Map.entry("jump", Map.of()),
@@ -155,9 +156,9 @@ class SecurityDefaultsTest {
             assertFalse(result.isError(), tool.name() + ": " + text(result));
         }
         int commandsAfterWrites = game.commands.size();
-        assertEquals(tools(ToolPolicy.Scope.ACT).size() - 9, commandsAfterWrites,
-                "the three screen tools and the six player tools run no command");
-        assertEquals(List.of("click 0:button", "type hello", "scroll  3"), game.screenActions);
+        assertEquals(tools(ToolPolicy.Scope.ACT).size() - 10, commandsAfterWrites,
+                "the four screen tools and the six player tools run no command");
+        assertEquals(List.of("click 0:button", "type hello", "scroll  3", "open_inventory"), game.screenActions);
         assertEquals(List.of("move_to 1.0 2.0 3.0", "look_at 1.0 2.0 3.0", "jump", "break_block 1 2 3",
                 "place_block 1 2 3", "interact 1 2 3"), game.playerActions);
 
@@ -331,7 +332,7 @@ class SecurityDefaultsTest {
     @Test
     void theNamesOfTheToolsThatChangeTheGameAreWhatThePolicyAndTheDocsSay() {
         // docs/tools.md lists the tools by scope; if a tool changes scope this must be a conscious decision.
-        assertEquals("break_block, click_screen_element, fill_blocks, give_item, interact, jump, look_at, move_to, place_block, run_command, scroll_screen, send_message, teleport, type_in_screen", names(ToolPolicy.Scope.ACT));
+        assertEquals("break_block, click_screen_element, fill_blocks, give_item, interact, jump, look_at, move_to, open_inventory, place_block, run_command, scroll_screen, send_message, teleport, type_in_screen", names(ToolPolicy.Scope.ACT));
         assertEquals("ban_player, kick_player, run_admin_command, save_world, stop_server", names(ToolPolicy.Scope.ADMIN));
     }
 

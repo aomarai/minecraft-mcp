@@ -47,6 +47,11 @@ val shade = configurations.create("shade")
 val loom = extensions.getByName("loom") as net.fabricmc.loom.api.LoomGradleExtensionAPI
 val game = if (remap) "modImplementation" else "implementation"
 
+// The widener names the game's classes in the node's own namespace: Mojang's for 1.21.x (remapped), official for 26.x.
+val accessWidenerDir = rootProject.file("adapters/fabric/src/accesswidener/${property("compat")}")
+sourceSets.main { resources.srcDir(accessWidenerDir) }
+loom.accessWidenerPath.set(accessWidenerDir.resolve("minecraft-mcp.accesswidener"))
+
 dependencies {
     add("minecraft", "com.mojang:minecraft:$minecraftVersion")
     if (remap) {

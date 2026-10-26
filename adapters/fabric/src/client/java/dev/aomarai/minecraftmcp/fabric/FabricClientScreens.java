@@ -16,6 +16,11 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,12 +31,14 @@ import java.util.function.Function;
  * Looks at the open vanilla screen and acts on it the way the player's mouse and keyboard would. Everything runs on
  * the client's main thread. The elements are the visible widgets of the screen (buttons, text fields, sliders,
  * lists, labels), found by walking its children; a mod that builds its screen from ordinary widgets shows up the same
- * way. Item slots of container screens are not listed yet.
+ * way. Item slots of container screens are listed as `slot` elements, labeled with the registry id and count.
  */
 final class FabricClientScreens implements ScreenReader, ScreenControl {
 
     /** How deep the walk follows widgets that hold other widgets. */
     private static final int MAX_DEPTH = 4;
+
+    private static final int SLOT_SIZE = 16;
 
     /** A listed element with the point in the middle of it, where a click or scroll lands. */
     private record Node(ScreenElement element, double centerX, double centerY) {
@@ -92,6 +99,20 @@ final class FabricClientScreens implements ScreenReader, ScreenControl {
         });
     }
 
+    @Override
+    public CompletableFuture<String> openInventory() {
+        return onClientThread(minecraft -> {
+            if (ClientCompat.overlay(minecraft) != null) {
+                throw new IllegalStateException("the game is showing " + overlay(minecraft) + "; try again in a moment");
+            }
+            if (minecraft.player == null) {
+                throw new IllegalStateException("the player is not in a world");
+            }
+            ClientCompat.open(minecraft, new InventoryScreen(minecraft.player));
+            return "opened the inventory";
+        });
+    }
+
     /** The screen the player has open, or an error: input is never sent to the world or while a loading overlay is up. */
     private static Screen openScreen(Minecraft minecraft) {
         if (ClientCompat.overlay(minecraft) != null) {
@@ -134,7 +155,28 @@ final class FabricClientScreens implements ScreenReader, ScreenControl {
     private static List<Node> nodes(Screen screen) {
         List<Node> nodes = new ArrayList<>();
         collect(screen.children(), nodes, 0, screen.getFocused());
+        if (screen instanceof AbstractContainerScreen<?> container) {
+            for (Slot slot : container.getMenu().slots) {
+                if (slot.isActive() && nodes.size() < ScreenSnapshot.MAX_ELEMENTS) {
+                    nodes.add(slotNode(nodes.size(), container, slot));
+                }
+            }
+        }
         return nodes;
+    }
+
+    /** Slots are 16 by 16 and positioned relative to the container's own corner, which the access widener opens. */
+    private static Node slotNode(int index, AbstractContainerScreen<?> container, Slot slot) {
+        int x = container.leftPos + slot.x;
+        int y = container.topPos + slot.y;
+        ScreenElement element = new ScreenElement(ScreenElement.idOf(index, Role.SLOT), Role.SLOT, stackLabel(slot.getItem()),
+                x, y, SLOT_SIZE, SLOT_SIZE, true, false);
+        return new Node(element, x + SLOT_SIZE / 2.0, y + SLOT_SIZE / 2.0);
+    }
+
+    /** The registry id and count, never the item's name or lore: players control those. */
+    private static String stackLabel(ItemStack stack) {
+        return stack.isEmpty() ? "empty" : BuiltInRegistries.ITEM.getKey(stack.getItem()) + " x" + stack.getCount();
     }
 
     private static void collect(List<? extends GuiEventListener> listeners, List<Node> nodes, int depth,
