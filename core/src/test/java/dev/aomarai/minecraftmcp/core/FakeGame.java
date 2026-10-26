@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 
 /** In-memory game for tests: records every call so tests can prove what did and did not reach it. */
 final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandRunner, RegistryReader, EntityReader,
-        WorldStateReader, PermissionReader, InventoryReader, LogReader, EventFeed {
+        WorldStateReader, PermissionReader, InventoryReader, LogReader, EventFeed, ScreenReader, ScreenControl {
 
     final List<String> commands = new ArrayList<>();
     final List<Duration> commandTimeouts = new ArrayList<>();
@@ -53,6 +53,14 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     CompletableFuture<Permissions> pendingPermissions;
     CompletableFuture<Inventory> pendingInventory;
     final List<int[]> screenshotRequests = new ArrayList<>();
+    int screenReads;
+    final List<String> screenActions = new ArrayList<>();
+    ScreenSnapshot screen = new ScreenSnapshot("TitleScreen", "Title Screen", "", List.of(
+            new ScreenElement("0:button", ScreenElement.Role.BUTTON, "Singleplayer", 10, 20, 200, 20, true, false),
+            new ScreenElement("1:button", ScreenElement.Role.BUTTON, "Options...", 10, 50, 98, 20, true, true),
+            new ScreenElement("2:text_field", ScreenElement.Role.TEXT_FIELD, "Search", 10, 80, 200, 20, false, false)));
+    CompletableFuture<ScreenSnapshot> pendingScreen;
+    CompletableFuture<String> pendingScreenAction;
     Screenshot screenshot = new Screenshot(png(), 2, 3);
     CompletableFuture<Screenshot> pendingScreenshot;
 
@@ -94,9 +102,52 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
                     }
                 };
                 case SCREENSHOTS -> (ScreenshotCapture) this::capture;
+                case SCREENS -> (ScreenReader) this::snapshot;
+                case SCREEN_CONTROL -> new ScreenControl() {
+                    @Override
+                    public CompletableFuture<String> click(String element) {
+                        return FakeGame.this.click(element);
+                    }
+
+                    @Override
+                    public CompletableFuture<String> type(String text) {
+                        return FakeGame.this.type(text);
+                    }
+
+                    @Override
+                    public CompletableFuture<String> scroll(String element, int notches) {
+                        return FakeGame.this.scroll(element, notches);
+                    }
+                };
             });
         }
         return new GameServices(side, ports.toArray(new GamePort[0]));
+    }
+
+    @Override
+    public CompletableFuture<ScreenSnapshot> snapshot() {
+        screenReads++;
+        return pendingScreen != null ? pendingScreen : CompletableFuture.completedFuture(screen);
+    }
+
+    @Override
+    public CompletableFuture<String> click(String element) {
+        return act("click " + element, "clicked " + element);
+    }
+
+    @Override
+    public CompletableFuture<String> type(String text) {
+        return act("type " + text, "typed " + text.length() + " characters");
+    }
+
+    @Override
+    public CompletableFuture<String> scroll(String element, int notches) {
+        return act("scroll " + element + " " + notches, "scrolled " + notches);
+    }
+
+    private CompletableFuture<String> act(String call, String result) {
+        screenActions.add(call);
+        return pendingScreenAction != null ? pendingScreenAction : CompletableFuture.completedFuture(result);
     }
 
     private CompletableFuture<Screenshot> capture(int maxWidth, int maxHeight) {
@@ -105,7 +156,7 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     }
 
     int totalCalls() {
-        return screenshotRequests.size() + infoCalls + playerCalls + commands.size() + queries.size() + registryQueries.size() + entityQueries.size()
+        return screenshotRequests.size() + screenReads + screenActions.size() + infoCalls + playerCalls + commands.size() + queries.size() + registryQueries.size() + entityQueries.size()
                 + stateQueries.size() + permissionCalls + inventoryQueries.size() + logQueries.size() + eventReads.size();
     }
 

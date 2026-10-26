@@ -42,7 +42,7 @@ best-effort.
 - The universal tier lists players only when a server directory is configured, and reports no TPS.
 - Quilt is expected to load the Fabric jar but is not tested.
 - The endpoint speaks plain HTTP on loopback. Remote access is by a TLS reverse proxy ([remote-access.md](remote-access.md)); the OAuth 2.1 flow is not implemented.
-- The Fabric client endpoint (`take_screenshot`) was captured from real 1.21.1 and 26.2 clients by hand but has no CI test yet (#39), so the client is not a supported target; the dedicated-server jar is unaffected.
+- The Fabric client endpoint (`take_screenshot` and the screen tools) was exercised from real 1.21.1 and 26.2 clients by hand but has no CI test yet (#39), so the client is not a supported target; the dedicated-server jar is unaffected.
 - Nothing is published to Modrinth or CurseForge yet.
 
 ## Build tooling

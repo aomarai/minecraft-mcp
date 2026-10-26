@@ -48,6 +48,9 @@ class SecurityDefaultsTest {
             Map.entry("ban_player", Map.of("player", "Steve")),
             Map.entry("save_world", Map.of()),
             Map.entry("stop_server", Map.of()),
+            Map.entry("click_screen_element", Map.of("element", "0:button")),
+            Map.entry("type_in_screen", Map.of("text", "hello")),
+            Map.entry("scroll_screen", Map.of("amount", 3)),
             Map.entry("run_command", Map.of("command", "say hi")),
             Map.entry("run_admin_command", Map.of("command", "stop")));
 
@@ -146,7 +149,8 @@ class SecurityDefaultsTest {
             assertFalse(result.isError(), tool.name() + ": " + text(result));
         }
         int commandsAfterWrites = game.commands.size();
-        assertEquals(tools(ToolPolicy.Scope.ACT).size(), commandsAfterWrites);
+        assertEquals(tools(ToolPolicy.Scope.ACT).size() - 3, commandsAfterWrites, "the three screen tools run no command");
+        assertEquals(List.of("click 0:button", "type hello", "scroll  3"), game.screenActions);
 
         for (ToolDescriptor tool : tools(ToolPolicy.Scope.ADMIN)) {
             assertTrue(dispatcher.call(tool, withConfirm(WRITE_ARGUMENTS.get(tool.name()), true)).isError(), tool.name());
@@ -318,7 +322,7 @@ class SecurityDefaultsTest {
     @Test
     void theNamesOfTheToolsThatChangeTheGameAreWhatThePolicyAndTheDocsSay() {
         // docs/tools.md lists the tools by scope; if a tool changes scope this must be a conscious decision.
-        assertEquals("fill_blocks, give_item, run_command, send_message, teleport", names(ToolPolicy.Scope.ACT));
+        assertEquals("click_screen_element, fill_blocks, give_item, run_command, scroll_screen, send_message, teleport, type_in_screen", names(ToolPolicy.Scope.ACT));
         assertEquals("ban_player, kick_player, run_admin_command, save_world, stop_server", names(ToolPolicy.Scope.ADMIN));
     }
 

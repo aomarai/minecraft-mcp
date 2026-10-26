@@ -43,8 +43,8 @@ public final class EventBuffer implements EventFeed {
     /** Safe to call from the game thread: it only takes a short lock and never does I/O. */
     public void publish(EventType type, String player, String text) {
         Objects.requireNonNull(type, "type");
-        String cleanText = type.hasText() ? clean(text, MAX_TEXT) : "";
-        String cleanPlayer = clean(player, MAX_PLAYER);
+        String cleanText = type.hasText() ? UntrustedText.clean(text, MAX_TEXT) : "";
+        String cleanPlayer = UntrustedText.clean(player, MAX_PLAYER);
         synchronized (this) {
             latest++;
             events.addLast(new GameEvent(latest, clock.instant(), type, cleanPlayer, cleanText));
@@ -85,12 +85,5 @@ public final class EventBuffer implements EventFeed {
             // A broken listener must never reach the game thread that is publishing.
             LOG.log(System.Logger.Level.WARNING, "event listener failed: {0}", e.toString());
         }
-    }
-
-    private static String clean(String raw, int max) {
-        String text = Objects.requireNonNullElse(raw, "").strip();
-        StringBuilder out = new StringBuilder(Math.min(text.length(), max));
-        text.chars().limit(max).forEach(c -> out.append(Character.isISOControl(c) ? ' ' : (char) c));
-        return text.length() > max ? out + "..." : out.toString();
     }
 }
