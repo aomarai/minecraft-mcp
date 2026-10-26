@@ -140,6 +140,32 @@ public final class ConfigLoader {
         write(mapper, file, values);
     }
 
+    /**
+     * For a second endpoint in the same process (the client's, next to the integrated server's): the variables
+     * named {@code MINECRAFT_MCP_<scope>_X} become {@code MINECRAFT_MCP_X}, and the plain {@code MINECRAFT_MCP_X}
+     * ones, which belong to the first endpoint, are left out.
+     */
+    public static Map<String, String> scopedEnvironment(Map<String, String> env, String scope) {
+        String prefix = ENV_PREFIX + scope + "_";
+        Map<String, String> scoped = new LinkedHashMap<>();
+        env.forEach((name, value) -> {
+            if (name.startsWith(prefix)) {
+                scoped.put(ENV_PREFIX + name.substring(prefix.length()), value);
+            }
+        });
+        return scoped;
+    }
+
+    /**
+     * Gives a config file that does not exist yet a different default port. Everything else keeps its default and
+     * the token is generated on the first load as usual. An existing file is left alone.
+     */
+    public static void seedPort(Path file, int port) throws IOException {
+        if (!Files.exists(file)) {
+            write(McpJsonDefaults.getMapper(), file, new LinkedHashMap<>(Map.of(PORT, port)));
+        }
+    }
+
     static String generateToken() {
         byte[] bytes = new byte[GENERATED_TOKEN_BYTES];
         new SecureRandom().nextBytes(bytes);

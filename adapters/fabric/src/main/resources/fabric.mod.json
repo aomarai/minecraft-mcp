@@ -6,9 +6,10 @@
   "description": "A Model Context Protocol server for this Minecraft server. Read-only and loopback-only by default.",
   "authors": ["aomarai"],
   "license": "See LICENSE",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
-    "main": ["dev.aomarai.minecraftmcp.fabric.McpFabricMod"]
+    "main": ["dev.aomarai.minecraftmcp.fabric.McpFabricMod"],
+    "client": ["dev.aomarai.minecraftmcp.fabric.McpFabricClientMod"]
   },
   "depends": {
     "minecraft": "${minecraft_range}",

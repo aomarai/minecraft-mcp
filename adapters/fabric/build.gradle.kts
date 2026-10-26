@@ -30,6 +30,9 @@ java {
 sourceSets.main {
     java.srcDir(rootProject.file("adapters/common/src/main/java"))
     java.srcDir(rootProject.file("adapters/common/src/compat/${property("compat")}/java"))
+    // The client's own endpoint (screenshots); the same jar serves a dedicated server, which never loads it.
+    java.srcDir(rootProject.file("adapters/fabric/src/client/java"))
+    java.srcDir(rootProject.file("adapters/fabric/src/clientcompat/${property("compat")}/java"))
 }
 
 tasks.withType<JavaCompile>().configureEach {

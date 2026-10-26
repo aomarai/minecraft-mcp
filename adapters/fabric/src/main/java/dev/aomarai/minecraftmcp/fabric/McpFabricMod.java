@@ -2,7 +2,6 @@ package dev.aomarai.minecraftmcp.fabric;
 
 import dev.aomarai.minecraftmcp.core.Side;
 import dev.aomarai.minecraftmcp.vanilla.McpHost;
-import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -11,7 +10,8 @@ import net.minecraft.server.MinecraftServer;
 
 /**
  * Connects the shared {@link McpHost} to Fabric's lifecycle and events. Keep this class thin: the
- * logic lives in {@code core} and in the vanilla code every adapter shares.
+ * logic lives in {@code core} and in the vanilla code every adapter shares. It serves the game server, a
+ * dedicated one or a client's integrated one; the client's own tools are {@link McpFabricClientMod}'s.
  */
 public final class McpFabricMod implements ModInitializer {
 
@@ -28,12 +28,7 @@ public final class McpFabricMod implements ModInitializer {
 
     private void start(MinecraftServer server) {
         FabricLoader loader = FabricLoader.getInstance();
-        host.start(server, side(), loader.getConfigDir(), loader.getGameDir().resolve("logs").resolve("latest.log"),
+        host.start(server, Side.SERVER, loader.getConfigDir(), loader.getGameDir().resolve("logs").resolve("latest.log"),
                 new FabricRuntimeInfo(server));
-    }
-
-    /** Dedicated server or client, as the loader reports it, so client-only tools are never offered by a server. */
-    private static Side side() {
-        return FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT ? Side.CLIENT : Side.SERVER;
     }
 }
