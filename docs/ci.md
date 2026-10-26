@@ -13,8 +13,9 @@ Measured on GitHub's `ubuntu-latest` runners (4 CPUs).
 |---|---|---|---|
 | 2026-10-26 | Before: Pitest for all three modules ran one after another inside the `core` job | 12.6 min | `core` 12.4 min (build 3.0 + Pitest 9.2: core 5.1, rcon 3.8, stdio-shim 0.9) |
 | 2026-10-26 | Each module's mutation tests in their own job (#143) | 7.4 min | `mutation (:core)` 7.3 min |
+| 2026-10-26 | Jobs without Minecraft configure only what they build; smoke-client installs packages from archive.ubuntu.com (#147) | 6.1 min | `mutation (:core)` 6.0 min |
 
-The budget in `scripts/ci/duration-summary.py` is 11 minutes: the green pipeline is about 7.5, and the rest is room
+The budget in `scripts/ci/duration-summary.py` is 11 minutes: the green pipeline is about 6 to 7.5, and the rest is room
 for slow runners. Raise it only with a new baseline here.
 
 ## What the time goes to

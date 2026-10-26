@@ -13,7 +13,7 @@ import sys
 import urllib.request
 from datetime import datetime
 
-# The wall time of a green pipeline is about 7.5 minutes (docs/ci.md); the budget leaves room for noisy runners.
+# The wall time of a green pipeline is about 6 to 7.5 minutes (docs/ci.md); the budget leaves room for noisy runners.
 BUDGET_MINUTES = 11
 
 
