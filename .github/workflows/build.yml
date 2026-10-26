@@ -22,6 +22,9 @@ env:
 # node) never competes for memory with the rest. Each loader's smoke tests start as soon as its own jars
 # exist, without waiting for the other loader.
 jobs:
+  # The three jobs that need no Minecraft (core, mutation, universal) pass --configure-on-demand: without it Gradle
+  # configures every Fabric and NeoForge node too, and Loom downloads and prepares the game for each, about 110 s of
+  # the 412 s a Pitest job took (docs/ci.md).
   # The loader-agnostic code: unit tests and the 100% coverage gate.
   core:
     runs-on: ubuntu-latest
@@ -30,7 +33,7 @@ jobs:
       - name: Release hygiene (MIT license, no jars or world data committed)
         run: scripts/release/check-repo.sh
       - uses: ./.github/actions/setup-build
-      - run: ./gradlew :core:build :stdio-shim:build :adapters:rcon:build --no-daemon --refresh-dependencies
+      - run: ./gradlew :core:build :stdio-shim:build :adapters:rcon:build --configure-on-demand --no-daemon --refresh-dependencies
 
   # The mutation score (100% for each module). Pitest is by far the slowest step (core 5 min, rcon 4 min, stdio-shim
   # 1 min, measured on the runner) and uses every CPU of a runner, so each module gets its own runner instead of
@@ -44,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-build
-      - run: ./gradlew ${{ matrix.module }}:pitest --no-daemon
+      - run: ./gradlew ${{ matrix.module }}:pitest --configure-on-demand --no-daemon
 
   fabric:
     runs-on: ubuntu-latest
@@ -91,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-build
-      - run: ./gradlew :adapters:rcon:shadowJar :stdio-shim:shadowJar --no-daemon --refresh-dependencies
+      - run: ./gradlew :adapters:rcon:shadowJar :stdio-shim:shadowJar --configure-on-demand --no-daemon --refresh-dependencies
       - name: The shim jar talks to the universal jar over stdio
         run: bash scripts/smoke/shim-smoke.sh adapters/rcon/build/libs/minecraft-mcp-*-universal.jar stdio-shim/build/libs/minecraft-mcp-*-stdio-shim.jar
       - name: Collect the jars

@@ -26,6 +26,22 @@ for slow runners. Raise it only with a new baseline here.
 - Package downloads on the runner can stall. One run of `smoke-client (26.3)` took 14 minutes instead of 3 because
   `apt-get` waited 8 minutes on one mirror download; the install step now times out after 30 seconds and retries.
 
+## Configuring only what a job builds
+
+A Gradle build configures every project in the build, and configuring a Fabric or NeoForge node makes Loom download
+and prepare Minecraft. The `core`, `mutation` and `universal` jobs need none of that, so they pass
+`--configure-on-demand`: in the log of a `:core:pitest` job, configuring the six nodes took 110 of its 412 seconds
+(20:32:13 to 20:34:02). The jars, the 100% coverage gate and the mutation scores are the same with and without the
+flag (checked locally). The Fabric and NeoForge jobs build the nodes, so they do not use it.
+
+## Caching dependencies (#88)
+
+Not done, on purpose. Dependency caching is off so that every run verifies freshly downloaded artifacts against
+`gradle/verification-metadata.xml`. After the changes above the cold downloads that remain are the Minecraft
+artifacts of the nodes in the `fabric`, `neoforge` and `smoke-client` jobs (160 to 200 s each, in parallel and not on
+the longest path), so a cache would save about a minute on jobs that are not the slowest, at the price of a supply
+chain check. Revisit it if those jobs become the longest.
+
 ## Gradle memory
 
 `gradle.properties` gives the Gradle JVM `-Xmx2g -XX:MaxMetaspaceSize=512m`. Measured with `jstat -gc` every 2 s on a
