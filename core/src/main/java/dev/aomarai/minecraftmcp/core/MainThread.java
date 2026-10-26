@@ -23,14 +23,30 @@ public final class MainThread {
     private MainThread() {
     }
 
-    public static <T> CompletableFuture<T> call(Executor mainThread, Supplier<T> task) {
-        CompletableFuture<T> future = new CompletableFuture<>();
+    /**
+     * The future of work queued for the game thread. It also knows whether the game thread has begun that work, which
+     * is what decides what a timeout means: work that has not begun is skipped and never runs; work that has begun
+     * runs to the end whatever the caller does.
+     */
+    public static final class Call<T> extends CompletableFuture<T> {
+
+        private volatile boolean started;
+
+        /** Whether the game thread has started the work. */
+        public boolean started() {
+            return started;
+        }
+    }
+
+    public static <T> Call<T> call(Executor mainThread, Supplier<T> task) {
+        Call<T> future = new Call<>();
         // Taken here, on the calling thread, which is the one the dispatcher is timing; the work below runs elsewhere.
         CallTiming timing = CallTiming.current();
         mainThread.execute(() -> {
             if (future.isCancelled()) {
                 return;
             }
+            future.started = true;
             long start = timing == null ? 0 : timing.now();
             try {
                 future.complete(task.get());
