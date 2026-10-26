@@ -23,11 +23,6 @@ concurrency:
 
 jobs:
   scan:
-    # The scan itself passes, but the job has failed in teardown ("Stop containers", the post steps) with
-    # ECONNREFUSED 10.43.0.1:443, the runner pod losing the cluster API: an infrastructure fault in the homelab, not a
-    # fault of this repository (#150). Until that is fixed a failed job must not turn the run red. Remove this line
-    # when #150 is closed, so a real scan failure is visible again.
-    continue-on-error: true
     # Selected by `runnerScaleSetName: minecraft-mcp-runners` in the homelab repo
     # (apps/arc-runners-minecraft-mcp/values.yaml).
     runs-on: minecraft-mcp-runners
