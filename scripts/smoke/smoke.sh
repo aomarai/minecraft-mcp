@@ -179,7 +179,9 @@ expect "the new rule value is reported" "$(call 42 get_world_state '{"dimension"
 expect "an unknown dimension names the available ones" "$(call 43 get_world_state '{"dimension":"mod:nowhere"}')" 'available: minecraft:overworld'
 expect "an unconfigured server has no operators" "$(call 44 list_permissions '{}')" '\"operators\":[]'
 expect "granting operator succeeds" "$(call 45 run_admin_command '{"command":"op Steve","confirm":true}')" '"isError":false'
-expect_eventually "list_permissions shows the new operator and level" 'Steve' 46 list_permissions '{}'
+# The list was empty before, so level 4 can only be the operator just granted. The name is not compared: an offline
+# server may store it as "Steve" or as "steve", and that is the server's choice, not what this checks.
+expect_eventually "list_permissions shows the new operator at level 4" '\"level\":4' 46 list_permissions '{}'
 expect "the whitelist state is reported" "$(call 47 list_permissions '{}')" '\"whitelistEnabled\":false'
 
 echo "== inventory and log"
