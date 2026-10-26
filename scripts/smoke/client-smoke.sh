@@ -81,7 +81,8 @@ echo "== screenshot"
 shot="$(c take_screenshot '{}')"
 expect "take_screenshot returns an image" "$shot" '"type":"image"'
 expect "take_screenshot returns a PNG" "$shot" '"mimeType":"image/png"'
-[ "${#shot}" -gt 2000 ] && pass "the image is not empty (${#shot} characters of base64)" || fail "the image is tiny: ${#shot}"
+# The first frame may be a plain loading screen, which compresses to almost nothing; the in-world one below is not.
+[ "${#shot}" -gt 100 ] && pass "the image is a PNG with content (${#shot} characters of base64)" || fail "the image is empty: ${#shot}"
 [ "${#shot}" -lt 3000000 ] && pass "the image is within the size bound" || fail "the image is over the bound: ${#shot}"
 
 echo "== screens: a new world, made with the screen tools"
@@ -111,6 +112,9 @@ expect "get_screen read a real screen on the way (saw:$seen)" "$seen" "Screen"
 
 echo "== the player, checked against the integrated server"
 sleep 8   # let the player land and the chunks settle
+world_shot="$(c take_screenshot '{}')"
+[ "${#world_shot}" -gt 5000 ] && pass "a picture of the world is a real image (${#world_shot} characters of base64)" \
+  || fail "the picture of the world is nearly empty: ${#world_shot}"
 use_server
 players="$(c list_players '{}')"
 PNAME="$(text_of "$players" | sed -n 's/.*"name":"\([A-Za-z0-9_]*\)".*/\1/p' | head -1)"
