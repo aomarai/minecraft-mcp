@@ -3,8 +3,10 @@ package dev.aomarai.minecraftmcp.core;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -29,6 +31,8 @@ final class ToolHandlers {
         Screenshot handle() throws Exception;
     }
 
+    private static final int DEFAULT_SCREEN_ELEMENTS = 100;
+
     private final McpConfig config;
     private final GameServices services;
     private final Map<String, Handler> byName;
@@ -49,6 +53,10 @@ final class ToolHandlers {
                 entry("get_inventory", this::getInventory),
                 entry("read_log", this::readLog),
                 entry("read_events", this::readEvents),
+                entry("get_screen", this::getScreen),
+                entry("click_screen_element", this::clickScreenElement),
+                entry("type_in_screen", this::typeInScreen),
+                entry("scroll_screen", this::scrollScreen),
                 entry("fill_blocks", this::fillBlocks),
                 entry("teleport", this::teleport),
                 entry("give_item", this::giveItem),
@@ -218,6 +226,68 @@ final class ToolHandlers {
         out.put("player", inventory.player());
         out.put("stacks", stacks);
         return json(out);
+    }
+
+    private String getScreen(ToolArgs args) throws Exception {
+        String role = args.optionalString("role", "");
+        String label = args.optionalString("label", "").toLowerCase(Locale.ROOT);
+        int limit = args.optionalInteger("limit", DEFAULT_SCREEN_ELEMENTS);
+        if (limit < 1 || limit > ScreenSnapshot.MAX_ELEMENTS) {
+            throw new IllegalArgumentException("limit must be between 1 and " + ScreenSnapshot.MAX_ELEMENTS);
+        }
+        List<String> roles = Arrays.stream(ScreenElement.Role.values()).map(ScreenElement.Role::json).toList();
+        if (!role.isEmpty() && !roles.contains(role)) {
+            throw new IllegalArgumentException("role must be one of " + roles);
+        }
+        ScreenSnapshot snapshot = await(port(ScreenReader.class, "screen reads").snapshot(), false);
+        List<ScreenElement> matching = snapshot.elements().stream()
+                .filter(e -> role.isEmpty() || e.role().json().equals(role))
+                .filter(e -> e.label().toLowerCase(Locale.ROOT).contains(label))
+                .toList();
+        List<Map<String, Object>> elements = new ArrayList<>();
+        for (ScreenElement element : matching.stream().limit(limit).toList()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", element.id());
+            item.put("role", element.role().json());
+            item.put("label", element.label());
+            item.put("x", element.x());
+            item.put("y", element.y());
+            item.put("width", element.width());
+            item.put("height", element.height());
+            item.put("enabled", element.enabled());
+            item.put("focused", element.focused());
+            elements.add(item);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        // Labels and titles are written by the game and its mods. Say so in the data itself, not only in the docs.
+        out.put("untrusted", true);
+        out.put("screen", snapshot.screen());
+        out.put("title", snapshot.title());
+        out.put("overlay", snapshot.overlay());
+        out.put("matching", matching.size());
+        out.put("elements", elements);
+        return json(out);
+    }
+
+    private String clickScreenElement(ToolArgs args) throws Exception {
+        return await(port(ScreenControl.class, "screen control").click(args.string("element")), true);
+    }
+
+    private String typeInScreen(ToolArgs args) throws Exception {
+        String text = args.string("text");
+        if (text.isEmpty() || text.length() > ScreenControl.MAX_TYPE_LENGTH) {
+            throw new IllegalArgumentException("text must be 1-" + ScreenControl.MAX_TYPE_LENGTH + " characters");
+        }
+        return await(port(ScreenControl.class, "screen control").type(text), true);
+    }
+
+    private String scrollScreen(ToolArgs args) throws Exception {
+        int amount = args.integer("amount");
+        if (amount == 0 || Math.abs(amount) > ScreenControl.MAX_SCROLL) {
+            throw new IllegalArgumentException("amount must be between -" + ScreenControl.MAX_SCROLL + " and "
+                    + ScreenControl.MAX_SCROLL + ", and not 0");
+        }
+        return await(port(ScreenControl.class, "screen control").scroll(args.optionalString("element", ""), amount), true);
     }
 
     private String readLog(ToolArgs args) throws Exception {

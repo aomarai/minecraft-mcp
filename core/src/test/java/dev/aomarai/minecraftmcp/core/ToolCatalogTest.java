@@ -11,6 +11,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ToolCatalogTest {
 
+    /** The tools only a game client can serve, in catalog order. */
+    private static final List<String> CLIENT_TOOLS = List.of("take_screenshot", "get_screen", "click_screen_element",
+            "type_in_screen", "scroll_screen");
+
     private static final McpSchema.JsonSchema EMPTY = McpSchema.JsonSchema.builder().type("object").build();
 
     private static List<String> names(List<ToolDescriptor> tools) {
@@ -21,14 +25,16 @@ class ToolCatalogTest {
     void defaultsAreGroupedByScope() {
         ToolCatalog catalog = ToolCatalog.defaults();
         assertEquals(List.of("server_info", "list_players", "query_blocks", "list_registry", "list_entities",
-                        "get_world_state", "list_permissions", "get_inventory", "read_log", "read_events", "take_screenshot"),
+                        "get_world_state", "list_permissions", "get_inventory", "read_log", "read_events", "take_screenshot",
+                        "get_screen"),
                 names(catalog.byScope(ToolPolicy.Scope.OBSERVE)));
-        assertEquals(List.of("fill_blocks", "teleport", "give_item", "send_message", "run_command"),
+        assertEquals(List.of("fill_blocks", "teleport", "give_item", "send_message", "click_screen_element",
+                        "type_in_screen", "scroll_screen", "run_command"),
                 names(catalog.byScope(ToolPolicy.Scope.ACT)));
         assertEquals(List.of("kick_player", "ban_player", "save_world", "stop_server", "run_admin_command"),
                 names(catalog.byScope(ToolPolicy.Scope.ADMIN)));
         assertEquals(ToolCatalog.defaults().tools().size(), catalog.tools().size());
-        assertEquals(21, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
+        assertEquals(25, catalog.tools().size(), "update docs/tools.md and the golden files when this changes");
     }
 
     @Test
@@ -113,7 +119,7 @@ class ToolCatalogTest {
         List<String> advertised = names(all.availableFor(services(Side.SERVER, Capability.values())).tools());
 
         assertFalse(advertised.contains("take_screenshot"));
-        assertEquals(all.tools().size() - 1, advertised.size());
+        assertEquals(all.tools().size() - CLIENT_TOOLS.size(), advertised.size());
     }
 
     @Test
@@ -122,7 +128,10 @@ class ToolCatalogTest {
 
         assertEquals(List.of("take_screenshot"),
                 names(all.availableFor(services(Side.CLIENT, Capability.SCREENSHOTS)).tools()));
-        assertEquals(List.of("take_screenshot"),
+        assertEquals(List.of("get_screen"), names(all.availableFor(services(Side.CLIENT, Capability.SCREENS)).tools()));
+        assertEquals(List.of("click_screen_element", "type_in_screen", "scroll_screen"),
+                names(all.availableFor(services(Side.CLIENT, Capability.SCREEN_CONTROL)).tools()));
+        assertEquals(CLIENT_TOOLS,
                 names(all.availableFor(services(Side.CLIENT, Capability.values())).tools()),
                 "a client offers the client tools and none of the server ones");
         assertEquals(List.of(), names(all.availableFor(services(Side.CLIENT)).tools()));
@@ -132,8 +141,8 @@ class ToolCatalogTest {
     void onSideKeepsOnlyThatSidesToolsInOrder() {
         ToolCatalog all = ToolCatalog.defaults();
 
-        assertEquals(List.of("take_screenshot"), names(all.onSide(Side.CLIENT).tools()));
-        assertEquals(all.tools().size() - 1, all.onSide(Side.SERVER).tools().size());
+        assertEquals(CLIENT_TOOLS, names(all.onSide(Side.CLIENT).tools()));
+        assertEquals(all.tools().size() - CLIENT_TOOLS.size(), all.onSide(Side.SERVER).tools().size());
         assertFalse(names(all.onSide(Side.SERVER).tools()).contains("take_screenshot"));
         assertEquals("server_info", all.onSide(Side.SERVER).tools().get(0).name());
     }
@@ -141,7 +150,7 @@ class ToolCatalogTest {
     @Test
     void everyClientToolIsDeclaredOnTheClientSide() {
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
-            assertEquals(tool.capability() == Capability.SCREENSHOTS, tool.side() == Side.CLIENT, tool.name());
+            assertEquals(CLIENT_TOOLS.contains(tool.name()), tool.side() == Side.CLIENT, tool.name());
         }
     }
 
@@ -180,7 +189,11 @@ class ToolCatalogTest {
                 java.util.Map.entry("ban_player", Capability.COMMANDS),
                 java.util.Map.entry("save_world", Capability.COMMANDS),
                 java.util.Map.entry("stop_server", Capability.COMMANDS),
-                java.util.Map.entry("take_screenshot", Capability.SCREENSHOTS));
+                java.util.Map.entry("take_screenshot", Capability.SCREENSHOTS),
+                java.util.Map.entry("get_screen", Capability.SCREENS),
+                java.util.Map.entry("click_screen_element", Capability.SCREEN_CONTROL),
+                java.util.Map.entry("type_in_screen", Capability.SCREEN_CONTROL),
+                java.util.Map.entry("scroll_screen", Capability.SCREEN_CONTROL));
         for (ToolDescriptor tool : ToolCatalog.defaults().tools()) {
             assertEquals(expected.get(tool.name()), tool.capability(), tool.name());
         }

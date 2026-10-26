@@ -27,7 +27,7 @@ separate endpoint** for the tools only a client can serve, so the two never shar
 
 | | Integrated server | Client |
 |---|---|---|
-| Tools | everything in this document | `take_screenshot` |
+| Tools | everything in this document | `take_screenshot`, `get_screen`, `click_screen_element`, `type_in_screen`, `scroll_screen` |
 | Config | `config/minecraft-mcp.json` | `config/minecraft-mcp-client.json` |
 | Audit log | `config/minecraft-mcp-audit.jsonl` | `config/minecraft-mcp-client-audit.jsonl` |
 | Default port | 25599 | 25598 |
@@ -37,6 +37,13 @@ The client endpoint has the same secure defaults (loopback, generated token, own
 `MCP client server listening on port 25598`; it starts when the game has finished starting and stops with it.
 `take_screenshot` returns the game window as one PNG, scaled down to fit 1280 x 720 and 2 MiB, held in memory
 only. The frame is read on the render thread and encoded on another, so the game does not wait for the encoder.
+
+The screen tools list the visible widgets of the open screen (buttons, text fields, sliders, lists, labels) by
+walking its children, so a mod whose screen is built from ordinary widgets shows up the same way. They act through
+the screen's own mouse and keyboard handling, on the client thread, only while no loading overlay is up. The three
+acting tools need `allowWrites` in `minecraft-mcp-client.json` (or `MINECRAFT_MCP_CLIENT_ALLOW_WRITES=true`), like
+every write. Not done yet: item slots of container screens (the `slot` role exists for them), a handler for owo-lib
+screens, and own-player control (#37).
 
 **State:** captured from a real client on Minecraft 1.21.1 and 26.2 (a virtual display in Docker). There is no CI
 test for the client yet (issue #39), so by the project's own rule the client is not listed as a supported target.

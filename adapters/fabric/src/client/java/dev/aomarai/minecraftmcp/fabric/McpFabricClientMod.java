@@ -36,7 +36,7 @@ public final class McpFabricClientMod implements ClientModInitializer {
         Path configDir = FabricLoader.getInstance().getConfigDir();
         Path configFile = configDir.resolve("minecraft-mcp-client.json");
         McpController created = new McpController(configFile, configDir.resolve("minecraft-mcp-client-audit.jsonl"),
-                config -> new GameServices(Side.CLIENT, new FabricClientScreenshots()),
+                config -> new GameServices(Side.CLIENT, new FabricClientScreenshots(), new FabricClientScreens()),
                 ConfigLoader.scopedEnvironment(System.getenv(), "CLIENT"));
         controller = created;
         try {

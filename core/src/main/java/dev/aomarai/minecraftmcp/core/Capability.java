@@ -14,7 +14,11 @@ public enum Capability {
     LOGS(LogReader.class),
     EVENTS(EventFeed.class),
     /** Client side only. */
-    SCREENSHOTS(ScreenshotCapture.class);
+    SCREENSHOTS(ScreenshotCapture.class),
+    /** Client side only. */
+    SCREENS(ScreenReader.class),
+    /** Client side only. */
+    SCREEN_CONTROL(ScreenControl.class);
 
     private final Class<? extends GamePort> portType;
 
