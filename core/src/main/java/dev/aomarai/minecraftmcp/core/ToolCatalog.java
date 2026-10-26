@@ -215,6 +215,10 @@ public final class ToolCatalog {
                                                 -ScreenControl.MAX_SCROLL, ScreenControl.MAX_SCROLL),
                                         "element", string("Element id from get_screen; the middle of the screen if omitted.")),
                                 List.of("amount"))),
+                new ToolDescriptor("open_inventory", "Open inventory",
+                        "Open the local player's inventory screen, as the inventory key does; get_screen then lists its "
+                                + "slots. Client only. Requires write access." + ON_REQUEST_ONLY,
+                        ToolPolicy.Scope.ACT, Capability.SCREEN_CONTROL, Side.CLIENT, schema(props(), List.of())),
                 new ToolDescriptor("move_to", "Move to",
                         "Walk the local player toward a point, as if holding the forward key, for a few seconds at most. "
                                 + "Client only. Requires write access." + ON_REQUEST_ONLY,

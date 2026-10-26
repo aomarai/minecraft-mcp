@@ -40,10 +40,12 @@ only. The frame is read on the render thread and encoded on another, so the game
 
 The screen tools list the visible widgets of the open screen (buttons, text fields, sliders, lists, labels) by
 walking its children, so a mod whose screen is built from ordinary widgets shows up the same way. They act through
-the screen's own mouse and keyboard handling, on the client thread, only while no loading overlay is up. The three
+the screen's own mouse and keyboard handling, on the client thread, only while no loading overlay is up. The four
 acting tools need `allowWrites` in `minecraft-mcp-client.json` (or `MINECRAFT_MCP_CLIENT_ALLOW_WRITES=true`), like
-every write. Not done yet: item slots of container screens (the `slot` role exists for them), a handler for owo-lib
-screens. Player tools act on the local player only; see `docs/tools.md`.
+every write. A container screen's item slots are listed as `slot` elements labeled with the item's registry id and count
+(never its name or lore), and `open_inventory` opens the player's own inventory. The slot positions need two protected
+fields of `AbstractContainerScreen`, which an access widener (`adapters/fabric/src/accesswidener/`) opens. Not done
+yet: a handler for owo-lib screens, which waits on the decision to add that dependency (#130). Player tools act on the local player only; see `docs/tools.md`.
 
 **State:** a real client on Minecraft 1.21.1 and 26.2 is smoke-tested in CI on a virtual display
 (`scripts/smoke/client-smoke.sh <node>`; it needs Java 21 and 25, `xvfb-run` and a software OpenGL (26.3: software Vulkan, `mesa-vulkan-drivers`), and

@@ -24,6 +24,11 @@ final class ClientCompat {
         return minecraft.screen;
     }
 
+    /** Shows a screen, as the game does when a key or a menu opens one. */
+    static void open(Minecraft minecraft, Screen screen) {
+        minecraft.setScreen(screen);
+    }
+
     /** The loading or similar overlay drawn over everything, or null. */
     static Overlay overlay(Minecraft minecraft) {
         return minecraft.getOverlay();

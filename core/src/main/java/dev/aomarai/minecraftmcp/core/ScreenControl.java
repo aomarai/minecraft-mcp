@@ -22,4 +22,7 @@ public interface ScreenControl extends GamePort {
 
     /** Scrolls by mouse-wheel notches over an element, or over the middle of the screen when {@code element} is empty. */
     CompletableFuture<String> scroll(String element, int notches);
+
+    /** Opens the player's own inventory screen, as the inventory key does. */
+    CompletableFuture<String> openInventory();
 }

@@ -144,7 +144,10 @@ class ScreenToolsTest {
         assertEquals("scrolled -3", text(d.call(tool("scroll_screen"), args("amount", -3, "element", "2:text_field"))));
         assertEquals("scrolled 7", text(d.call(tool("scroll_screen"), args("amount", 7))));
 
-        assertEquals(List.of("click 1:button", "type hello", "scroll 2:text_field -3", "scroll  7"), game.screenActions);
+        assertEquals("opened the inventory", text(d.call(tool("open_inventory"), Map.of())));
+
+        assertEquals(List.of("click 1:button", "type hello", "scroll 2:text_field -3", "scroll  7", "open_inventory"),
+                game.screenActions);
     }
 
     @Test
@@ -154,7 +157,8 @@ class ScreenToolsTest {
         for (Map.Entry<String, Map<String, Object>> call : Map.of(
                 "click_screen_element", args("element", "0:button"),
                 "type_in_screen", args("text", "x"),
-                "scroll_screen", args("amount", 1)).entrySet()) {
+                "scroll_screen", args("amount", 1),
+                "open_inventory", args()).entrySet()) {
             McpSchema.CallToolResult result = readOnly.call(tool(call.getKey()), call.getValue());
             assertTrue(result.isError(), call.getKey());
             assertEquals("write access is disabled", text(result), call.getKey());

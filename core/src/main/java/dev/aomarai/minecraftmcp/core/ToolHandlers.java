@@ -57,6 +57,7 @@ final class ToolHandlers {
                 entry("click_screen_element", this::clickScreenElement),
                 entry("type_in_screen", this::typeInScreen),
                 entry("scroll_screen", this::scrollScreen),
+                entry("open_inventory", this::openInventory),
                 entry("move_to", this::moveTo),
                 entry("look_at", this::lookAt),
                 entry("jump", args -> await(player().jump(), true)),
@@ -294,6 +295,10 @@ final class ToolHandlers {
                     + ScreenControl.MAX_SCROLL + ", and not 0");
         }
         return await(port(ScreenControl.class, "screen control").scroll(args.optionalString("element", ""), amount), true);
+    }
+
+    private String openInventory(ToolArgs args) throws Exception {
+        return await(port(ScreenControl.class, "screen control").openInventory(), true);
     }
 
     private PlayerController player() {
