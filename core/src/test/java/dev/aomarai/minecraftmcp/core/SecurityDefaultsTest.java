@@ -51,6 +51,12 @@ class SecurityDefaultsTest {
             Map.entry("click_screen_element", Map.of("element", "0:button")),
             Map.entry("type_in_screen", Map.of("text", "hello")),
             Map.entry("scroll_screen", Map.of("amount", 3)),
+            Map.entry("move_to", Map.of("x", 1, "y", 2, "z", 3)),
+            Map.entry("look_at", Map.of("x", 1, "y", 2, "z", 3)),
+            Map.entry("jump", Map.of()),
+            Map.entry("break_block", Map.of("x", 1, "y", 2, "z", 3)),
+            Map.entry("place_block", Map.of("x", 1, "y", 2, "z", 3)),
+            Map.entry("interact", Map.of("x", 1, "y", 2, "z", 3)),
             Map.entry("run_command", Map.of("command", "say hi")),
             Map.entry("run_admin_command", Map.of("command", "stop")));
 
@@ -149,8 +155,11 @@ class SecurityDefaultsTest {
             assertFalse(result.isError(), tool.name() + ": " + text(result));
         }
         int commandsAfterWrites = game.commands.size();
-        assertEquals(tools(ToolPolicy.Scope.ACT).size() - 3, commandsAfterWrites, "the three screen tools run no command");
+        assertEquals(tools(ToolPolicy.Scope.ACT).size() - 9, commandsAfterWrites,
+                "the three screen tools and the six player tools run no command");
         assertEquals(List.of("click 0:button", "type hello", "scroll  3"), game.screenActions);
+        assertEquals(List.of("move_to 1.0 2.0 3.0", "look_at 1.0 2.0 3.0", "jump", "break_block 1 2 3",
+                "place_block 1 2 3", "interact 1 2 3"), game.playerActions);
 
         for (ToolDescriptor tool : tools(ToolPolicy.Scope.ADMIN)) {
             assertTrue(dispatcher.call(tool, withConfirm(WRITE_ARGUMENTS.get(tool.name()), true)).isError(), tool.name());
@@ -322,7 +331,7 @@ class SecurityDefaultsTest {
     @Test
     void theNamesOfTheToolsThatChangeTheGameAreWhatThePolicyAndTheDocsSay() {
         // docs/tools.md lists the tools by scope; if a tool changes scope this must be a conscious decision.
-        assertEquals("click_screen_element, fill_blocks, give_item, run_command, scroll_screen, send_message, teleport, type_in_screen", names(ToolPolicy.Scope.ACT));
+        assertEquals("break_block, click_screen_element, fill_blocks, give_item, interact, jump, look_at, move_to, place_block, run_command, scroll_screen, send_message, teleport, type_in_screen", names(ToolPolicy.Scope.ACT));
         assertEquals("ban_player, kick_player, run_admin_command, save_world, stop_server", names(ToolPolicy.Scope.ADMIN));
     }
 

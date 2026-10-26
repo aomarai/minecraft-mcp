@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 
 /** In-memory game for tests: records every call so tests can prove what did and did not reach it. */
 final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandRunner, RegistryReader, EntityReader,
-        WorldStateReader, PermissionReader, InventoryReader, LogReader, EventFeed, ScreenReader, ScreenControl {
+        WorldStateReader, PermissionReader, InventoryReader, LogReader, EventFeed, ScreenReader, ScreenControl, PlayerController {
 
     final List<String> commands = new ArrayList<>();
     final List<Duration> commandTimeouts = new ArrayList<>();
@@ -59,6 +59,8 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
             new ScreenElement("0:button", ScreenElement.Role.BUTTON, "Singleplayer", 10, 20, 200, 20, true, false),
             new ScreenElement("1:button", ScreenElement.Role.BUTTON, "Options...", 10, 50, 98, 20, true, true),
             new ScreenElement("2:text_field", ScreenElement.Role.TEXT_FIELD, "Search", 10, 80, 200, 20, false, false)));
+    final List<String> playerActions = new ArrayList<>();
+    CompletableFuture<String> pendingPlayerAction;
     CompletableFuture<ScreenSnapshot> pendingScreen;
     CompletableFuture<String> pendingScreenAction;
     Screenshot screenshot = new Screenshot(png(), 2, 3);
@@ -102,6 +104,37 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
                     }
                 };
                 case SCREENSHOTS -> (ScreenshotCapture) this::capture;
+                case PLAYER_CONTROL -> new PlayerController() {
+                    @Override
+                    public CompletableFuture<String> moveTo(double x, double y, double z) {
+                        return FakeGame.this.moveTo(x, y, z);
+                    }
+
+                    @Override
+                    public CompletableFuture<String> lookAt(double x, double y, double z) {
+                        return FakeGame.this.lookAt(x, y, z);
+                    }
+
+                    @Override
+                    public CompletableFuture<String> jump() {
+                        return FakeGame.this.jump();
+                    }
+
+                    @Override
+                    public CompletableFuture<String> breakBlock(int x, int y, int z) {
+                        return FakeGame.this.breakBlock(x, y, z);
+                    }
+
+                    @Override
+                    public CompletableFuture<String> placeBlock(int x, int y, int z) {
+                        return FakeGame.this.placeBlock(x, y, z);
+                    }
+
+                    @Override
+                    public CompletableFuture<String> interact(int x, int y, int z) {
+                        return FakeGame.this.interact(x, y, z);
+                    }
+                };
                 case SCREENS -> (ScreenReader) this::snapshot;
                 case SCREEN_CONTROL -> new ScreenControl() {
                     @Override
@@ -145,6 +178,41 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
         return act("scroll " + element + " " + notches, "scrolled " + notches);
     }
 
+    @Override
+    public CompletableFuture<String> moveTo(double x, double y, double z) {
+        return player("move_to " + x + " " + y + " " + z, "moved");
+    }
+
+    @Override
+    public CompletableFuture<String> lookAt(double x, double y, double z) {
+        return player("look_at " + x + " " + y + " " + z, "looked");
+    }
+
+    @Override
+    public CompletableFuture<String> jump() {
+        return player("jump", "jumped");
+    }
+
+    @Override
+    public CompletableFuture<String> breakBlock(int x, int y, int z) {
+        return player("break_block " + x + " " + y + " " + z, "broke");
+    }
+
+    @Override
+    public CompletableFuture<String> placeBlock(int x, int y, int z) {
+        return player("place_block " + x + " " + y + " " + z, "placed");
+    }
+
+    @Override
+    public CompletableFuture<String> interact(int x, int y, int z) {
+        return player("interact " + x + " " + y + " " + z, "interacted");
+    }
+
+    private CompletableFuture<String> player(String call, String result) {
+        playerActions.add(call);
+        return pendingPlayerAction != null ? pendingPlayerAction : CompletableFuture.completedFuture(result);
+    }
+
     private CompletableFuture<String> act(String call, String result) {
         screenActions.add(call);
         return pendingScreenAction != null ? pendingScreenAction : CompletableFuture.completedFuture(result);
@@ -156,7 +224,7 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     }
 
     int totalCalls() {
-        return screenshotRequests.size() + screenReads + screenActions.size() + infoCalls + playerCalls + commands.size() + queries.size() + registryQueries.size() + entityQueries.size()
+        return screenshotRequests.size() + screenReads + screenActions.size() + playerActions.size() + infoCalls + playerCalls + commands.size() + queries.size() + registryQueries.size() + entityQueries.size()
                 + stateQueries.size() + permissionCalls + inventoryQueries.size() + logQueries.size() + eventReads.size();
     }
 

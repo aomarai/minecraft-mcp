@@ -18,7 +18,9 @@ public enum Capability {
     /** Client side only. */
     SCREENS(ScreenReader.class),
     /** Client side only. */
-    SCREEN_CONTROL(ScreenControl.class);
+    SCREEN_CONTROL(ScreenControl.class),
+    /** Client side only. */
+    PLAYER_CONTROL(PlayerController.class);
 
     private final Class<? extends GamePort> portType;
 
