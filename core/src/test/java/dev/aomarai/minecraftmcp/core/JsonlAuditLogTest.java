@@ -38,6 +38,63 @@ class JsonlAuditLogTest {
     }
 
     @Test
+    void theFileIsPreparedOnceNotForEveryEntry() throws IOException {
+        assumeTrue(java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        Path file = dir.resolve("logs").resolve("audit.jsonl");
+        List<Path> prepared = new java.util.ArrayList<>();
+        JsonlAuditLog log = new JsonlAuditLog(file, List.of(TOKEN), path -> {
+            prepared.add(path);
+            OwnerOnlyFile.prepare(path);
+        });
+        assertEquals(List.of(), prepared, "nothing is touched before the first entry");
+
+        log.record(entry(Map.of(), "one"));
+        log.record(entry(Map.of(), "two"));
+        log.record(entry(Map.of(), "three"));
+
+        assertEquals(List.of(file), prepared);
+        assertEquals(3, lines(file).size());
+    }
+
+    @Test
+    void aLogThatWasDeletedIsPreparedAgainSoItIsNeverCreatedWithTheDefaultMode() throws IOException {
+        assumeTrue(java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        Path file = dir.resolve("audit.jsonl");
+        int[] prepared = {0};
+        JsonlAuditLog log = new JsonlAuditLog(file, List.of(), path -> {
+            prepared[0]++;
+            OwnerOnlyFile.prepare(path);
+        });
+        log.record(entry(Map.of(), "before"));
+
+        Files.delete(file);
+        log.record(entry(Map.of(), "after"));
+
+        assertEquals(2, prepared[0]);
+        assertEquals(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(file));
+        assertEquals(List.of("after"), lines(file).stream().map(l -> l.get("detail")).toList());
+    }
+
+    @Test
+    void aFailedPreparationIsRetriedOnTheNextEntry() throws IOException {
+        Path file = dir.resolve("audit.jsonl");
+        int[] attempts = {0};
+        JsonlAuditLog log = new JsonlAuditLog(file, List.of(), path -> {
+            if (attempts[0]++ == 0) {
+                throw new IOException("disk not ready");
+            }
+            OwnerOnlyFile.prepare(path);
+        });
+
+        UncheckedIOException failure = assertThrows(UncheckedIOException.class, () -> log.record(entry(Map.of(), "first")));
+        assertTrue(failure.getMessage().startsWith("cannot write audit log"));
+        log.record(entry(Map.of(), "second"));
+
+        assertEquals(2, attempts[0]);
+        assertEquals(1, lines(file).size());
+    }
+
+    @Test
     void writesOneValidJsonObjectPerLine() throws IOException {
         Path file = dir.resolve("logs").resolve("audit.jsonl");
         JsonlAuditLog log = new JsonlAuditLog(file, List.of(TOKEN));

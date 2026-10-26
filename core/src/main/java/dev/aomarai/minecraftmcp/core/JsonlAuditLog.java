@@ -19,19 +19,36 @@ import java.util.Map;
  * every string of every entry, and long strings are truncated, so a pasted
  * token or a huge command cannot leak into or flood the log. Each entry is
  * written with a single append under a lock, so lines never interleave. The file is
- * owner-only (see {@link OwnerOnlyFile}).</p>
+ * owner-only (see {@link OwnerOnlyFile}): every entry checks the mode with one stat and prepares the file
+ * (directories, mode) only when it is missing or loosened, so a call does not pay for that setup every time but
+ * a log that someone loosened or deleted is still made owner-only again before anything is written.</p>
+ *
+ * <p>The write stays on the calling thread on purpose. The dispatcher refuses a call whose
+ * audit entry cannot be written, which needs the outcome of the write before the tool runs.</p>
  */
 public final class JsonlAuditLog implements AuditLog {
 
     static final String REDACTED = "[redacted]";
     static final int MAX_STRING = 256;
 
+    /** Creates the file and its directories and makes it owner-only. */
+    @FunctionalInterface
+    interface Prepare {
+        void prepare(Path file) throws IOException;
+    }
+
     private final Path file;
     private final List<String> secrets;
+    private final Prepare prepare;
 
     public JsonlAuditLog(Path file, List<String> secrets) {
+        this(file, secrets, OwnerOnlyFile::prepare);
+    }
+
+    JsonlAuditLog(Path file, List<String> secrets, Prepare prepare) {
         this.file = file;
         this.secrets = secrets.stream().filter(secret -> !secret.isEmpty()).toList();
+        this.prepare = prepare;
     }
 
     @Override
@@ -44,7 +61,9 @@ public final class JsonlAuditLog implements AuditLog {
         line.put("decision", entry.decision());
         line.put("detail", clean(entry.detail()));
         try {
-            OwnerOnlyFile.prepare(file);
+            if (!OwnerOnlyFile.holds(file)) {
+                prepare.prepare(file);
+            }
             Files.writeString(file, McpJsonDefaults.getMapper().writeValueAsString(line) + "\n",
                     StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {

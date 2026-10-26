@@ -26,6 +26,23 @@ class OwnerOnlyFileTest {
     }
 
     @Test
+    void holdsIsTrueOnlyForAFileThatIsExactlyOwnerReadWrite() throws IOException {
+        assumeTrue(posix());
+        Path file = dir.resolve("log");
+        assertFalse(OwnerOnlyFile.holds(file), "a missing file");
+
+        OwnerOnlyFile.prepare(file);
+        assertTrue(OwnerOnlyFile.holds(file));
+
+        for (String loose : new String[]{"rw-r-----", "rw----r--", "rw-rw----", "rwx------", "r--------", "-w-------"}) {
+            Files.setPosixFilePermissions(file, PosixFilePermissions.fromString(loose));
+            assertFalse(OwnerOnlyFile.holds(file), loose);
+        }
+        OwnerOnlyFile.restrict(file);
+        assertTrue(OwnerOnlyFile.holds(file));
+    }
+
+    @Test
     void prepareCreatesParentsAndAnEmptyOwnerOnlyFile() throws IOException {
         Path file = dir.resolve("a").resolve("b").resolve("secret.txt");
 
