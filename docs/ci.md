@@ -20,7 +20,8 @@ for slow runners. Raise it only with a new baseline here.
 ## What the time goes to
 
 - Mutation testing is the slowest work and uses every CPU, so a module gets a runner of its own.
-- Gradle's own start and configuration cost seconds per invocation. It is not worth sharing a daemon across jobs.
+- Gradle's own start cost is seconds per invocation, so sharing a daemon across jobs is not worth it. Configuring the
+  Fabric and NeoForge nodes is not cheap, though; see below.
 - The Fabric and NeoForge builds prepare Minecraft for each version node; the NeoForge nodes do it one at a time
   (the `neoformRuntime` build service in `build.gradle.kts`) so the runner does not run out of memory.
 - Package downloads on the runner can stall. Twice a `smoke-client` job took 9 to 14 minutes instead of 3 because
