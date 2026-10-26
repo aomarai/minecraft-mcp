@@ -23,3 +23,5 @@ for slow runners. Raise it only with a new baseline here.
 - Gradle's own start and configuration cost seconds per invocation. It is not worth sharing a daemon across jobs.
 - The Fabric and NeoForge builds prepare Minecraft for each version node; the NeoForge nodes do it one at a time
   (the `neoformRuntime` build service in `build.gradle.kts`) so the runner does not run out of memory.
+- Package downloads on the runner can stall. One run of `smoke-client (26.3)` took 14 minutes instead of 3 because
+  `apt-get` waited 8 minutes on one mirror download; the install step now times out after 30 seconds and retries.
