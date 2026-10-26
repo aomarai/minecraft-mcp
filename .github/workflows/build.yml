@@ -22,7 +22,7 @@ env:
 # node) never competes for memory with the rest. Each loader's smoke tests start as soon as its own jars
 # exist, without waiting for the other loader.
 jobs:
-  # The loader-agnostic code: unit tests, the 100% coverage gate and the mutation score.
+  # The loader-agnostic code: unit tests and the 100% coverage gate.
   core:
     runs-on: ubuntu-latest
     steps:
@@ -31,7 +31,20 @@ jobs:
         run: scripts/release/check-repo.sh
       - uses: ./.github/actions/setup-build
       - run: ./gradlew :core:build :stdio-shim:build :adapters:rcon:build --no-daemon --refresh-dependencies
-      - run: ./gradlew :core:pitest :stdio-shim:pitest :adapters:rcon:pitest --no-daemon
+
+  # The mutation score (100% for each module). Pitest is by far the slowest step (core 5 min, rcon 4 min, stdio-shim
+  # 1 min, measured on the runner) and uses every CPU of a runner, so each module gets its own runner instead of
+  # queueing behind the others; the whole pipeline then takes as long as the slowest module, not the sum.
+  mutation:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [":core", ":stdio-shim", ":adapters:rcon"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-build
+      - run: ./gradlew ${{ matrix.module }}:pitest --no-daemon
 
   fabric:
     runs-on: ubuntu-latest
@@ -39,9 +52,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-build
       # Every Fabric version node (see docs/version-matrix.md).
-      - run: ./gradlew :adapters:fabric:1.21.1:build :adapters:fabric:26.2:build :adapters:fabric:26.3:build --no-daemon --refresh-dependencies
-      # Fabric game tests: a real server with fake players joining, chatting, dying and leaving.
-      - run: ./gradlew :adapters:fabric:1.21.1:runGameTest --no-daemon
+      # Then the Fabric game tests: a real server with fake players joining, chatting, dying and leaving. One Gradle
+      # invocation, so the daemon starts and configures the build once.
+      - run: ./gradlew :adapters:fabric:1.21.1:build :adapters:fabric:26.2:build :adapters:fabric:26.3:build :adapters:fabric:1.21.1:runGameTest --no-daemon --refresh-dependencies
       - name: Collect the mod jars
         run: |
           mkdir jars
@@ -138,13 +151,9 @@ jobs:
           path: jars
       - run: bash scripts/smoke/run-in-docker.sh neoforge jars/minecraft-mcp-*+${{ matrix.node }}-neoforge.jar adapters/neoforge/versions/${{ matrix.node }}/gradle.properties
 
-  # The repository ruleset requires a check named build-and-test. This job keeps that name and passes only
-  # when every job above passed, so a failing or skipped job still blocks the merge.
-  # A real game client on a virtual display (software OpenGL): the client-only tools, a world made with them, and the
-  # local player moving, digging and placing, checked against the integrated server's own endpoint. It builds
-  # the node itself (Gradle's runClient), so it does not wait for the jars. 26.3 is left out: its client starts
-  # (on a software Vulkan device) and answers, but clicks have no effect under the virtual display, so it
-  # is not claimed (docs/version-matrix.md).
+  # A real game client on a virtual display (software OpenGL; software Vulkan for 26.3): the client-only tools, a
+  # world made with them, and the local player moving, digging and placing, checked against the integrated server's
+  # own endpoint. It builds the node itself (Gradle's runClient), so it does not wait for the jars.
   smoke-client:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -161,9 +170,11 @@ jobs:
           sudo apt-get install -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 mesa-vulkan-drivers libvulkan1 libegl1 libopenal1             libxrandr2 libxxf86vm1 libxcursor1 libxi6 libxinerama1 libxext6 libxrender1 libxtst6
       - run: bash scripts/smoke/client-smoke.sh ${{ matrix.node }}
 
+  # The repository ruleset requires a check named build-and-test. This job keeps that name and passes only
+  # when every job above passed, so a failing or skipped job still blocks the merge.
   build-and-test:
     if: always()
-    needs: [core, fabric, neoforge, universal, smoke-fabric, smoke-neoforge, smoke-universal, smoke-client]
+    needs: [core, mutation, fabric, neoforge, universal, smoke-fabric, smoke-neoforge, smoke-universal, smoke-client]
     runs-on: ubuntu-latest
     steps:
       - name: Everything passed

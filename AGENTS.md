@@ -37,7 +37,7 @@ module boundaries. If a change contradicts those documents, update the documents
 ```bash
 ./gradlew build          # compile + tests + coverage gate for all modules
 ./gradlew :core:test     # core tests only
-./gradlew :core:pitest   # mutation testing (slow; CI runs it after build)
+./gradlew :core:pitest   # mutation testing (slow; CI runs it in its own job per module)
 ./gradlew :stdio-shim:pitest   # mutation testing for the shim (CI runs it too)
 ./gradlew :adapters:rcon:pitest   # mutation testing for the universal tier (CI runs it too)
 ./gradlew :adapters:fabric:1.21.1:runGameTest   # game tests with fake players on a real server (CI runs it)
