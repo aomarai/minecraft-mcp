@@ -60,6 +60,11 @@ public final class JsonlAuditLog implements AuditLog {
         line.put("arguments", clean(entry.arguments()));
         line.put("decision", entry.decision());
         line.put("detail", clean(entry.detail()));
+        if (!entry.timing().equals(CallTiming.Result.NONE)) {
+            line.put("mainThreadMicros", entry.timing().mainThreadNanos() / 1_000);
+            line.put("totalMicros", entry.timing().totalNanos() / 1_000);
+            line.put("overrun", entry.timing().overrun());
+        }
         try {
             if (!OwnerOnlyFile.holds(file)) {
                 prepare.prepare(file);

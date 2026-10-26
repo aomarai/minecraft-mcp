@@ -76,6 +76,8 @@ The HTTP transport runs on its own threads. The game does not.
   queued work and must not apply partial writes. A write that was already running cannot be
   stopped, so a timed-out write reports "may still have taken effect" and that message is
   audited; the effect is never silent.
+- Every call is timed: how long it held the main thread and how long it took in all (see the audit log in
+  `docs/security.md`). More than one tick (50 ms) of main-thread work in one call is flagged as an overrun.
 - Read tools may snapshot on the main thread and serialize on the HTTP thread.
 - No adapter may block the main thread waiting for an MCP client.
 

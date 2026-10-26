@@ -250,6 +250,10 @@ echo "== audit and files"
 AUDIT="config/minecraft-mcp-audit.jsonl"
 [ -s "$AUDIT" ] && pass "audit log written" || fail "audit log missing"
 expect "audit records a denied call" "$(cat "$AUDIT" 2>/dev/null)" '"decision":"deny"'
+expect "audit records how long a call held the game thread" "$(cat "$AUDIT" 2>/dev/null)" '"mainThreadMicros"'
+expect "audit records whether a call overran the tick budget" "$(cat "$AUDIT" 2>/dev/null)" '"overrun"'
+echo "     timing of a read and of the biggest block query, from the audit log:"
+grep -F '"phase":"result"' "$AUDIT" | grep -E '"tool":"(list_players|query_blocks)"' | head -3 | sed -n 's/.*"tool":"\([a-z_]*\)".*"mainThreadMicros":\([0-9]*\),"totalMicros":\([0-9]*\),"overrun":\([a-z]*\).*/       \1: main thread \2 us, total \3 us, overrun \4/p'
 for secret in $OLD_TOKENS; do
   if grep -qF "$secret" "$AUDIT" server.log 2>/dev/null; then fail "a token appears in the audit log or server log"; fi
 done

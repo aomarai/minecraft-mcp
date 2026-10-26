@@ -94,6 +94,40 @@ click_label() {
   [ -n "$id" ] || { echo "no button '$1'"; return 1; }
   c click_screen_element "{\"element\":\"$id\"}" > /dev/null
 }
+# The id of the first element with this role whose label contains the text, as "<index>:<role>".
+find_id() { text_of "$(c get_screen "{\"role\":\"$1\",\"label\":\"$2\"}")" | grep -o '"id":"[0-9]*:[a-z_]*"' | head -1 | sed 's/"id":"\(.*\)"/\1/'; }
+click_id() { c click_screen_element "{\"element\":\"$1\"}" > /dev/null; sleep 1; }
+# A cycle button (World Type, Game Mode) shows its choice in its label: press it until the label says what is wanted.
+cycle_until() {
+  local id
+  for _ in 1 2 3 4 5 6; do
+    id="$(find_id button "$1")"
+    [ -n "$id" ] || return 1
+    text_of "$(c get_screen "{\"role\":\"button\",\"label\":\"$1\"}")" | grep -q "$2" && return 0
+    click_id "$id"
+  done
+  return 1
+}
+# The same world every time: Superflat, no structures, a fixed seed and creative mode, so what is under the player
+# and around it does not depend on chance. (The server smoke tests do the same with server.properties.)
+configure_world() {
+  # The Game tab is the one showing, so the game mode comes first.
+  cycle_until "Game Mode" "Creative" && pass "the game mode is Creative" || fail "could not set the game mode to Creative"
+  # 1.21.1 lists the tabs as elements named Game, World and More. Later versions list one unnamed bar instead; its
+  # middle, where a click lands, is the World tab.
+  local tab
+  tab="$(find_id other World)"
+  [ -n "$tab" ] || tab="$(find_id other "")"
+  click_id "$tab"
+  cycle_until "World Type" "Superflat" && pass "the world type is Superflat" || fail "could not set the world type to Superflat"
+  click_id "$(find_id text_field Seed)"
+  c type_in_screen "{\"text\":\"$SEED\"}" > /dev/null
+  local structures
+  structures="$(find_id label "Generate Structures" | sed 's/:.*//')"
+  [ -n "$structures" ] && click_id "$((structures + 1)):button"
+}
+SEED=20260101
+configured=""
 seen=""
 for i in $(seq 1 40); do
   name="$(screen_name)"
@@ -102,7 +136,10 @@ for i in $(seq 1 40); do
     AccessibilityOnboardingScreen) click_label Continue ;;
     DisconnectedScreen) click_label "" ;;
     TitleScreen) click_label Singleplayer ;;
-    SelectWorldScreen | CreateWorldScreen) click_label "Create New World" ;;
+    SelectWorldScreen) click_label "Create New World" ;;
+    CreateWorldScreen)
+      [ -n "$configured" ] || { configure_world; configured=yes; }
+      click_label "Create New World" ;;
     "") [ "$i" -gt 3 ] && break ;;
   esac
   sleep 4
@@ -131,20 +168,44 @@ X="$(floor_of "$(printf '%s' "$P" | sed 's/"x":\([-0-9.]*\).*/\1/')")"
 Y="$(floor_of "$(printf '%s' "$P" | sed 's/.*"y":\([-0-9.]*\),"z".*/\1/')")"
 Z="$(floor_of "$(printf '%s' "$P" | sed 's/.*"z":\([-0-9.]*\)$/\1/')")"
 echo "player $PNAME at $X,$Y,$Z"
-# Creative mode: blocks break at once, so the test does not depend on what is under the spawn point (stone takes
-# longer than the five seconds a dig is allowed with bare hands).
-use_server; c run_command "{\"command\":\"gamemode creative $PNAME\"}" > /dev/null; sleep 1
+# The world is the one configure_world asked for, and creative mode makes blocks break at once (stone takes longer
+# than the five seconds a dig is allowed with bare hands).
+use_server
+expect "the world has the seed the test typed" "$(text_of "$(c run_command '{"command":"seed"}')")" "$SEED"
 
-# A solid block next to the one the player stands on: dig it, then put a block back.
-BX=""; BZ=""
-for off in "1 0" "-1 0" "0 1" "0 -1"; do
-  set -- $off
-  if [ "$(block_at $((X + $1)) $((Y - 1)) $((Z + $2)))" != "(air)" ]; then BX=$((X + $1)); BZ=$((Z + $2)); break; fi
+# A block to dig, near the player and within reach. Only an ordinary solid block will do: sand and gravel fall into the
+# hole, water flows into it, and the server would then rightly still show a block there.
+steady() {
+  case "$1" in
+    *'"id":"minecraft:'[a-z_]*) ;;
+    *) return 1 ;;
+  esac
+  case "$1" in
+    *sand* | *gravel* | *water* | *lava* | *powder* | *leaves* | *snow* | *ice* | *"(air)"*) return 1 ;;
+  esac
+  return 0
+}
+falls_or_flows() {
+  case "$1" in
+    *sand* | *gravel* | *water* | *lava* | *powder*) return 0 ;;
+  esac
+  return 1
+}
+# Look a few blocks down around the player (the spawn point can be on top of a tree), never straight below the feet.
+BX=""; BY=""; BZ=""
+for dy in 1 2 3 4; do
+  for dx in 1 -1 0; do
+    for dz in 1 -1 0; do
+      [ "$dx$dz" = "00" ] && continue
+      here="$(block_at $((X + dx)) $((Y - dy)) $((Z + dz)))"
+      above="$(block_at $((X + dx)) $((Y - dy + 1)) $((Z + dz)))"
+      if steady "$here" && ! falls_or_flows "$above"; then BX=$((X + dx)); BY=$((Y - dy)); BZ=$((Z + dz)); break 3; fi
+    done
+  done
 done
 if [ -z "$BX" ]; then
-  fail "no solid block beside the player to dig"
+  fail "no ordinary solid block near the player to dig"
 else
-  BY=$((Y - 1))
   before="$(block_at "$BX" "$BY" "$BZ")"
   use_client
   out="$(c break_block "{\"x\":$BX,\"y\":$BY,\"z\":$BZ}")"
@@ -167,7 +228,15 @@ use_client
 expect "look_at answers" "$(c look_at "{\"x\":$X,\"y\":$Y,\"z\":$((Z + 6))}")" "facing yaw"
 expect "jump answers" "$(c jump '{}')" "jumped"
 sleep 1
-expect "move_to arrives" "$(c move_to "{\"x\":$X.5,\"y\":$Y,\"z\":$((Z + 3)).5}")" "arrived at"
+# Three blocks away in some direction: a tree or a wall can block one of them, so try each until one is clear. A walk
+# that is stopped says so ("did not arrive"), which is the tool being bounded, not broken.
+arrived=""
+for step in "0 3" "0 -3" "3 0" "-3 0"; do
+  set -- $step
+  out="$(c move_to "{\"x\":$((X + $1)).5,\"y\":$Y,\"z\":$((Z + $2)).5}")"
+  case "$out" in *"arrived at"*) arrived="$out"; break ;; *"did not arrive"*) ;; *) break ;; esac
+done
+expect "move_to arrives in some direction" "$arrived" "arrived at"
 
 echo
 if [ "$FAILURES" -gt 0 ]; then

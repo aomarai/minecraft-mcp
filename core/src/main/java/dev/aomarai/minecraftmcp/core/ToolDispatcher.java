@@ -7,6 +7,7 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.LongSupplier;
 
 /**
  * Runs catalog tools behind the policy gate.
@@ -26,6 +27,7 @@ import java.util.Optional;
  */
 public final class ToolDispatcher implements ToolInvoker {
 
+    private static final System.Logger LOG = System.getLogger(ToolDispatcher.class.getName());
     private static final String CONFIRM = "confirm";
     private static final String COMMAND = "command";
 
@@ -33,12 +35,18 @@ public final class ToolDispatcher implements ToolInvoker {
     private final ToolHandlers handlers;
     private final AuditLog audit;
     private final Clock clock;
+    private final LongSupplier nanos;
 
     public ToolDispatcher(McpConfig config, GameServices services, AuditLog audit) {
-        this(config, services, audit, Clock.systemUTC());
+        this(config, services, audit, Clock.systemUTC(), System::nanoTime);
     }
 
     ToolDispatcher(McpConfig config, GameServices services, AuditLog audit, Clock clock) {
+        this(config, services, audit, clock, System::nanoTime);
+    }
+
+    ToolDispatcher(McpConfig config, GameServices services, AuditLog audit, Clock clock, LongSupplier nanos) {
+        this.nanos = nanos;
         this.policy = new ToolPolicy(config.allowWrites(), config.allowAdmin(),
                 config.allowedCommands(), config.destructiveCommands());
         this.handlers = new ToolHandlers(config, services);
@@ -48,6 +56,15 @@ public final class ToolDispatcher implements ToolInvoker {
 
     @Override
     public McpSchema.CallToolResult call(ToolDescriptor tool, Map<String, Object> arguments) {
+        CallTiming timing = CallTiming.begin(nanos);
+        try {
+            return call(tool, arguments, timing);
+        } finally {
+            CallTiming.end();
+        }
+    }
+
+    private McpSchema.CallToolResult call(ToolDescriptor tool, Map<String, Object> arguments, CallTiming timing) {
         Map<String, Object> args = arguments == null ? Map.of() : arguments;
         ToolPolicy.Decision decision = decide(tool, args);
         String verdict = verdict(decision);
@@ -76,8 +93,14 @@ public final class ToolDispatcher implements ToolInvoker {
             output = describe(e);
             failed = true;
         }
+        CallTiming.Result took = timing.finish();
+        if (took.overrun()) {
+            LOG.log(System.Logger.Level.WARNING, "{0} held the game thread for {1} ms; a tick is {2} ms",
+                    tool.name(), took.mainThreadNanos() / 1_000_000, CallTiming.BUDGET.toMillis());
+        }
         try {
-            record(AuditEntry.RESULT, tool, args, "allow", (failed ? "error: " : "ok: ") + output);
+            audit.record(new AuditEntry(clock.instant(), AuditEntry.RESULT, tool.name(), args, "allow",
+                    (failed ? "error: " : "ok: ") + output, took));
         } catch (RuntimeException e) {
             return error("audit log unavailable after the call ran; result: " + output);
         }

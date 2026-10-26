@@ -113,6 +113,11 @@ The audit log is JSONL, one object per line: `ts`, `phase` (`decision` or `resul
 `arguments`, `decision` (`allow`, `deny`, `confirm`) and `detail`. The bearer token is replaced
 by `[redacted]` in every string, and strings over 256 characters are truncated.
 
+A `result` entry also records how long the call took: `mainThreadMicros` (how long it held the game's main
+thread), `totalMicros` (from the start of the call to its end) and `overrun` (true when the main-thread share is
+over 50 ms, one tick). A call that overruns is also logged as a warning naming the tool. The measurement is one
+pair of `System.nanoTime` calls per stretch of main-thread work.
+
 ## How the defaults are proven
 
 `SecurityDefaultsTest` walks the real tool catalog, so a tool added later is covered or fails the build:
