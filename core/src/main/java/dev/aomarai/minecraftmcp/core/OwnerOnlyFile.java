@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * Files that hold secrets or sensitive records (the config with its token, the audit log) are
@@ -12,6 +15,9 @@ import java.nio.file.StandardOpenOption;
  * file system has no such modes.
  */
 final class OwnerOnlyFile {
+
+    private static final Set<PosixFilePermission> OWNER_ONLY =
+            EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
 
     private OwnerOnlyFile() {
     }
@@ -25,6 +31,18 @@ final class OwnerOnlyFile {
         Files.createDirectories(file.toAbsolutePath().getParent());
         Files.writeString(file, "", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         restrict(file);
+    }
+
+    /**
+     * Whether {@code file} exists and is already owner-only, with one stat. Where the file system has no POSIX
+     * modes it cannot tell, and says no, so the caller falls back to {@link #prepare}.
+     */
+    static boolean holds(Path file) {
+        try {
+            return Files.getPosixFilePermissions(file).equals(OWNER_ONLY);
+        } catch (IOException | UnsupportedOperationException e) {
+            return false;
+        }
     }
 
     /** Removes access for everyone but the owner. Idempotent. */
