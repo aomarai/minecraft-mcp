@@ -134,6 +134,9 @@ expect "list_players on an empty server" "$(call 4 list_players '{}')" '{\"playe
 expect_eventually "query_blocks returns registry ids" 'minecraft:bedrock' 5 query_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":-64,"min_z":0,"max_x":0,"max_y":-64,"max_z":0,"limit":10}'
 expect "unknown dimension names the available ones" "$(call 6 query_blocks '{"dimension":"mod:nowhere","min_x":0,"min_y":0,"min_z":0,"max_x":0,"max_y":0,"max_z":0,"limit":1}')" 'available: minecraft:overworld'
 expect "a volume over the cap is refused" "$(call 7 query_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":0,"min_z":0,"max_x":999,"max_y":99,"max_z":99,"limit":10}')" 'exceeds maxBlockVolume'
+# A query of the largest default volume (32 x 32 x 32) over loaded air: nothing is found, so the whole box is walked.
+# Its main-thread time is printed with the audit log below.
+expect "a query over the whole default volume of air answers" "$(call 700 query_blocks '{"dimension":"minecraft:overworld","min_x":0,"min_y":100,"min_z":0,"max_x":31,"max_y":131,"max_z":31,"limit":10}')" '\"blocks\":[]'
 
 echo "== policy-gated write"
 expect "run_command runs through Brigadier" "$(call 8 run_command '{"command":"say smoke test"}')" '"isError":false'
@@ -252,8 +255,11 @@ AUDIT="config/minecraft-mcp-audit.jsonl"
 expect "audit records a denied call" "$(cat "$AUDIT" 2>/dev/null)" '"decision":"deny"'
 expect "audit records how long a call held the game thread" "$(cat "$AUDIT" 2>/dev/null)" '"mainThreadMicros"'
 expect "audit records whether a call overran the tick budget" "$(cat "$AUDIT" 2>/dev/null)" '"overrun"'
-echo "     timing of a read and of the biggest block query, from the audit log:"
-grep -F '"phase":"result"' "$AUDIT" | grep -E '"tool":"(list_players|query_blocks)"' | head -3 | sed -n 's/.*"tool":"\([a-z_]*\)".*"mainThreadMicros":\([0-9]*\),"totalMicros":\([0-9]*\),"overrun":\([a-z]*\).*/       \1: main thread \2 us, total \3 us, overrun \4/p'
+echo "     main-thread time of the slowest list_players and query_blocks calls, from the audit log:"
+grep -F '"phase":"result"' "$AUDIT" \
+  | sed -n 's/.*"tool":"\([a-z_]*\)".*"mainThreadMicros":\([0-9]*\),"totalMicros":\([0-9]*\),"overrun":\([a-z]*\).*/\2 \3 \1 \4/p' \
+  | sort -n -r | awk '($3 == "query_blocks" || $3 == "list_players") && !seen[$3]++' \
+  | while read -r main total tool over; do echo "       $tool: main thread $main us, total $total us, overrun $over"; done
 for secret in $OLD_TOKENS; do
   if grep -qF "$secret" "$AUDIT" server.log 2>/dev/null; then fail "a token appears in the audit log or server log"; fi
 done
