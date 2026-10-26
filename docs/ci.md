@@ -26,8 +26,8 @@ for slow runners. Raise it only with a new baseline here.
   (the `neoformRuntime` build service in `build.gradle.kts`) so the runner does not run out of memory.
 - Package downloads on the runner can stall. Twice a `smoke-client` job took 9 to 14 minutes instead of 3 because
   `apt-get` waited on one slow mirror download (`mesa-vulkan-drivers`, which trickles in past any inactivity
-  timeout). Only the 26.3 job installs that driver now, and the install is bounded to 2 minutes per attempt with
-  three attempts.
+  timeout). Those jobs now use archive.ubuntu.com instead of the runner's default Azure mirror, only the 26.3 job installs the
+  driver, and the install is bounded to 2 minutes per attempt with three attempts.
 
 ## Configuring only what a job builds
 
