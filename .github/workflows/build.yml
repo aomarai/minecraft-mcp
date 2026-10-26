@@ -166,8 +166,10 @@ jobs:
       - uses: ./.github/actions/setup-build
       - name: Virtual display and software OpenGL or Vulkan (26.3 has no OpenGL window under Xvfb)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 mesa-vulkan-drivers libvulkan1 libegl1 libopenal1             libxrandr2 libxxf86vm1 libxcursor1 libxi6 libxinerama1 libxext6 libxrender1 libxtst6
+          # A mirror that stalls on one package once cost a run 8 minutes: give up on a download after 30 seconds and retry.
+          apt_options="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+          sudo apt-get update $apt_options
+          sudo apt-get install $apt_options -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 mesa-vulkan-drivers libvulkan1 libegl1 libopenal1             libxrandr2 libxxf86vm1 libxcursor1 libxi6 libxinerama1 libxext6 libxrender1 libxtst6
       - run: bash scripts/smoke/client-smoke.sh ${{ matrix.node }}
 
   # The repository ruleset requires a check named build-and-test. This job keeps that name and passes only
@@ -176,7 +178,17 @@ jobs:
     if: always()
     needs: [core, mutation, fabric, neoforge, universal, smoke-fabric, smoke-neoforge, smoke-universal, smoke-client]
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
     steps:
+      # How long every job took, on the run page, and a warning when the run is over its budget. It reads the API and
+      # must never decide the result, so a failure here is ignored.
+      - uses: actions/checkout@v7
+      - name: Job durations
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I scripts/ci/duration-summary.py "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Everything passed
         run: |
           echo '${{ toJSON(needs) }}'
