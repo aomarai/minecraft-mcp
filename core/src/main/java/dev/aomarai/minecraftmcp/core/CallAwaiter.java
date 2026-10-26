@@ -20,8 +20,9 @@ import java.util.concurrent.TimeoutException;
  *       cannot be stopped, so a timed-out call that can change the world
  *       reports that it "may still have taken effect". The dispatcher audits
  *       that message, so the possible side effect is never silent.</li>
- *   <li><b>Interruption:</b> the future is cancelled and the thread's
- *       interrupt flag is restored.</li>
+ *   <li><b>Interruption:</b> the future is cancelled, the thread's
+ *       interrupt flag is restored, and the exception says what happened,
+ *       including whether the call may still have taken effect.</li>
  * </ul>
  */
 final class CallAwaiter {
@@ -42,7 +43,9 @@ final class CallAwaiter {
         } catch (InterruptedException e) {
             future.cancel(true);
             Thread.currentThread().interrupt();
-            throw e;
+            // The bare exception has no message, which would read as just "InterruptedException" in the answer.
+            throw new InterruptedException("the call was interrupted before it finished"
+                    + (mayChangeWorld ? "; it may still have taken effect" : ""));
         } catch (ExecutionException e) {
             throw failure(e);
         }

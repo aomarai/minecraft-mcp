@@ -90,12 +90,18 @@ class CallAwaiterTest {
 
     @Test
     void interruptionCancelsTheFutureAndRestoresTheFlag() throws Exception {
+        assertEquals("the call was interrupted before it finished; it may still have taken effect",
+                interrupted(true).getMessage());
+        assertEquals("the call was interrupted before it finished", interrupted(false).getMessage());
+    }
+
+    private static Throwable interrupted(boolean mayChangeWorld) throws Exception {
         CompletableFuture<String> never = new CompletableFuture<>();
         AtomicReference<Throwable> thrown = new AtomicReference<>();
         AtomicReference<Boolean> flag = new AtomicReference<>();
         Thread worker = new Thread(() -> {
             try {
-                CallAwaiter.await(never, Duration.ofSeconds(30), true);
+                CallAwaiter.await(never, Duration.ofSeconds(30), mayChangeWorld);
             } catch (Exception e) {
                 thrown.set(e);
             }
@@ -110,6 +116,7 @@ class CallAwaiterTest {
         assertInstanceOf(InterruptedException.class, thrown.get());
         assertTrue(never.isCancelled());
         assertEquals(Boolean.TRUE, flag.get());
+        return thrown.get();
     }
 
     @Test
