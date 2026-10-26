@@ -1,8 +1,8 @@
 # Releasing
 
 A release is a Git tag. The `release` workflow (`.github/workflows/release.yml`) builds and tests every
-version node, then attaches the jars and their checksums to a GitHub release. Nothing is published to
-Modrinth or CurseForge yet: that needs account tokens and is a decision for the owner.
+version node, then attaches the jars and their checksums to a GitHub release. The Fabric and NeoForge
+jars are also uploaded to Modrinth and CurseForge once their account settings are in place (below).
 
 ## Cutting a release
 
@@ -32,6 +32,10 @@ moving), so use a dry run, not a real tag, to try the pipeline.
    `SHA256SUMS`. The release notes are GitHub's generated changes plus the supported matrix and known
    limitations from [version-matrix.md](version-matrix.md). The checklist is [release-checklist.md](release-checklist.md).
 4. **publish**: only for a real tag. Creates the GitHub release from the tag.
+5. **publish-mods**: only for a real tag, after the GitHub release. Runs `scripts/release/publish-mods.py`, which
+   uploads each Fabric and NeoForge jar (not the universal or stdio-shim jars, which are standalone programs) to
+   Modrinth and CurseForge with the release notes as the changelog. A tag like `v1.2.3` is a release; one with a
+   suffix such as `-rc1` is uploaded as a beta. A platform without its settings is skipped with a message.
 
 Because the node list comes from `adapters/*/versions/*`, adding a node (see
 [version-matrix.md](version-matrix.md)) adds it to the release with no change here.
@@ -42,7 +46,18 @@ Because the node list comes from `adapters/*/versions/*`, adding a node (see
 sha256sum -c SHA256SUMS
 ```
 
+## Modrinth and CurseForge setup
+
+Create the projects by hand once, then add these to the repository (Settings, Secrets and variables, Actions):
+
+| Platform | Secret | Variable |
+|---|---|---|
+| Modrinth | `MODRINTH_TOKEN` (a personal access token with the "Create versions" scope) | `MODRINTH_PROJECT_ID` |
+| CurseForge | `CURSEFORGE_TOKEN` (an API token from the author settings) | `CURSEFORGE_PROJECT_ID` (the numeric id) |
+
+Preview what would be sent, without tokens: `scripts/release/publish-mods.py <dist> <version> <notes.md> --dry-run`.
+The upload code has not yet been run against the live APIs, so check the first release's pages on both sites.
+
 ## Not done yet
 
-- Modrinth and CurseForge upload (tokens, project ids, changelog format).
-- Changelog beyond GitHub's generated notes.
+- A changelog beyond GitHub's generated notes.

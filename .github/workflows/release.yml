@@ -121,3 +121,30 @@ jobs:
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: gh release create "$TAG" dist/* --repo "$REPO" --title "$TAG" --generate-notes --notes-file notes/release-notes.md --verify-tag
+
+  # Modrinth and CurseForge. Runs after the GitHub release exists, and only does something for the platforms whose
+  # secrets and project id are set (see docs/release.md); with neither set it just says so.
+  publish-mods:
+    if: needs.plan.outputs.dry-run == 'false'
+    needs: [plan, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-files
+          path: dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: notes
+      - name: Upload to Modrinth and CurseForge
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+        run: python3 -I scripts/release/publish-mods.py dist "$VERSION" notes/release-notes.md
