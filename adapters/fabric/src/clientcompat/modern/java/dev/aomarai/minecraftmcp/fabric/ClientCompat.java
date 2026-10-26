@@ -32,11 +32,12 @@ final class ClientCompat {
         return minecraft.gui.overlay();
     }
 
-    /** A left click, press and release, at a point in GUI coordinates. */
-    static void click(Screen screen, double x, double y) {
+    /** A left click, press and release, at a point in GUI coordinates; whether the screen took the press. */
+    static boolean click(Screen screen, double x, double y) {
         MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(0, 0));
-        screen.mouseClicked(event, false);
+        boolean taken = screen.mouseClicked(event, false);
         screen.mouseReleased(event);
+        return taken;
     }
 
     /** One typed character. */

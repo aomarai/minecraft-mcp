@@ -91,6 +91,7 @@ final class FabricClientPlayer implements PlayerController {
     public CompletableFuture<String> breakBlock(int x, int y, int z) {
         BlockPos pos = new BlockPos(x, y, z);
         return start((minecraft, player, tick) -> {
+            requireReach(player, pos);
             if (minecraft.level.getBlockState(pos).isAir()) {
                 if (tick == 0) {
                     throw new IllegalStateException("there is no block at " + describe(pos));
@@ -102,7 +103,6 @@ final class FabricClientPlayer implements PlayerController {
                 throw new IllegalStateException("the block at " + describe(pos) + " did not break within " + MAX_TICKS
                         + " ticks");
             }
-            requireReach(player, pos);
             face(player, Vec3.atCenterOf(pos));
             Direction side = sideFacing(player, pos);
             if (tick == 0) {
@@ -118,13 +118,13 @@ final class FabricClientPlayer implements PlayerController {
     public CompletableFuture<String> placeBlock(int x, int y, int z) {
         BlockPos pos = new BlockPos(x, y, z);
         return start((minecraft, player, tick) -> {
+            requireReach(player, pos);
             if (!(player.getMainHandItem().getItem() instanceof BlockItem)) {
                 throw new IllegalStateException("the main hand holds no block");
             }
             if (!minecraft.level.getBlockState(pos).canBeReplaced()) {
                 throw new IllegalStateException("there is already a block at " + describe(pos));
             }
-            requireReach(player, pos);
             for (Direction direction : Direction.values()) {
                 BlockPos neighbour = pos.relative(direction);
                 if (!minecraft.level.getBlockState(neighbour).isAir()
@@ -141,10 +141,10 @@ final class FabricClientPlayer implements PlayerController {
     public CompletableFuture<String> interact(int x, int y, int z) {
         BlockPos pos = new BlockPos(x, y, z);
         return start((minecraft, player, tick) -> {
+            requireReach(player, pos);
             if (minecraft.level.getBlockState(pos).isAir()) {
                 throw new IllegalStateException("there is no block at " + describe(pos));
             }
-            requireReach(player, pos);
             Direction side = sideFacing(player, pos);
             use(minecraft, player, pos, side);
             return "used the main hand on the block at " + describe(pos);
