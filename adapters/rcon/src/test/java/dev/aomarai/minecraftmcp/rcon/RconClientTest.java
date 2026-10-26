@@ -6,6 +6,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Duration;
@@ -245,11 +247,8 @@ class RconClientTest {
 
     @Test
     void aServerThatIsNotListeningIsAnError() throws Exception {
-        int closed;
-        try (ServerSocket probe = new ServerSocket(0)) {
-            closed = probe.getLocalPort();
-        }
-        try (RconClient nobody = new RconClient(config(closed, FakeRconServer.PASSWORD))) {
+        try (Socket reserved = refusingPort();
+             RconClient nobody = new RconClient(config(reserved.getLocalPort(), FakeRconServer.PASSWORD))) {
             CommandResult result = nobody.runCommand("list", PATIENT).get(20, TimeUnit.SECONDS);
 
             assertFalse(result.success());
@@ -355,13 +354,25 @@ class RconClientTest {
     @Test
     void theFutureNeverCompletesExceptionally() throws Exception {
         // Every failure above is a CommandResult; this pins that an unreachable server does not throw.
-        server.close();
-        CompletableFuture<CommandResult> future = client.runCommand("list", PATIENT);
+        try (Socket reserved = refusingPort();
+             RconClient nobody = new RconClient(config(reserved.getLocalPort(), FakeRconServer.PASSWORD))) {
+            CompletableFuture<CommandResult> future = nobody.runCommand("list", PATIENT);
 
-        try {
-            assertFalse(future.get(20, TimeUnit.SECONDS).success());
-        } catch (ExecutionException | TimeoutException e) {
-            fail("the future must complete normally: " + e);
+            try {
+                assertFalse(future.get(20, TimeUnit.SECONDS).success());
+            } catch (ExecutionException | TimeoutException e) {
+                fail("the future must complete normally: " + e);
+            }
         }
+    }
+
+    /**
+     * A loopback port that refuses every connection and that nothing else can take while the test holds it: bound but
+     * not listening. (The port of a closed server socket can be handed to another listener, which then answers.)
+     */
+    private static Socket refusingPort() throws IOException {
+        Socket reserved = new Socket();
+        reserved.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+        return reserved;
     }
 }
