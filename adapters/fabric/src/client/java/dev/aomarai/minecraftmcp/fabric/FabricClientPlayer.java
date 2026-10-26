@@ -119,11 +119,11 @@ final class FabricClientPlayer implements PlayerController {
         BlockPos pos = new BlockPos(x, y, z);
         return start((minecraft, player, tick) -> {
             requireReach(player, pos);
-            if (!(player.getMainHandItem().getItem() instanceof BlockItem)) {
-                throw new IllegalStateException("the main hand holds no block");
-            }
             if (!minecraft.level.getBlockState(pos).canBeReplaced()) {
                 throw new IllegalStateException("there is already a block at " + describe(pos));
+            }
+            if (!(player.getMainHandItem().getItem() instanceof BlockItem)) {
+                throw new IllegalStateException("the main hand holds no block");
             }
             for (Direction direction : Direction.values()) {
                 BlockPos neighbour = pos.relative(direction);

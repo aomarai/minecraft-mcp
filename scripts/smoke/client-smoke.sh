@@ -144,12 +144,14 @@ else
   expect "break_block says it broke the block" "$out" "broke the block"
   sleep 1
   [ "$(block_at "$BX" "$BY" "$BZ")" = "(air)" ] && pass "the server agrees: $before is gone" || fail "the block is still there"
+  # What the block dropped may already be in the hand (sand is), or nothing was (stone with bare hands): give dirt
+  # for the second case, and accept whichever block ends up placed.
   use_server; c give_item "{\"player\":\"$PNAME\",\"item\":\"minecraft:dirt\",\"count\":4}" > /dev/null; sleep 1
   use_client
   out="$(c place_block "{\"x\":$BX,\"y\":$BY,\"z\":$BZ}")"
   expect "place_block says it placed a block" "$out" "placed"
   sleep 1
-  expect "the server agrees: dirt is there" "$(block_at "$BX" "$BY" "$BZ")" "minecraft:dirt"
+  [ "$(block_at "$BX" "$BY" "$BZ")" != "(air)" ] && pass "the server agrees: a block is there" || fail "nothing was placed"
   expect "placing on a taken position is refused" "$(c place_block "{\"x\":$BX,\"y\":$BY,\"z\":$BZ}")" "already a block"
   expect "a block out of reach is refused" "$(c break_block "{\"x\":$BX,\"y\":$BY,\"z\":$((BZ + 40))}")" "beyond the reach"
 fi
