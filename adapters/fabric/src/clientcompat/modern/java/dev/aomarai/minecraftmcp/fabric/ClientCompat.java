@@ -1,5 +1,6 @@
 package dev.aomarai.minecraftmcp.fabric;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -32,9 +33,13 @@ final class ClientCompat {
         return minecraft.gui.overlay();
     }
 
-    /** A left click, press and release, at a point in GUI coordinates; whether the screen took the press. */
+    /**
+     * A left click, press and release, at a point in GUI coordinates; whether the screen took the press. The button
+     * number is the game's own constant: 26.3 numbers buttons the way SDL does (left is 1, not GLFW's 0), and a
+     * widget ignores a click on any other button while its screen still reports the click as taken.
+     */
     static boolean click(Screen screen, double x, double y) {
-        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(0, 0));
+        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
         boolean taken = screen.mouseClicked(event, false);
         screen.mouseReleased(event);
         return taken;

@@ -151,14 +151,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ["1.21.1", "26.2"]
+        node: ["1.21.1", "26.2", "26.3"]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-build
-      - name: Virtual display and software OpenGL
+      - name: Virtual display and software OpenGL or Vulkan (26.3 has no OpenGL window under Xvfb)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 libegl1 libopenal1             libxrandr2 libxxf86vm1 libxcursor1 libxi6 libxinerama1 libxext6 libxrender1 libxtst6
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 mesa-vulkan-drivers libvulkan1 libegl1 libopenal1             libxrandr2 libxxf86vm1 libxcursor1 libxi6 libxinerama1 libxext6 libxrender1 libxtst6
       - run: bash scripts/smoke/client-smoke.sh ${{ matrix.node }}
 
   build-and-test:

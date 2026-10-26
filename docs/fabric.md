@@ -46,10 +46,9 @@ every write. Not done yet: item slots of container screens (the `slot` role exis
 screens. Player tools act on the local player only; see `docs/tools.md`.
 
 **State:** a real client on Minecraft 1.21.1 and 26.2 is smoke-tested in CI on a virtual display
-(`scripts/smoke/client-smoke.sh <node>`; it needs Java 21 and 25, `xvfb-run` and a software OpenGL, and skips cleanly
-without them). It checks the tool list, a screenshot, a world made with the screen tools, and the local player moving,
-digging and placing, against the integrated server's own endpoint. The 26.3 client is not claimed: it starts, but
-screen clicks had no effect under the virtual display.
+(`scripts/smoke/client-smoke.sh <node>`; it needs Java 21 and 25, `xvfb-run` and a software OpenGL (26.3: software Vulkan, `mesa-vulkan-drivers`), and
+skips cleanly without them). It checks the tool list, a screenshot, a world made with the screen tools, and the local player moving,
+digging and placing, against the integrated server's own endpoint. It runs on 1.21.1, 26.2 and 26.3.
 
 ## What it provides
 
