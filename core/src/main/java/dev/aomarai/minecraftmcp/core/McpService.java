@@ -51,19 +51,28 @@ public final class McpService implements AutoCloseable {
                                    Map<String, String> env) throws Exception {
         ConfigLoader.Loaded loaded = ConfigLoader.load(configFile, env);
         McpConfig config = loaded.config();
-        if (!McpConfig.isLoopback(config.host())) {
+        if (config.tls().isPresent()) {
+            LOG.log(System.Logger.Level.INFO, "Serving HTTPS on {0} with the certificate in {1}", config.host(),
+                    config.tls().get().keystore());
+        } else if (!McpConfig.isLoopback(config.host())) {
             LOG.log(System.Logger.Level.WARNING, "Listening on {0}, which other machines can reach, over plain HTTP. "
-                    + "Put a TLS proxy in front and keep the port firewalled (docs/remote-access.md).", config.host());
+                    + "Serve HTTPS with tlsKeystore or put a TLS proxy in front, and keep the port firewalled "
+                    + "(docs/remote-access.md).", config.host());
         }
         GameServices ports = services.apply(config);
         ToolDispatcher dispatcher = new ToolDispatcher(config, ports,
-                new JsonlAuditLog(auditFile, List.of(loaded.token())));
+                new JsonlAuditLog(auditFile, secrets(loaded.token(), config)));
         ToolCatalog catalog = ToolCatalog.defaults().availableFor(ports);
         McpCore core = new McpCore(config.host(), config.port(), catalog, dispatcher, loaded.token(),
-                ports.find(EventFeed.class));
+                ports.find(EventFeed.class), config.exposure());
         core.start();
         return new McpService(core, new Status(config.host(), core.port(), config.allowWrites(),
                 config.allowAdmin(), catalog.tools().size()));
+    }
+
+    /** What must never appear in the audit log: the token, and the keystore password when there is one. */
+    static List<String> secrets(String token, McpConfig config) {
+        return config.tls().map(tls -> List.of(token, tls.password())).orElse(List.of(token));
     }
 
     /** The port the endpoint is listening on. */

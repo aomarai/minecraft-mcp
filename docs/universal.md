@@ -137,7 +137,7 @@ available (and only if it looks like a version), otherwise it says `unknown`.
 - **The password** is `rcon.password` from `server.properties`. It is a secret: it is never part of
   `toString()`, a log line or an error message (tests check each).
 - **RCON is plain text.** The password and every command cross the network unencrypted, so the host
-  must be this machine (loopback) unless `allowRemote` is set on purpose. A remote host without it is
+  must be this machine (loopback) unless `allowRemoteRcon` is set on purpose. A remote host without it is
   refused when the configuration is built.
 - **RCON is the console.** The game itself will not refuse any command sent this way, unlike the
   mods, whose commands run at a permission level that stops admin commands unless admin access is on.

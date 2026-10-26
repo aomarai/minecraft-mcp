@@ -9,8 +9,12 @@ import jakarta.servlet.DispatcherType;
 import org.eclipse.jetty.ee11.servlet.FilterHolder;
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee11.servlet.ServletHolder;
+import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import java.util.EnumSet;
 import java.util.Optional;
@@ -68,6 +72,14 @@ public final class McpCore implements AutoCloseable {
      */
     public McpCore(String host, int port, ToolCatalog catalog, ToolInvoker invoker, String token,
                    Optional<EventFeed> events) {
+        this(host, port, catalog, invoker, token, events, Exposure.LOCAL);
+    }
+
+    /**
+     * @param exposure whether to serve HTTPS, and which extra host names clients may use; see {@link Exposure}
+     */
+    public McpCore(String host, int port, ToolCatalog catalog, ToolInvoker invoker, String token,
+                   Optional<EventFeed> events, Exposure exposure) {
         DaemonSchedulers.install();
         this.token = token;
         this.host = host;
@@ -91,16 +103,30 @@ public final class McpCore implements AutoCloseable {
                 () -> server.notifyResourcesUpdated(new McpSchema.ResourcesUpdatedNotification(EventResource.URI))));
 
         this.jetty = new Server();
-        this.connector = new ServerConnector(jetty);
+        this.connector = exposure.tls().map(tls -> secureConnector(jetty, tls)).orElseGet(() -> new ServerConnector(jetty));
         connector.setHost(host);
         connector.setPort(port);
         jetty.addConnector(connector);
 
         ServletContextHandler context = new ServletContextHandler();
-        context.addFilter(new FilterHolder(new BearerAuthFilter(token, host, connector::getLocalPort)),
+        context.addFilter(new FilterHolder(new BearerAuthFilter(token, host, connector::getLocalPort, exposure)),
                 "/*", EnumSet.of(DispatcherType.REQUEST));
         context.addServlet(new ServletHolder(transport), DEFAULT_ENDPOINT + "/*");
         jetty.setHandler(context);
+    }
+
+    /**
+     * A connector that serves HTTPS from the keystore. Jetty's SNI name check (a {@code SecureRequestCustomizer}) is
+     * deliberately not added: it would turn away a client that connects by an address the certificate does not list,
+     * which is the client's own certificate check to make, and the {@code Host} header is checked by
+     * {@link BearerAuthFilter} anyway.
+     */
+    private static ServerConnector secureConnector(Server server, Tls tls) {
+        SslContextFactory.Server ssl = new SslContextFactory.Server();
+        ssl.setKeyStorePath(tls.keystore().toString());
+        ssl.setKeyStorePassword(tls.password());
+        return new ServerConnector(server, new SslConnectionFactory(ssl, HttpVersion.HTTP_1_1.asString()),
+                new HttpConnectionFactory());
     }
 
     /** Starts the HTTP listener. Call before connecting a client. */

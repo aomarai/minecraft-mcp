@@ -270,8 +270,8 @@ class ConfigLoaderTest {
     @Test
     void aNonLoopbackHostIsRefusedUnlessAllowRemoteIsSetOnPurpose() throws IOException {
         writeConfig("{\"host\": \"0.0.0.0\", \"token\": \"" + TOKEN + "\"}");
-        assertEquals("invalid configuration: host '0.0.0.0' is not this machine, and the endpoint speaks plain HTTP; "
-                + "set allowRemote to bind it anyway, or keep loopback and put a TLS proxy in front (docs/remote-access.md)",
+        assertEquals("invalid configuration: host '0.0.0.0' is not this machine; set allowRemote to bind it anyway "
+                + "(and serve HTTPS with tlsKeystore), or keep loopback and put a TLS proxy in front (docs/remote-access.md)",
                 failure(file(), Map.of()).getMessage());
 
         writeConfig("{\"host\": \"0.0.0.0\", \"allowRemote\": true, \"token\": \"" + TOKEN + "\"}");

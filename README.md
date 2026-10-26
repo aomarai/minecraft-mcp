@@ -73,7 +73,7 @@ are the post-v1 epic). See [docs/tools.md](docs/tools.md) and [docs/architecture
 - In-game chat is treated as untrusted input: it can never authorize a command.
 
 Do not expose the HTTP endpoint to the internet. To reach it from another machine, put a TLS reverse
-proxy in front of it: [docs/remote-access.md](docs/remote-access.md). See also
+proxy in front of it, or let the server serve HTTPS itself: [docs/remote-access.md](docs/remote-access.md). See also
 [docs/security.md](docs/security.md).
 
 ## Repository layout
