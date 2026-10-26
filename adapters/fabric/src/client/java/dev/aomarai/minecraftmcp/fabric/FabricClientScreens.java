@@ -58,7 +58,10 @@ final class FabricClientScreens implements ScreenReader, ScreenControl {
             if (!node.element().enabled()) {
                 throw new IllegalStateException(element + " is disabled");
             }
-            ClientCompat.click(screen, node.centerX(), node.centerY());
+            if (!ClientCompat.click(screen, node.centerX(), node.centerY())) {
+                throw new IllegalStateException("the screen did not take the click on " + describe(node.element())
+                        + "; something else may be covering it");
+            }
             return "clicked " + describe(node.element());
         });
     }

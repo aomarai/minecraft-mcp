@@ -45,8 +45,11 @@ acting tools need `allowWrites` in `minecraft-mcp-client.json` (or `MINECRAFT_MC
 every write. Not done yet: item slots of container screens (the `slot` role exists for them), a handler for owo-lib
 screens. Player tools act on the local player only; see `docs/tools.md`.
 
-**State:** captured from a real client on Minecraft 1.21.1 and 26.2 (a virtual display in Docker). There is no CI
-test for the client yet (issue #39), so by the project's own rule the client is not listed as a supported target.
+**State:** a real client on Minecraft 1.21.1 and 26.2 is smoke-tested in CI on a virtual display
+(`scripts/smoke/client-smoke.sh <node>`; it needs Java 21 and 25, `xvfb-run` and a software OpenGL, and skips cleanly
+without them). It checks the tool list, a screenshot, a world made with the screen tools, and the local player moving,
+digging and placing, against the integrated server's own endpoint. The 26.3 client is not claimed: it starts, but
+screen clicks had no effect under the virtual display.
 
 ## What it provides
 

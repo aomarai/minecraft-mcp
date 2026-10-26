@@ -140,9 +140,30 @@ jobs:
 
   # The repository ruleset requires a check named build-and-test. This job keeps that name and passes only
   # when every job above passed, so a failing or skipped job still blocks the merge.
+  # A real game client on a virtual display (software OpenGL): the client-only tools, a world made with them, and the
+  # local player moving, digging and placing, checked against the integrated server's own endpoint. It builds
+  # the node itself (Gradle's runClient), so it does not wait for the jars. 26.3 is left out: its client starts
+  # (on a software Vulkan device) and answers, but clicks have no effect under the virtual display, so it
+  # is not claimed (docs/version-matrix.md).
+  smoke-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["1.21.1", "26.2"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-build
+      - name: Virtual display and software OpenGL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 libegl1 libopenal1             libxrandr2 libxxf86vm1 libxcursor1 libxi6 libxinerama1 libxext6 libxrender1 libxtst6
+      - run: bash scripts/smoke/client-smoke.sh ${{ matrix.node }}
+
   build-and-test:
     if: always()
-    needs: [core, fabric, neoforge, universal, smoke-fabric, smoke-neoforge, smoke-universal]
+    needs: [core, fabric, neoforge, universal, smoke-fabric, smoke-neoforge, smoke-universal, smoke-client]
     runs-on: ubuntu-latest
     steps:
       - name: Everything passed
