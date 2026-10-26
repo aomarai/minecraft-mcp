@@ -20,11 +20,30 @@ for slow runners. Raise it only with a new baseline here.
 ## What the time goes to
 
 - Mutation testing is the slowest work and uses every CPU, so a module gets a runner of its own.
-- Gradle's own start and configuration cost seconds per invocation. It is not worth sharing a daemon across jobs.
+- Gradle's own start cost is seconds per invocation, so sharing a daemon across jobs is not worth it. Configuring the
+  Fabric and NeoForge nodes is not cheap, though; see below.
 - The Fabric and NeoForge builds prepare Minecraft for each version node; the NeoForge nodes do it one at a time
   (the `neoformRuntime` build service in `build.gradle.kts`) so the runner does not run out of memory.
-- Package downloads on the runner can stall. One run of `smoke-client (26.3)` took 14 minutes instead of 3 because
-  `apt-get` waited 8 minutes on one mirror download; the install step now times out after 30 seconds and retries.
+- Package downloads on the runner can stall. Twice a `smoke-client` job took 9 to 14 minutes instead of 3 because
+  `apt-get` waited on one slow mirror download (`mesa-vulkan-drivers`, which trickles in past any inactivity
+  timeout). Those jobs now use archive.ubuntu.com instead of the runner's default Azure mirror, only the 26.3 job installs the
+  driver, and the install is bounded to 2 minutes per attempt with three attempts.
+
+## Configuring only what a job builds
+
+A Gradle build configures every project in the build, and configuring a Fabric or NeoForge node makes Loom download
+and prepare Minecraft. The `core`, `mutation` and `universal` jobs need none of that, so they pass
+`--configure-on-demand`: in the log of a `:core:pitest` job, configuring the six nodes took 110 of its 412 seconds
+(20:32:13 to 20:34:02). The jars, the 100% coverage gate and the mutation scores are the same with and without the
+flag (checked locally). The Fabric and NeoForge jobs build the nodes, so they do not use it.
+
+## Caching dependencies (#88)
+
+Not done, on purpose. Dependency caching is off so that every run verifies freshly downloaded artifacts against
+`gradle/verification-metadata.xml`. After the changes above the cold downloads that remain are the Minecraft
+artifacts of the nodes in the `fabric`, `neoforge` and `smoke-client` jobs (160 to 200 s each, in parallel and not on
+the longest path), so a cache would save about a minute on jobs that are not the slowest, at the price of a supply
+chain check. Revisit it if those jobs become the longest.
 
 ## Gradle memory
 
