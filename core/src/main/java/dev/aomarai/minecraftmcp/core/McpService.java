@@ -71,7 +71,7 @@ public final class McpService implements AutoCloseable {
     }
 
     /** What must never appear in the audit log: the token, and the keystore password when there is one. */
-    private static List<String> secrets(String token, McpConfig config) {
+    static List<String> secrets(String token, McpConfig config) {
         return config.tls().map(tls -> List.of(token, tls.password())).orElse(List.of(token));
     }
 

@@ -41,7 +41,7 @@ best-effort.
 - The universal jar was tested against vanilla, Paper and a Fabric server. Other servers that speak RCON (Forge, NeoForge, other forks) are expected to work but are not tested.
 - The universal tier lists players only when a server directory is configured, and reports no TPS.
 - Quilt is expected to load the Fabric jar but is not tested.
-- The endpoint speaks plain HTTP on loopback. Remote access is by a TLS reverse proxy ([remote-access.md](remote-access.md)); the OAuth 2.1 flow is not implemented.
+- The endpoint speaks plain HTTP on loopback. Remote access is by serving HTTPS from a keystore, an SSH tunnel or a TLS reverse proxy ([remote-access.md](remote-access.md)); the HTTPS path is tested with a self-made keystore but not yet on a second machine or with a public certificate. The OAuth 2.1 flow is not implemented.
 - The Fabric client endpoint (the client-only tools: screenshot, screens, local player) is smoke-tested in CI on 1.21.1 and 26.2 (`scripts/smoke/client-smoke.sh`, a real client on a virtual display). On 26.3 the client starts and answers, but screen clicks had no effect under the virtual display, so it is not claimed; the dedicated-server jar is unaffected.
 - Nothing is published to Modrinth or CurseForge yet.
 

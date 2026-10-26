@@ -10,9 +10,7 @@ import org.eclipse.jetty.ee11.servlet.FilterHolder;
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee11.servlet.ServletHolder;
 import org.eclipse.jetty.http.HttpVersion;
-import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.ServerConnector;
@@ -118,18 +116,17 @@ public final class McpCore implements AutoCloseable {
     }
 
     /**
-     * A connector that serves HTTPS from the keystore. The {@code Host} header is checked by {@link BearerAuthFilter},
-     * so Jetty's own SNI name check is off: it would turn away a client that connects by an address the certificate
-     * does not list, a choice the client's own certificate check already makes.
+     * A connector that serves HTTPS from the keystore. Jetty's SNI name check (a {@code SecureRequestCustomizer}) is
+     * deliberately not added: it would turn away a client that connects by an address the certificate does not list,
+     * which is the client's own certificate check to make, and the {@code Host} header is checked by
+     * {@link BearerAuthFilter} anyway.
      */
     private static ServerConnector secureConnector(Server server, Tls tls) {
         SslContextFactory.Server ssl = new SslContextFactory.Server();
         ssl.setKeyStorePath(tls.keystore().toString());
         ssl.setKeyStorePassword(tls.password());
-        HttpConfiguration http = new HttpConfiguration();
-        http.addCustomizer(new SecureRequestCustomizer(false));
         return new ServerConnector(server, new SslConnectionFactory(ssl, HttpVersion.HTTP_1_1.asString()),
-                new HttpConnectionFactory(http));
+                new HttpConnectionFactory());
     }
 
     /** Starts the HTTP listener. Call before connecting a client. */

@@ -17,7 +17,10 @@ re-restricted on every load. On file systems without POSIX modes this is best ef
 | Key | Env override | Default | Notes |
 |---|---|---|---|
 | `host` | `MINECRAFT_MCP_HOST` | `127.0.0.1` | Must be loopback unless `allowRemote` is set; see `docs/remote-access.md` |
-| `allowRemote` | `MINECRAFT_MCP_ALLOW_REMOTE` | `false` | `true` or `false`. Lets `host` be a non-loopback address (plain HTTP; logs a warning). Prefer a TLS proxy on loopback |
+| `allowRemote` | `MINECRAFT_MCP_ALLOW_REMOTE` | `false` | `true` or `false`. Lets `host` be a non-loopback address. Without `tlsKeystore` that is plain HTTP and logs a warning |
+| `allowedHosts` | `MINECRAFT_MCP_ALLOWED_HOSTS` | `[]` | Extra names or addresses clients may use to reach the server (the `Host` header is checked). Bare names, no scheme or port; comma-separated in the variable |
+| `tlsKeystore` | `MINECRAFT_MCP_TLS_KEYSTORE` | empty | Path to a PKCS12 keystore (relative to the config file). When set, the endpoint serves HTTPS itself |
+| `tlsKeystorePassword` | `MINECRAFT_MCP_TLS_KEYSTORE_PASSWORD` | empty | Its password. A secret: kept out of logs, `toString()` and the audit log. Required with `tlsKeystore`, and an error without it |
 | `port` | `MINECRAFT_MCP_PORT` | `25599` | 1-65535 |
 | `allowWrites` | `MINECRAFT_MCP_ALLOW_WRITES` | `false` | `true` or `false` |
 | `allowAdmin` | `MINECRAFT_MCP_ALLOW_ADMIN` | `false` | `true` or `false` |

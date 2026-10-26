@@ -251,6 +251,29 @@ class RemoteAccessTest {
     }
 
     @Test
+    void theKeystoreAndItsPasswordCanComeFromTheEnvironment() throws IOException {
+        Path file = dir.resolve("minecraft-mcp.json");
+        Path keystore = dir.resolve("from-env.p12");
+        Files.writeString(keystore, "only its presence is checked here");
+
+        McpConfig config = ConfigLoader.load(file, Map.of(
+                "MINECRAFT_MCP_TLS_KEYSTORE", keystore.toString(),
+                "MINECRAFT_MCP_TLS_KEYSTORE_PASSWORD", "env-password")).config();
+
+        assertEquals(Optional.of(new Tls(keystore.toAbsolutePath().normalize(), "env-password")), config.tls());
+        assertFalse(Files.readString(file).contains("env-password"), "an environment value is never written back to the file");
+    }
+
+    @Test
+    void theAuditLogRedactsTheTokenAndTheKeystorePasswordButOnlyWhenThereIsOne() {
+        McpConfig plain = McpConfig.defaults();
+        McpConfig secure = remote(Set.of(), Optional.of(new Tls(Path.of("keystore.p12"), "pw-secret")));
+
+        assertEquals(List.of(TOKEN), McpService.secrets(TOKEN, plain));
+        assertEquals(List.of(TOKEN, "pw-secret"), McpService.secrets(TOKEN, secure));
+    }
+
+    @Test
     void aKeystoreIsFoundNextToTheConfigFileOrByAbsolutePath() throws Exception {
         Path config = dir.resolve("conf").resolve("minecraft-mcp.json");
         Files.createDirectories(config.getParent());

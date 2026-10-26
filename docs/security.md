@@ -138,9 +138,11 @@ pair of `System.nanoTime` calls per stretch of main-thread work.
   permissions and runs before any command reaches Brigadier.
 - Chat, signs, books, and logs are untrusted. Text arriving from the game cannot authorize a
   command or change policy.
-- Remote access goes through a TLS reverse proxy in front of the loopback endpoint, with the bearer token
-  still required (`docs/remote-access.md`). A non-loopback `host` is refused unless `allowRemote` is set,
-  and plain HTTP on a public interface is unsupported. The OAuth 2.1 flow is not implemented.
+- Remote access is opt-in and keeps the bearer token (`docs/remote-access.md`): a non-loopback `host` is refused
+  unless `allowRemote` is set; the endpoint can serve HTTPS itself (`tlsKeystore`), sit behind a TLS proxy, or be
+  reached through an SSH tunnel; plain HTTP on the network is allowed but warned about and meant for a trusted
+  LAN or VPN. The `Host` check stays on: a name other than loopback and the bind host must be listed in
+  `allowedHosts`. The OAuth 2.1 flow is not implemented.
 - Destructive bulk tools (`fill`, `clone`, `setblock` loops) must validate volume and support a
   dry-run before applying.
 - Rotate the token with `/mcp token rotate`. It writes a new token to the config file and restarts the
