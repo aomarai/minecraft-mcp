@@ -53,6 +53,57 @@ class CallAwaiterTest {
     }
 
     @Test
+    void gameThreadWorkThatHadNotStartedSaysItWillNotRun() {
+        java.util.List<Runnable> queue = new java.util.ArrayList<>();
+        MainThread.Call<String> queued = MainThread.call(queue::add, () -> "never");
+
+        TimeoutException write = assertThrows(TimeoutException.class, () -> CallAwaiter.await(queued, BUDGET, true));
+
+        assertEquals("timed out after 100 ms; it had not started and will not run", write.getMessage());
+        queue.forEach(Runnable::run);
+        assertTrue(queued.isCancelled());
+        assertFalse(queued.started(), "and it really does not run");
+
+        MainThread.Call<String> queuedRead = MainThread.call(queue::add, () -> "never");
+        assertEquals("timed out after 100 ms; it had not started and will not run",
+                assertThrows(TimeoutException.class, () -> CallAwaiter.await(queuedRead, BUDGET, false)).getMessage());
+    }
+
+    @Test
+    void gameThreadWorkThatWasRunningSaysItKeepsGoing() throws Exception {
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch begun = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.Executor gameThread = command -> new Thread(command, "fake-game-thread").start();
+        MainThread.Call<String> slowWrite = MainThread.call(gameThread, () -> {
+            begun.countDown();
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return "late";
+        });
+        assertTrue(begun.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+        TimeoutException write = assertThrows(TimeoutException.class, () -> CallAwaiter.await(slowWrite, BUDGET, true));
+        assertEquals("timed out after 100 ms; it was already running on the game thread, so it may still have taken effect",
+                write.getMessage());
+
+        MainThread.Call<String> slowRead = MainThread.call(gameThread, () -> {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return "late";
+        });
+        Thread.sleep(50);
+        TimeoutException read = assertThrows(TimeoutException.class, () -> CallAwaiter.await(slowRead, BUDGET, false));
+        assertEquals("timed out after 100 ms; it was already running on the game thread and will finish", read.getMessage());
+        release.countDown();
+    }
+
+    @Test
     void aTimedOutWriteSaysItMayStillHaveTakenEffect() {
         CompletableFuture<String> never = new CompletableFuture<>();
         TimeoutException e = assertThrows(TimeoutException.class, () -> CallAwaiter.await(never, BUDGET, true));

@@ -36,8 +36,7 @@ final class CallAwaiter {
             return future.get(millis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             if (future.cancel(true)) {
-                throw new TimeoutException("timed out after " + millis + " ms"
-                        + (mayChangeWorld ? "; the call may still have taken effect" : ""));
+                throw new TimeoutException(timedOut(millis, future, mayChangeWorld));
             }
             return finished(future);
         } catch (InterruptedException e) {
@@ -49,6 +48,23 @@ final class CallAwaiter {
         } catch (ExecutionException e) {
             throw failure(e);
         }
+    }
+
+    /**
+     * What to tell the caller. For game-thread work the message says whether the work had begun: if not, it never
+     * runs; if so, it keeps running and finishes. For any other future the state is unknown, so a call that can change
+     * the world says it may still have taken effect.
+     */
+    private static String timedOut(long millis, CompletableFuture<?> future, boolean mayChangeWorld) {
+        String message = "timed out after " + millis + " ms";
+        if (future instanceof MainThread.Call<?> call) {
+            if (!call.started()) {
+                return message + "; it had not started and will not run";
+            }
+            return message + "; it was already running on the game thread"
+                    + (mayChangeWorld ? ", so it may still have taken effect" : " and will finish");
+        }
+        return message + (mayChangeWorld ? "; the call may still have taken effect" : "");
     }
 
     /** Outcome of a future that completed while we were giving up on it. */

@@ -78,6 +78,13 @@ The HTTP transport runs on its own threads. The game does not.
   audited; the effect is never silent.
 - Every call is timed: how long it held the main thread and how long it took in all (see the audit log in
   `docs/security.md`). More than one tick (50 ms) of main-thread work in one call is flagged as an overrun.
+- **What a timeout does and does not do.** The timeout bounds how long the *caller waits*, not how long the work
+  takes. Work the game thread has not started is cancelled and never runs. Work it has already started cannot be
+  stopped and runs to the end, so the caller can be told "timed out" while the server is still busy for a moment
+  longer. The message says which of the two it was ("it had not started and will not run", or "it was already running
+  on the game thread" and, for a call that can change the world, "so it may still have taken effect"), and the
+  audit log records the same text. Work that is split into steps between ticks cancels between steps; that is the only
+  place a timeout genuinely stops work.
 - Read tools may snapshot on the main thread and serialize on the HTTP thread.
 - No adapter may block the main thread waiting for an MCP client.
 

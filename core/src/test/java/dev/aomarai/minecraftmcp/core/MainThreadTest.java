@@ -76,6 +76,35 @@ class MainThreadTest {
     }
 
     @Test
+    void aCallKnowsWhetherTheGameThreadHasBegunItsWork() {
+        QueuedThread game = new QueuedThread();
+        List<Boolean> startedWhileRunning = new ArrayList<>();
+        MainThread.Call<String>[] holder = new MainThread.Call[1];
+        MainThread.Call<String> call = MainThread.call(game, () -> {
+            startedWhileRunning.add(holder[0].started());
+            return "x";
+        });
+        holder[0] = call;
+
+        assertFalse(call.started(), "queued, not begun");
+        game.runAll();
+
+        assertEquals(List.of(true), startedWhileRunning, "begun before the work itself runs");
+        assertTrue(call.started());
+    }
+
+    @Test
+    void workThatWasCancelledBeforeItsTurnIsNeverMarkedStarted() {
+        QueuedThread game = new QueuedThread();
+        MainThread.Call<String> call = MainThread.call(game, () -> "x");
+
+        call.cancel(true);
+        game.runAll();
+
+        assertFalse(call.started());
+    }
+
+    @Test
     void anExecutorThatRefusesWorkSurfacesToTheCaller() {
         Executor refusing = command -> {
             throw new java.util.concurrent.RejectedExecutionException("server is stopping");
