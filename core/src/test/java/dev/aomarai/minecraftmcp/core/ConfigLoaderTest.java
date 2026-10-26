@@ -147,6 +147,40 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void aScopedEnvironmentKeepsOnlyItsOwnVariablesUnderTheirPlainNames() {
+        Map<String, String> scoped = ConfigLoader.scopedEnvironment(Map.of(
+                "MINECRAFT_MCP_CLIENT_PORT", "7000",
+                "MINECRAFT_MCP_CLIENT_TOKEN", "t",
+                "MINECRAFT_MCP_PORT", "8000",
+                "MINECRAFT_MCP_CLIENT", "no underscore after the scope",
+                "OTHER_CLIENT_PORT", "9"), "CLIENT");
+
+        assertEquals(Map.of("MINECRAFT_MCP_PORT", "7000", "MINECRAFT_MCP_TOKEN", "t"), scoped);
+    }
+
+    @Test
+    void aSeededPortIsTheDefaultOfANewFileOnly() throws IOException {
+        ConfigLoader.seedPort(file(), 25598);
+        ConfigLoader.Loaded first = ConfigLoader.load(file(), Map.of());
+
+        assertEquals(25598, first.config().port());
+        assertFalse(first.config().allowWrites());
+        assertEquals("127.0.0.1", first.config().host());
+
+        ConfigLoader.seedPort(file(), 1234);
+        assertEquals(25598, ConfigLoader.load(file(), Map.of()).config().port());
+    }
+
+    @Test
+    void aSeededFileIsOwnerOnlyOnPosix() throws IOException {
+        org.junit.jupiter.api.Assumptions.assumeTrue(posix());
+        ConfigLoader.seedPort(file(), 25598);
+
+        assertEquals(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"),
+                Files.getPosixFilePermissions(file()));
+    }
+
+    @Test
     void generatedTokensDiffer() {
         assertNotEquals(ConfigLoader.generateToken(), ConfigLoader.generateToken());
     }

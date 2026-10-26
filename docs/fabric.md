@@ -1,7 +1,7 @@
 # Fabric adapter
 
-`adapters/fabric/` is a server-side Fabric mod that runs the MCP server inside a dedicated
-Minecraft server.
+`adapters/fabric/` is a Fabric mod that runs the MCP server inside a dedicated Minecraft server (and, in a game
+client, the integrated server and the client's own endpoint; see below).
 
 ## Requirements
 
@@ -18,6 +18,28 @@ read-only, with a generated bearer token, owner-only) and `config/minecraft-mcp-
 
 A bad configuration or a port in use is logged and leaves the game server running without MCP; it
 never crashes the game.
+
+## In a game client
+
+The same jar also loads in a Fabric game client (`"environment": "*"`). In single-player, the integrated server
+serves the tools below on port 25599 exactly as a dedicated server does. The client itself runs a **second,
+separate endpoint** for the tools only a client can serve, so the two never share a port, token or audit log:
+
+| | Integrated server | Client |
+|---|---|---|
+| Tools | everything in this document | `take_screenshot` |
+| Config | `config/minecraft-mcp.json` | `config/minecraft-mcp-client.json` |
+| Audit log | `config/minecraft-mcp-audit.jsonl` | `config/minecraft-mcp-client-audit.jsonl` |
+| Default port | 25599 | 25598 |
+| Environment variables | `MINECRAFT_MCP_*` | `MINECRAFT_MCP_CLIENT_*` |
+
+The client endpoint has the same secure defaults (loopback, generated token, owner-only file). Its log line is
+`MCP client server listening on port 25598`; it starts when the game has finished starting and stops with it.
+`take_screenshot` returns the game window as one PNG, scaled down to fit 1280 x 720 and 2 MiB, held in memory
+only. The frame is read on the render thread and encoded on another, so the game does not wait for the encoder.
+
+**State:** captured from a real client on Minecraft 1.21.1 and 26.2 (a virtual display in Docker). There is no CI
+test for the client yet (issue #39), so by the project's own rule the client is not listed as a supported target.
 
 ## What it provides
 
