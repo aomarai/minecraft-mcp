@@ -49,6 +49,11 @@ jobs:
   # The whole pipeline: unit tests, coverage, mutation testing, game test and a smoke test of every jar.
   build:
     needs: plan
+    # build.yml's final job reads the run's job durations (actions: read); a called workflow cannot ask for more than
+    # its caller grants, and without this the whole release run fails to start.
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/build.yml
     with:
       release-version: ${{ needs.plan.outputs.version }}
