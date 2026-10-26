@@ -11,6 +11,8 @@ name: SonarQube
 on:
   push:
     branches: [main]
+  # A scan can be started by hand (Actions tab), for example to check the runners after they were repaired (#150).
+  workflow_dispatch:
 
 permissions:
   contents: read
