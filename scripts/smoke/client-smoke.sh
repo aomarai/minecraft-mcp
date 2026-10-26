@@ -131,6 +131,9 @@ X="$(floor_of "$(printf '%s' "$P" | sed 's/"x":\([-0-9.]*\).*/\1/')")"
 Y="$(floor_of "$(printf '%s' "$P" | sed 's/.*"y":\([-0-9.]*\),"z".*/\1/')")"
 Z="$(floor_of "$(printf '%s' "$P" | sed 's/.*"z":\([-0-9.]*\)$/\1/')")"
 echo "player $PNAME at $X,$Y,$Z"
+# Creative mode: blocks break at once, so the test does not depend on what is under the spawn point (stone takes
+# longer than the five seconds a dig is allowed with bare hands).
+use_server; c run_command "{\"command\":\"gamemode creative $PNAME\"}" > /dev/null; sleep 1
 
 # A solid block next to the one the player stands on: dig it, then put a block back.
 BX=""; BZ=""
