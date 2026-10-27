@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -274,13 +275,14 @@ class StdioShimTest {
 
         List<String> out = run(shim(url(server), Duration.ofSeconds(5)), INIT, LIST, LIST);
 
+        List<Seen> posts = seen.stream().filter(request -> request.method().equals("POST")).toList();
         assertEquals(3, out.size());
         assertEquals(StdioShim.SESSION_ENDED, errorOf(out.get(1)).get("message"));
         assertEquals(2, json(out.get(1)).get("id"));
         assertEquals("no MCP endpoint at that URL (HTTP 404): check MINECRAFT_MCP_URL", errorOf(out.get(2)).get("message"));
-        assertNull(seen.get(0).sessionId());
-        assertEquals("session-1", seen.get(1).sessionId());
-        assertNull(seen.get(2).sessionId(), "the next request goes out without the dead id");
+        assertNull(posts.get(0).sessionId());
+        assertEquals("session-1", posts.get(1).sessionId());
+        assertNull(posts.get(2).sessionId(), "the next request goes out without the dead id");
     }
 
     @Test
@@ -299,7 +301,8 @@ class StdioShimTest {
 
         run(shim(url(server), Duration.ofSeconds(5)), INIT, LIST, LIST);
 
-        assertEquals("session-1", seen.get(2).sessionId());
+        List<Seen> posts = seen.stream().filter(request -> request.method().equals("POST")).toList();
+        assertEquals("session-1", posts.get(2).sessionId());
     }
 
     @Test
@@ -406,13 +409,15 @@ class StdioShimTest {
 
         run(shim(url(server), Duration.ofSeconds(5)), INIT, LIST);
 
-        assertEquals(2, seen.size());
-        assertEquals("POST", seen.get(0).method());
-        assertEquals("Bearer " + TOKEN, seen.get(0).authorization());
-        assertNull(seen.get(0).sessionId(), "no session before the server assigns one");
-        assertEquals(INIT, seen.get(0).body());
-        assertEquals("session-42", seen.get(1).sessionId());
-        assertEquals("Bearer " + TOKEN, seen.get(1).authorization());
+        // The message stream the shim opens after initialize is a GET; these are the requests the host made.
+        List<Seen> posts = seen.stream().filter(request -> request.method().equals("POST")).toList();
+        assertEquals(2, posts.size());
+        assertEquals("POST", posts.get(0).method());
+        assertEquals("Bearer " + TOKEN, posts.get(0).authorization());
+        assertNull(posts.get(0).sessionId(), "no session before the server assigns one");
+        assertEquals(INIT, posts.get(0).body());
+        assertEquals("session-42", posts.get(1).sessionId());
+        assertEquals("Bearer " + TOKEN, posts.get(1).authorization());
     }
 
     // ---- input handling ----
@@ -540,5 +545,329 @@ class StdioShimTest {
         }
         assertEquals(StdioShim.PARSE_ERROR,
                 errorOf(captured.toString(StandardCharsets.UTF_8).strip()).get("code"));
+    }
+
+    // ---- server-to-client messages ----
+
+    private static final String UPDATED = "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/resources/updated\","
+            + "\"params\":{\"uri\":\"minecraft://events\"}}";
+
+    /** A server that answers initialize with a session and handles the message stream (GET) as the test says. */
+    private HttpServer streamingServer(List<Seen> seen, Reply onGet) throws IOException {
+        return stub(seen, exchange -> {
+            if (exchange.getRequestMethod().equals("GET")) {
+                onGet.send(exchange);
+            } else {
+                exchange.getResponseHeaders().add("Mcp-Session-Id", "session-1");
+                answer(200, "application/json", "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}").send(exchange);
+            }
+        });
+    }
+
+    private static Reply events(String... messages) {
+        return exchange -> {
+            exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, 0);
+            for (String message : messages) {
+                exchange.getResponseBody().write(("event: message\ndata: " + message + "\n\n").getBytes(StandardCharsets.UTF_8));
+            }
+            exchange.getResponseBody().flush();
+        };
+    }
+
+    private static List<Seen> gets(List<Seen> seen) {
+        return seen.stream().filter(s -> s.method().equals("GET")).toList();
+    }
+
+    private static Supplier<Backoff> quickBackoff() {
+        return () -> new Backoff(Duration.ofMillis(5), Duration.ofMillis(5));
+    }
+
+    private static boolean eventually(java.util.function.BooleanSupplier condition) throws InterruptedException {
+        for (int i = 0; i < 500 && !condition.getAsBoolean(); i++) {
+            Thread.sleep(20);
+        }
+        return condition.getAsBoolean();
+    }
+
+    /** A backoff that notes what the shim asks of it, and waits next to nothing. */
+    private static final class RecordingBackoff extends Backoff {
+        final java.util.concurrent.atomic.AtomicInteger waits = new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.atomic.AtomicInteger resets = new java.util.concurrent.atomic.AtomicInteger();
+
+        RecordingBackoff() {
+            super(Duration.ofMillis(5), Duration.ofMillis(5));
+        }
+
+        @Override
+        Duration next() {
+            waits.incrementAndGet();
+            return super.next();
+        }
+
+        @Override
+        void reset() {
+            resets.incrementAndGet();
+            super.reset();
+        }
+    }
+
+    private static boolean ended(Thread thread) throws InterruptedException {
+        thread.join(10_000);
+        return !thread.isAlive();
+    }
+
+    /** Runs the shim on a thread with a host that stays connected until {@code release} is called. */
+    private final class OpenHost implements AutoCloseable {
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final PrintStream stdout = new PrintStream(out, false, StandardCharsets.UTF_8);
+        final java.io.PipedWriter host = new java.io.PipedWriter();
+        final Thread thread;
+        final StdioShim shim;
+
+        OpenHost(StdioShim shim) throws IOException {
+            this.shim = shim;
+            java.io.PipedReader reader = new java.io.PipedReader(host, 1 << 16);
+            thread = new Thread(() -> {
+                try {
+                    shim.pump(new BufferedReader(reader), stdout);
+                } catch (IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
+            }, "test-host");
+            thread.start();
+        }
+
+        void send(String line) throws IOException {
+            host.write(line + "\n");
+            host.flush();
+        }
+
+        List<String> lines() {
+            synchronized (stdout) {
+                String text = out.toString(StandardCharsets.UTF_8);
+                return text.isEmpty() ? List.of() : List.of(text.split("\n"));
+            }
+        }
+
+        @Override
+        public void close() throws IOException, InterruptedException {
+            host.close();
+            thread.join(10_000);
+        }
+    }
+
+    private StdioShim streamingShim(HttpServer server, Supplier<Backoff> backoffs) {
+        return new StdioShim(URI.create(url(server)), TOKEN, Duration.ofSeconds(5), log, backoffs);
+    }
+
+    @Test
+    void aMessageTheServerSendsOnItsOwnReachesTheHostAsOneLine() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, events(UPDATED));
+
+        try (OpenHost host = new OpenHost(streamingShim(server, quickBackoff()))) {
+            host.send(INIT);
+
+            assertTrue(eventually(() -> host.lines().size() >= 2), host.lines().toString());
+            assertEquals(2, json(host.lines().get(0)).size() == 3 ? 2 : 0, "the reply to initialize comes first");
+            assertEquals(json(UPDATED), json(host.lines().get(1)));
+        }
+        Seen get = gets(seen).get(0);
+        assertEquals("Bearer " + TOKEN, get.authorization());
+        assertEquals("session-1", get.sessionId());
+    }
+
+    @Test
+    void theStreamIsOpenedAgainWhenItEnds() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, events(UPDATED));
+        err.reset();
+
+        try (OpenHost host = new OpenHost(streamingShim(server, quickBackoff()))) {
+            host.send(INIT);
+
+            assertTrue(eventually(() -> host.lines().size() >= 3), host.lines().toString());
+            assertTrue(eventually(() -> gets(seen).size() >= 3));
+        }
+        assertEquals("", err.toString(StandardCharsets.UTF_8), "a stream that ends normally is not an error");
+    }
+
+    @Test
+    void theStreamWorksWithTheShimsOwnReconnectDelays() throws Exception {
+        HttpServer server = streamingServer(new CopyOnWriteArrayList<>(), events(UPDATED));
+
+        try (OpenHost host = new OpenHost(shim(url(server), Duration.ofSeconds(5)))) {
+            host.send(INIT);
+
+            assertTrue(eventually(() -> host.lines().size() >= 2), host.lines().toString());
+            assertEquals(json(UPDATED), json(host.lines().get(1)));
+        }
+        assertEquals(Duration.ofSeconds(1), StdioShim.RECONNECT_FIRST);
+        assertEquals(Duration.ofSeconds(30), StdioShim.RECONNECT_CAP);
+    }
+
+    @Test
+    void theStreamIsOnlyOpenedAfterInitializeSucceeds() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = stub(seen, answer(500, null, ""));
+
+        try (OpenHost host = new OpenHost(streamingShim(server, quickBackoff()))) {
+            host.send(INIT);
+            assertTrue(eventually(() -> host.lines().size() == 1));
+            host.send(LIST);
+            assertTrue(eventually(() -> host.lines().size() == 2));
+            assertNull(host.shim.stream());
+        }
+        assertEquals(List.of(), gets(seen));
+    }
+
+    @Test
+    void aServerWithNoStreamEndsItQuietlyOnA405() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, answer(405, null, ""));
+        err.reset();
+
+        try (OpenHost host = new OpenHost(streamingShim(server, quickBackoff()))) {
+            host.send(INIT);
+
+            assertTrue(eventually(() -> host.shim.stream() != null));
+            assertTrue(ended(host.shim.stream()), "the stream thread ends");
+            assertEquals(1, host.lines().size(), "no error reaches the host");
+        }
+        assertEquals(1, gets(seen).size(), "and it is not asked again");
+        assertEquals("", err.toString(StandardCharsets.UTF_8), "nor is anything logged");
+    }
+
+    @Test
+    void anEndedSessionEndsTheStreamOnA404() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, answer(404, null, ""));
+
+        try (OpenHost host = new OpenHost(streamingShim(server, quickBackoff()))) {
+            host.send(INIT);
+
+            assertTrue(eventually(() -> host.shim.stream() != null));
+            assertTrue(ended(host.shim.stream()));
+        }
+        assertEquals(1, gets(seen).size());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {400, 401, 500})
+    void anErrorStatusOnTheStreamIsLoggedAndTriedAgain(int status) throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, answer(status, null, ""));
+        RecordingBackoff backoff = new RecordingBackoff();
+        err.reset();
+
+        try (OpenHost host = new OpenHost(streamingShim(server, () -> backoff))) {
+            host.send(INIT);
+
+            assertTrue(eventually(() -> gets(seen).size() >= 2));
+            assertEquals(1, host.lines().size(), "the host hears nothing about it");
+        }
+        assertTrue(err.toString(StandardCharsets.UTF_8).contains("the message stream answered HTTP " + status + "; trying again"));
+        assertEquals(0, backoff.resets.get(), "a stream that never worked does not reset the delay");
+        assertTrue(backoff.waits.get() >= 1);
+    }
+
+    @Test
+    void aStreamThatWorkedStartsTheDelayOver() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, events(UPDATED));
+        RecordingBackoff backoff = new RecordingBackoff();
+
+        try (OpenHost host = new OpenHost(streamingShim(server, () -> backoff))) {
+            host.send(INIT);
+
+            assertTrue(eventually(() -> backoff.resets.get() >= 2 && backoff.waits.get() >= 2));
+        }
+    }
+
+    @Test
+    void aStreamThatBreaksIsLoggedAndTriedAgain() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, exchange -> exchange.getRequestBody().close());
+        err.reset();
+        server.removeContext("/mcp");
+        server.createContext("/mcp", exchange -> {
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            seen.add(new Seen(exchange.getRequestMethod(), null, exchange.getRequestHeaders().getFirst("Mcp-Session-Id"), body));
+            if (exchange.getRequestMethod().equals("GET")) {
+                exchange.getHttpContext().getServer().stop(0);
+                return;
+            }
+            exchange.getResponseHeaders().add("Mcp-Session-Id", "session-1");
+            answer(200, "application/json", "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}").send(exchange);
+            exchange.close();
+        });
+
+        try (OpenHost host = new OpenHost(streamingShim(server, quickBackoff()))) {
+            host.send(INIT);
+
+            assertTrue(eventually(() -> err.toString(StandardCharsets.UTF_8).contains("the message stream ended")),
+                    err.toString(StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    void repliesAndServerMessagesNeverShareALine() throws Exception {
+        int count = 150;
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, events(java.util.Collections.nCopies(count, UPDATED).toArray(new String[0])));
+
+        try (OpenHost host = new OpenHost(streamingShim(server, () -> new Backoff(Duration.ofSeconds(60), Duration.ofSeconds(60))))) {
+            host.send(INIT);
+            for (int i = 0; i < count; i++) {
+                host.send(LIST);
+            }
+
+            assertTrue(eventually(() -> host.lines().size() >= 1 + 2 * count), host.lines().size() + " lines");
+            for (String line : host.lines()) {
+                assertTrue(json(line).containsKey("jsonrpc"), line);
+            }
+            assertEquals(count, host.lines().stream().filter(line -> line.contains("notifications/resources/updated")).count());
+        }
+    }
+
+    @Test
+    void theStreamEndsWithTheHostAndANewInitializeReplacesTheOldStream() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = streamingServer(seen, events(UPDATED));
+        Supplier<Backoff> slow = () -> new Backoff(Duration.ofSeconds(60), Duration.ofSeconds(60));
+        Thread[] second = new Thread[1];
+
+        try (OpenHost host = new OpenHost(streamingShim(server, slow))) {
+            host.send(INIT);
+            assertTrue(eventually(() -> host.shim.stream() != null && gets(seen).size() == 1));
+            Thread first = host.shim.stream();
+            host.send(INIT);
+            assertTrue(eventually(() -> host.shim.stream() != first));
+            assertTrue(ended(first), "the first stream was stopped");
+            assertTrue(host.shim.stream().isAlive());
+            second[0] = host.shim.stream();
+        }
+        assertTrue(ended(second[0]), "closing the host stops the stream");
+    }
+
+    @Test
+    void theReconnectDelayDoublesUpToTheCapAndStartsOverAfterAGoodConnection() {
+        Backoff backoff = new Backoff(Duration.ofSeconds(1), Duration.ofSeconds(5));
+
+        assertEquals(Duration.ofSeconds(1), backoff.next());
+        assertEquals(Duration.ofSeconds(2), backoff.next());
+        assertEquals(Duration.ofSeconds(4), backoff.next());
+        assertEquals(Duration.ofSeconds(5), backoff.next());
+        assertEquals(Duration.ofSeconds(5), backoff.next());
+
+        backoff.reset();
+        assertEquals(Duration.ofSeconds(1), backoff.next());
+
+        Backoff exact = new Backoff(Duration.ofSeconds(1), Duration.ofSeconds(4));
+        exact.next();
+        exact.next();
+        assertEquals(Duration.ofSeconds(4), exact.next(), "a delay that reaches the cap exactly is kept");
+        assertEquals(Duration.ofSeconds(4), exact.next());
     }
 }

@@ -91,9 +91,10 @@ Every tool call goes through `ToolDispatcher`:
    one of three kinds, by its first word (case-insensitive, `minecraft:` ignored, so `minecraft:kill`
    is `kill`):
    - **Known safe**: a small built-in list of everyday vanilla commands (`say`, `tell`, `msg`, `w`,
-     `me`, `tellraw`, `title`, `list`, `seed`, `help`, `time`, `weather`, `give`, `xp`,
-     `experience`, `effect`, `playsound`, `particle`) plus the operator's `allowedCommands`. Needs
-     `allowWrites`.
+     `me`, `list`, `seed`, `help`, `time`, `weather`) plus the operator's `allowedCommands`. Needs
+     `allowWrites`. Commands that can hurt players or flood them (`effect`, `xp`, `experience`, `give`,
+     `particle`, `playsound`, `title`) or put a clickable command in front of an operator (`tellraw`) are not on it:
+     they need admin and confirmation, or an entry in `allowedCommands`.
    - **Destructive**: the built-in list (`kill`, `op`, `stop`, `fill`, `setblock`, `tp`, `ban`, ...)
      plus the operator's `destructiveCommands`. Needs admin plus `confirm=true`.
    - **Anything else** (a modded command such as `mymod:wipe_world`, or `execute`, `function`,
@@ -112,6 +113,12 @@ Every tool call goes through `ToolDispatcher`:
 The audit log is JSONL, one object per line: `ts`, `phase` (`decision` or `result`), `tool`,
 `arguments`, `decision` (`allow`, `deny`, `confirm`) and `detail`. The bearer token is replaced
 by `[redacted]` in every string, and strings over 256 characters are truncated.
+
+Calls are limited too: at most 16 tool calls run at once on an endpoint. HTTP workers can queue work on the game
+thread, so a client stuck in a loop could otherwise stack many calls for one tick. The next call is refused at
+once with `too many tool calls are in progress (at most 16 at once); try again shortly`, and a `deny` entry is
+written to the audit log (if even that cannot be written the call is still refused). The number is fixed, not a
+configuration key.
 
 The audit log is bounded. A file never grows past 10 MiB: before an entry that would, the file is renamed to
 `<name>.1`, the older ones move up (`.1` to `.2` and so on), and `<name>.4` is deleted, so the log keeps at

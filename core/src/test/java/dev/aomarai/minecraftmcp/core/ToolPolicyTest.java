@@ -93,11 +93,25 @@ class ToolPolicyTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"say", "tell", "msg", "w", "me", "tellraw", "title", "list", "seed", "help",
-            "time", "weather", "give", "xp", "experience", "effect", "playsound", "particle"})
+    @ValueSource(strings = {"say", "tell", "msg", "w", "me", "list", "seed", "help", "time", "weather"})
     void everyKnownSafeCommandIsAPlainWrite(String root) {
         assertAllowed(new ToolPolicy(true, false).checkCommand(root + " x", false));
         assertDenied(new ToolPolicy(false, true).checkCommand(root + " x", false), "write commands are disabled");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"effect give @a minecraft:instant_damage 1 255", "xp add @a -1000 levels",
+            "experience set @a 0", "give @a minecraft:stone 2147483647", "particle minecraft:flame ~ ~ ~ 1 1 1 1 99999",
+            "playsound minecraft:entity.generic.explode master @a", "title @a title {\"text\":\"x\"}",
+            "tellraw @a {\"text\":\"x\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/stop\"}}"})
+    void commandsThatCanHarmOrFloodAreNotPlainWrites(String command) {
+        String root = command.split(" ")[0];
+        assertDenied(new ToolPolicy(true, false).checkCommand(command, true),
+                "unrecognised command '" + root + "' needs admin access; list it in allowedCommands to trust it");
+        assertEquals("unrecognised command '" + root + "' requires confirmation",
+                new ToolPolicy(true, true).checkCommand(command, false).reason());
+        assertAllowed(new ToolPolicy(true, true).checkCommand(command, true));
+        assertAllowed(new ToolPolicy(true, false, java.util.Set.of(root), java.util.Set.of()).checkCommand(command, false));
     }
 
     @ParameterizedTest

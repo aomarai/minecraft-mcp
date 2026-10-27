@@ -30,6 +30,37 @@ class EventBufferTest {
     }
 
     @Test
+    void aCursorAheadOfTheFeedIsFromAnEarlierRunAndGetsTheNewestEventsWithAReset() {
+        for (int i = 1; i <= 5; i++) {
+            buffer.publish(EventType.CHAT, "Steve", "m" + i);
+        }
+
+        EventPage behind = buffer.read(4, 10);
+        assertEquals(List.of(5L), sequences(behind));
+        assertFalse(behind.reset());
+
+        EventPage caughtUp = buffer.read(5, 10);
+        assertEquals(List.of(), sequences(caughtUp));
+        assertFalse(caughtUp.reset());
+
+        EventPage ahead = buffer.read(6, 2);
+        assertEquals(List.of(4L, 5L), sequences(ahead));
+        assertEquals(5, ahead.latest());
+        assertEquals(0, ahead.dropped());
+        assertTrue(ahead.reset());
+    }
+
+    @Test
+    void aStaleCursorOnAnEmptyFeedIsAResetAndNegativeOrZeroCursorsAreNot() {
+        EventPage stale = buffer.read(450, 10);
+        assertEquals(List.of(), stale.events());
+        assertTrue(stale.reset());
+
+        assertFalse(buffer.read(0, 10).reset());
+        assertFalse(buffer.read(-1, 10).reset());
+    }
+
+    @Test
     void eventsAreNumberedFromOneInOrderAndStamped() {
         buffer.publish(EventType.JOIN, "Steve", "");
         buffer.publish(EventType.CHAT, "Steve", "hi");
@@ -72,16 +103,6 @@ class EventBufferTest {
 
         assertEquals(List.of(), page.events());
         assertEquals(2, page.latest());
-        assertEquals(0, page.dropped());
-    }
-
-    @Test
-    void aCursorAheadOfTheFeedIsNotAnError() {
-        buffer.publish(EventType.CHAT, "Steve", "a");
-
-        EventPage page = buffer.read(99, 10);
-
-        assertEquals(List.of(), page.events());
         assertEquals(0, page.dropped());
     }
 

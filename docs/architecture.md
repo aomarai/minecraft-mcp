@@ -41,7 +41,7 @@ never import `net.fabricmc` or `net.neoforged`.
 - Tool catalog and JSON schemas (see `docs/tools.md`), including annotations (`readOnlyHint`, `destructiveHint`,
   `idempotentHint`).
 - Policy decisions: scopes (`OBSERVE`, `ACT`, `ADMIN`), command allow/deny lists, confirmation.
-- Audit logging (JSONL) and rate limiting.
+- Audit logging (JSONL) and a limit of 16 tool calls in flight per endpoint: the 17th is refused at once and audited as a denial (there is no per-second cap).
 - Configuration parsing and token generation.
 - Capability advertisement per side (server vs client).
 

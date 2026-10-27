@@ -38,7 +38,7 @@ class EventResourceTest {
                 assertEquals("application/json", read.contents().get(0).mimeType());
                 String json = text(read);
                 assertTrue(json.contains("\"text\":\"hello\",\"untrusted\":true"), json);
-                assertTrue(json.endsWith("\"latest\":1,\"dropped\":0}"), json);
+                assertTrue(json.endsWith("\"latest\":1,\"dropped\":0,\"reset\":false}"), json);
             }
         }
     }
