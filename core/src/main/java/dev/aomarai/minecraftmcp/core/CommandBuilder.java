@@ -29,6 +29,15 @@ final class CommandBuilder {
     private CommandBuilder() {
     }
 
+    /**
+     * Whether {@code text} holds an entity selector ({@code @a}, {@code @e}, ...). The game resolves one inside a
+     * message argument when the command source may use selectors, so it would reach every player or entity. The
+     * typed tools refuse such text and {@link ToolPolicy} sends a raw command with one through admin: one pattern.
+     */
+    static boolean containsSelector(String text) {
+        return SELECTOR.matcher(text).find();
+    }
+
     /** {@code dimension} and {@code block} are resource locations; the box is inclusive. */
     static String fill(String dimension, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, String block) {
         return inDimension(dimension) + "fill " + coordinate(minX, "min_x") + " " + coordinate(minY, "min_y") + " "
@@ -99,7 +108,7 @@ final class CommandBuilder {
         if (text.chars().anyMatch(Character::isISOControl)) {
             throw new IllegalArgumentException(what + " must not contain control characters or line breaks");
         }
-        if (SELECTOR.matcher(text).find()) {
+        if (containsSelector(text)) {
             throw new IllegalArgumentException(what + " must not contain an entity selector such as @a or @e");
         }
         return text;

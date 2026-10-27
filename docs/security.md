@@ -92,7 +92,10 @@ Every tool call goes through `ToolDispatcher`:
    is `kill`):
    - **Known safe**: a small built-in list of everyday vanilla commands (`say`, `tell`, `msg`, `w`,
      `me`, `list`, `seed`, `help`, `time`, `weather`) plus the operator's `allowedCommands`. Needs
-     `allowWrites`. Commands that can hurt players or flood them (`effect`, `xp`, `experience`, `give`,
+     `allowWrites`. `say`, `tell`, `msg`, `w` and `me` count as safe only without an entity selector
+     (`@a`, `@e`, `@p`, `@r`, `@s`, `@n`) anywhere in the command: the game would resolve it and message every
+     player or post every entity's name, so such a command needs admin plus confirmation, like the typed
+     `send_message`, which refuses selectors outright (one pattern, `CommandBuilder.containsSelector`). Commands that can hurt players or flood them (`effect`, `xp`, `experience`, `give`,
      `particle`, `playsound`, `title`) or put a clickable command in front of an operator (`tellraw`) are not on it:
      they need admin and confirmation, or an entry in `allowedCommands`.
    - **Destructive**: the built-in list (`kill`, `op`, `stop`, `fill`, `setblock`, `tp`, `ban`, ...)
