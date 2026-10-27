@@ -105,6 +105,45 @@ class MainThreadTest {
     }
 
     @Test
+    void aCancelThatArrivesWhileTheWorkRunsDoesNotUndoStarted() {
+        QueuedThread game = new QueuedThread();
+        List<String> ran = new ArrayList<>();
+        MainThread.Call<String>[] holder = new MainThread.Call[1];
+        holder[0] = MainThread.call(game, () -> {
+            holder[0].cancel(true);
+            ran.add("ran");
+            return "x";
+        });
+
+        game.runAll();
+
+        assertEquals(List.of("ran"), ran);
+        assertTrue(holder[0].started(), "the work ran, so the timeout message must say it was already running");
+        assertTrue(holder[0].isCancelled());
+    }
+
+    @Test
+    void workRunsExactlyWhenItWasNotCancelledFirst() {
+        for (boolean cancelFirst : new boolean[]{true, false}) {
+            QueuedThread game = new QueuedThread();
+            List<String> ran = new ArrayList<>();
+            MainThread.Call<String> call = MainThread.call(game, () -> {
+                ran.add("ran");
+                return "x";
+            });
+
+            if (cancelFirst) {
+                call.cancel(true);
+            }
+            game.runAll();
+
+            assertEquals(cancelFirst, call.cancel(true), "a finished call cannot be cancelled");
+            assertEquals(!cancelFirst, call.started());
+            assertEquals(call.started(), !ran.isEmpty(), "started() is true if and only if the work ran");
+        }
+    }
+
+    @Test
     void anExecutorThatRefusesWorkSurfacesToTheCaller() {
         Executor refusing = command -> {
             throw new java.util.concurrent.RejectedExecutionException("server is stopping");
