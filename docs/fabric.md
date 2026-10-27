@@ -100,6 +100,15 @@ If the token comes from `MINECRAFT_MCP_TOKEN`, the environment supplies it and r
 with that explanation: change the variable instead. The work runs off the game thread, so a restart
 cannot stall the server.
 
+### The client endpoint
+
+In a game client, the client's own endpoint (`minecraft-mcp-client.json`, port 25598) has the same three
+subcommands under `/mcpclient`: `/mcpclient status`, `/mcpclient reload` and `/mcpclient token rotate`. They are
+Fabric client commands, so they work in any world or on any server and are never sent to it, and they need no
+operator level: they act for the person at the keyboard. They behave like the `/mcp` ones (a bad configuration is
+refused and the running endpoint is left alone; the new token is never shown, read it from
+`config/minecraft-mcp-client.json`). `/mcp` itself only reaches the integrated server's endpoint.
+
 ## Build
 
 ```bash

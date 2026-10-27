@@ -154,7 +154,8 @@ pair of `System.nanoTime` calls per stretch of main-thread work.
   dry-run before applying.
 - Rotate the token with `/mcp token rotate`. It writes a new token to the config file and restarts the
   endpoint, which invalidates the old token at once. The token is never printed or logged. See
-  `docs/fabric.md`.
+  `docs/fabric.md`. The client endpoint in a game client has its own token: rotate it with
+  `/mcpclient token rotate`.
 
 ## Reporting
 
