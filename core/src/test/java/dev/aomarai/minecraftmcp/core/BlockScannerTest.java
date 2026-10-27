@@ -108,4 +108,33 @@ class BlockScannerTest {
 
         assertEquals(List.of(-2, -1, 0), xs);
     }
+
+    @Test
+    void aBoxAtTheTopOfTheIntRangeEndsInsteadOfWrappingAround() {
+        int max = Integer.MAX_VALUE;
+        java.util.List<String> visited = new java.util.ArrayList<>();
+
+        WorldSnapshot snapshot = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(10),
+                () -> BlockScanner.scan(new BlockQuery("d", max - 1, 0, 0, max, 0, 0, 10), (x, y, z) -> {
+                    visited.add(x + "," + y + "," + z);
+                    return Optional.of("minecraft:stone");
+                }));
+
+        assertEquals(java.util.List.of(max - 1 + ",0,0", max + ",0,0"), visited);
+        assertEquals(2, snapshot.blocks().size());
+        assertEquals(max, snapshot.blocks().get(1).x());
+    }
+
+    @Test
+    void aBoxAtTheBottomOfTheIntRangeIsScannedToo() {
+        java.util.List<String> visited = new java.util.ArrayList<>();
+        int min = Integer.MIN_VALUE;
+
+        BlockScanner.scan(new BlockQuery("d", min, min, min, min + 1, min, min, 10), (x, y, z) -> {
+            visited.add(x + "," + y + "," + z);
+            return Optional.empty();
+        });
+
+        assertEquals(java.util.List.of(min + "," + min + "," + min, (min + 1) + "," + min + "," + min), visited);
+    }
 }

@@ -26,15 +26,17 @@ public final class BlockScanner {
     /** At most {@code query.limit()} blocks; {@code truncated} is true when more were found. */
     public static WorldSnapshot scan(BlockQuery query, BlockLookup world) {
         List<WorldSnapshot.BlockState> blocks = new ArrayList<>();
-        for (int x = query.minX(); x <= query.maxX(); x++) {
-            for (int y = query.minY(); y <= query.maxY(); y++) {
-                for (int z = query.minZ(); z <= query.maxZ(); z++) {
-                    Optional<String> id = world.blockAt(x, y, z);
+        // The counters are long: with an int, a box whose max is Integer.MAX_VALUE wraps on the last increment and the
+        // loop never ends, however small the box is.
+        for (long x = query.minX(); x <= query.maxX(); x++) {
+            for (long y = query.minY(); y <= query.maxY(); y++) {
+                for (long z = query.minZ(); z <= query.maxZ(); z++) {
+                    Optional<String> id = world.blockAt((int) x, (int) y, (int) z);
                     if (id.isPresent()) {
                         if (blocks.size() == query.limit()) {
                             return new WorldSnapshot(query.dimension(), blocks, true);
                         }
-                        blocks.add(new WorldSnapshot.BlockState(x, y, z, id.get()));
+                        blocks.add(new WorldSnapshot.BlockState((int) x, (int) y, (int) z, id.get()));
                     }
                 }
             }
