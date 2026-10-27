@@ -19,8 +19,10 @@ class BlockQueryTest {
 
     @Test
     void volumeDoesNotOverflowInt() {
-        assertEquals(3_000_000L * 3_000_000L * 3_000_000L,
-                query(0, 0, 0, 2_999_999, 2_999_999, 2_999_999, 1).volume());
+        assertEquals(2_000_000L * 2_000_000L * 2_000_000L,
+                query(0, 0, 0, 1_999_999, 1_999_999, 1_999_999, 1).volume());
+        assertEquals(Long.MAX_VALUE, query(0, 0, 0, 2_999_999, 2_999_999, 2_999_999, 1).volume(),
+                "3 million cubed does not fit a long, so it saturates");
     }
 
     @Test
@@ -46,5 +48,17 @@ class BlockQueryTest {
         assertThrows(IllegalArgumentException.class, () -> query(0, 0, 0, 0, 0, 0, 4097));
         assertDoesNotThrow(() -> query(0, 0, 0, 0, 0, 0, 1));
         assertDoesNotThrow(() -> query(0, 0, 0, 0, 0, 0, 4096));
+    }
+
+    @Test
+    void theVolumeOfFarApartBoundsDoesNotOverflowIntoASmallNumber() {
+        int min = Integer.MIN_VALUE;
+        int max = Integer.MAX_VALUE;
+
+        assertEquals(4_294_967_296L, new BlockQuery("d", min, 0, 0, max, 0, 0, 1).volume());
+        assertEquals(4_294_967_296L * 1_048_576L, new BlockQuery("d", min, 0, 0, max, 1_048_575, 0, 1).volume());
+        assertEquals(Long.MAX_VALUE, new BlockQuery("d", min, min, 0, max, max, 0, 1).volume(), "2^64 does not fit");
+        assertEquals(Long.MAX_VALUE, new BlockQuery("d", min, min, min, max, max, max, 1).volume(),
+                "a volume no long can hold saturates, so it is over any cap");
     }
 }

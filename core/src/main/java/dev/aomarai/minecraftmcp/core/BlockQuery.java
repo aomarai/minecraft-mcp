@@ -22,7 +22,18 @@ public record BlockQuery(
         }
     }
 
+    /** The number of positions in the box; {@link Long#MAX_VALUE} when even a long cannot hold it. */
     public long volume() {
-        return (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+        // Each extent is computed in long: the int difference overflows for far-apart bounds (min -2^31, max 2^31-1),
+        // which would make a huge box look small enough to pass the volume cap. Three such extents overflow a long
+        // too, so the product saturates instead of wrapping.
+        long x = (long) maxX - minX + 1;
+        long y = (long) maxY - minY + 1;
+        long z = (long) maxZ - minZ + 1;
+        try {
+            return Math.multiplyExact(Math.multiplyExact(x, y), z);
+        } catch (ArithmeticException e) {
+            return Long.MAX_VALUE;
+        }
     }
 }
