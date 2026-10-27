@@ -136,7 +136,8 @@ pair of `System.nanoTime` calls per stretch of main-thread work.
   command) is refused through `run_command` even with admin on and `confirm=true` sent;
 - an audit file that cannot be written stops every call; the token is replaced by `[redacted]` in the file;
 - the core listens on `127.0.0.1` unless told otherwise, and the files holding the token are owner-only
-  (`OwnerOnlyFileTest`; skipped on file systems without POSIX modes, where CI on Linux still runs it).
+  (`OwnerOnlyFileTest`: modes on POSIX, an ACL with only the owner on Windows, and one warning naming the file
+  when neither can be applied; the ACL path is tested with a fake ACL view, because CI runs Linux).
 
 ## Rules
 
