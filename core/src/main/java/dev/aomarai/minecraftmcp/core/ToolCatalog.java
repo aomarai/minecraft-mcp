@@ -198,7 +198,7 @@ public final class ToolCatalog {
                         "Click an element of the open screen with the left mouse button, as the player would. Use an id "
                                 + "from get_screen. Client only. Requires write access." + ON_REQUEST_ONLY,
                         ToolPolicy.Scope.ACT, Capability.SCREEN_CONTROL, Side.CLIENT, schema(
-                                props("element", string("Element id from get_screen, e.g. 3:button.")),
+                                props("element", string("Element id from get_screen, copied exactly (it is only valid for the screen it was listed on).")),
                                 List.of("element"))),
                 new ToolDescriptor("type_in_screen", "Type in screen",
                         "Type text into the focused text field of the open screen. Client only. Requires write access."

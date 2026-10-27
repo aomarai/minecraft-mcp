@@ -187,7 +187,7 @@ class ToolDispatcherTest {
                 .call(tool("list_entities"), entityArgs("type", "zombie", "limit", 3));
 
         assertFalse(result.isError());
-        assertEquals("{\"dimension\":\"minecraft:overworld\",\"truncated\":true,\"entities\":["
+        assertEquals("{\"untrusted\":true,\"dimension\":\"minecraft:overworld\",\"truncated\":true,\"entities\":["
                 + "{\"type\":\"minecraft:zombie\",\"uuid\":\"uuid-2\",\"name\":\"Zombie\",\"x\":1.5,\"y\":64.0,\"z\":-2.5}]}",
                 text(result));
         assertEquals(new EntityQuery("minecraft:overworld", 1, 64, -2, 8, "minecraft:zombie", 3), game.entityQueries.get(0));

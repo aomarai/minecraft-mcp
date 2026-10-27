@@ -16,7 +16,9 @@ Docker smoke test runs in CI ([version matrix](version-matrix.md)); it does for 
   Everything else (players, blocks, registries, entities, world state, permissions, inventories, the
   log, commands, events) is the shared code in `adapters/common`, the same classes Fabric uses.
 - **Events:** `NeoForgeEventPublisher` feeds chat, joins, leaves and player deaths from NeoForge's event
-  bus into the shared event buffer.
+  bus into the shared event buffer. Chat and deaths can be cancelled by other mods (a mute or chat filter, a revive), so those two
+  listeners run at `EventPriority.LOWEST` and do not receive cancelled events: a message or death that another
+  listener cancelled is not published. Joins and leaves cannot be cancelled and use the default priority.
 - **Command:** `/mcp status|reload|token rotate` is registered through `RegisterCommandsEvent`.
 - **Metadata:** `META-INF/neoforge.mods.toml`, with the NeoForge and Minecraft version ranges taken from
   the node's `gradle.properties`.

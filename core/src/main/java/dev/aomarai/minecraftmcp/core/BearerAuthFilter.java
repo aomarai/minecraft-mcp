@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Clock;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -39,15 +40,14 @@ import java.util.function.IntSupplier;
  * </ol>
  *
  * <p>A rejected request never reaches the MCP transport. Rejections are logged
- * with the remote address only: never the header value, never the token. They
- * are deliberately not written to the audit file, so an anonymous caller cannot
- * fill it.</p>
+ * with the remote address only: never the header value, never the token, and
+ * throttled per address (see {@link RejectionLog}). They are deliberately not
+ * written to the audit file, so an anonymous caller cannot fill it.</p>
  */
 final class BearerAuthFilter implements Filter {
 
     static final String CHALLENGE = "Bearer realm=\"minecraft-mcp\"";
 
-    private static final System.Logger LOG = System.getLogger(BearerAuthFilter.class.getName());
     private static final String SCHEME = "Bearer ";
     private static final Set<String> WILDCARD_HOSTS = Set.of("0.0.0.0", "::", "[::]");
 
@@ -55,12 +55,17 @@ final class BearerAuthFilter implements Filter {
     private final String bindHost;
     private final IntSupplier port;
     private final Exposure exposure;
+    private final RejectionLog rejections;
 
     BearerAuthFilter(String token, String bindHost, IntSupplier port) {
         this(token, bindHost, port, Exposure.LOCAL);
     }
 
     BearerAuthFilter(String token, String bindHost, IntSupplier port, Exposure exposure) {
+        this(token, bindHost, port, exposure, Clock.systemUTC());
+    }
+
+    BearerAuthFilter(String token, String bindHost, IntSupplier port, Exposure exposure, Clock clock) {
         Objects.requireNonNull(token, "token");
         if (token.length() < ConfigLoader.MIN_TOKEN_LENGTH) {
             throw new IllegalArgumentException(
@@ -70,6 +75,7 @@ final class BearerAuthFilter implements Filter {
         this.bindHost = Objects.requireNonNull(bindHost, "bindHost");
         this.port = port;
         this.exposure = Objects.requireNonNull(exposure, "exposure");
+        this.rejections = new RejectionLog(clock);
     }
 
     @Override
@@ -121,8 +127,8 @@ final class BearerAuthFilter implements Filter {
         return value == null ? "" : value.toLowerCase(java.util.Locale.ROOT);
     }
 
-    private static void reject(HttpServletRequest req, HttpServletResponse resp, int status, String why) {
-        LOG.log(System.Logger.Level.WARNING, "Rejected request from {0}: {1}", req.getRemoteAddr(), why);
+    private void reject(HttpServletRequest req, HttpServletResponse resp, int status, String why) {
+        rejections.rejected(req.getRemoteAddr(), why);
         resp.setStatus(status);
     }
 }

@@ -1,5 +1,6 @@
 package dev.aomarai.minecraftmcp.fabric;
 
+import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.ScreenControl;
 import dev.aomarai.minecraftmcp.core.ScreenElement;
 import dev.aomarai.minecraftmcp.core.ScreenElement.Role;
@@ -22,6 +23,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -130,35 +132,35 @@ final class FabricClientScreens implements ScreenReader, ScreenControl {
         return overlay == null ? "" : overlay.getClass().getSimpleName();
     }
 
-    private static Node find(Screen screen, String id) {
+    private Node find(Screen screen, String id) {
         List<Node> nodes = nodes(screen);
-        int colon = id.indexOf(':');
-        int index = -1;
-        if (colon > 0) {
-            try {
-                index = Integer.parseInt(id.substring(0, colon));
-            } catch (NumberFormatException e) {
-                index = -1;
-            }
-        }
-        // The id names a position and a role; if the screen changed since it was listed, they no longer agree.
-        if (index < 0 || index >= nodes.size() || !nodes.get(index).element().id().equals(id)) {
-            throw new IllegalStateException("no element " + id + " on this screen; it may have changed, call get_screen again");
-        }
-        return nodes.get(index);
+        return nodes.get(ScreenElement.resolve(nodes.stream().map(Node::element).toList(), id));
     }
 
     private static String describe(ScreenElement element) {
         return element.role().json() + " '" + element.label() + "'";
     }
 
-    private static List<Node> nodes(Screen screen) {
+    /** Counts the screens seen, so an id listed for one screen is not honoured on the next. Client thread only. */
+    private WeakReference<Screen> lastScreen = new WeakReference<>(null);
+    private long generation;
+
+    private long generationOf(Screen screen) {
+        if (lastScreen.get() != screen) {
+            lastScreen = new WeakReference<>(screen);
+            generation++;
+        }
+        return generation;
+    }
+
+    private List<Node> nodes(Screen screen) {
+        long generation = generationOf(screen);
         List<Node> nodes = new ArrayList<>();
-        collect(screen.children(), nodes, 0, screen.getFocused());
+        collect(screen.children(), nodes, 0, screen.getFocused(), generation);
         if (screen instanceof AbstractContainerScreen<?> container) {
             for (Slot slot : container.getMenu().slots) {
                 if (slot.isActive() && nodes.size() < ScreenSnapshot.MAX_ELEMENTS) {
-                    nodes.add(slotNode(nodes.size(), container, slot));
+                    nodes.add(slotNode(nodes.size(), generation, container, slot));
                 }
             }
         }
@@ -166,10 +168,11 @@ final class FabricClientScreens implements ScreenReader, ScreenControl {
     }
 
     /** Slots are 16 by 16 and positioned relative to the container's own corner, which the access widener opens. */
-    private static Node slotNode(int index, AbstractContainerScreen<?> container, Slot slot) {
+    private static Node slotNode(int index, long generation, AbstractContainerScreen<?> container, Slot slot) {
         int x = container.leftPos + slot.x;
         int y = container.topPos + slot.y;
-        ScreenElement element = new ScreenElement(ScreenElement.idOf(index, Role.SLOT), Role.SLOT, stackLabel(slot.getItem()),
+        String label = stackLabel(slot.getItem());
+        ScreenElement element = new ScreenElement(ScreenElement.idOf(index, Role.SLOT, generation, label), Role.SLOT, label,
                 x, y, SLOT_SIZE, SLOT_SIZE, true, false);
         return new Node(element, x + SLOT_SIZE / 2.0, y + SLOT_SIZE / 2.0);
     }
@@ -180,21 +183,22 @@ final class FabricClientScreens implements ScreenReader, ScreenControl {
     }
 
     private static void collect(List<? extends GuiEventListener> listeners, List<Node> nodes, int depth,
-                                GuiEventListener focused) {
+                                GuiEventListener focused, long generation) {
         for (GuiEventListener listener : listeners) {
             if (listener instanceof AbstractWidget widget) {
                 if (widget.visible && nodes.size() < ScreenSnapshot.MAX_ELEMENTS) {
-                    nodes.add(node(nodes.size(), widget, widget == focused));
+                    nodes.add(node(nodes.size(), generation, widget, widget == focused));
                 }
             } else if (listener instanceof ContainerEventHandler container && depth < MAX_DEPTH) {
-                collect(container.children(), nodes, depth + 1, focused);
+                collect(container.children(), nodes, depth + 1, focused, generation);
             }
         }
     }
 
-    private static Node node(int index, AbstractWidget widget, boolean focused) {
+    private static Node node(int index, long generation, AbstractWidget widget, boolean focused) {
         Role role = role(widget);
-        ScreenElement element = new ScreenElement(ScreenElement.idOf(index, role), role, widget.getMessage().getString(),
+        String label = widget.getMessage().getString();
+        ScreenElement element = new ScreenElement(ScreenElement.idOf(index, role, generation, label), role, label,
                 widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight(), widget.active, focused);
         return new Node(element, widget.getX() + widget.getWidth() / 2.0, widget.getY() + widget.getHeight() / 2.0);
     }
@@ -228,8 +232,8 @@ final class FabricClientScreens implements ScreenReader, ScreenControl {
             }
             try {
                 result.complete(action.apply(minecraft));
-            } catch (RuntimeException e) {
-                result.completeExceptionally(e);
+            } catch (Throwable e) {
+                MainThread.fail(result, e);
             }
         });
         return result;

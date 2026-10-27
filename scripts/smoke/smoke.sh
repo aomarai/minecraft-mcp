@@ -119,6 +119,7 @@ expect "no token is rejected (401)" "$(curl -s -o /dev/null -w '%{http_code}' -X
 expect "wrong token is rejected (401)" "$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$PORT/mcp" -H 'Authorization: Bearer not-the-token-not-the-token-1234' -d '{}')" "401"
 start_session
 [ -n "$SESSION" ] && pass "initialize returned a session" || fail "initialize returned no session id"
+expect_jar_version "$JAR"
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 TOOL_COUNT="$(printf '%s' "$TOOLS" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
@@ -218,6 +219,8 @@ expect "teleport reports the game's own error for an absent player" "$(call 66 t
 expect "a selector in place of a player name is rejected before the game sees it" "$(call 67 teleport '{"player":"@a","x":0,"y":-50,"z":0}')" 'player must be a player name'
 expect "give_item reports the game's own error for an absent player" "$(call 68 give_item '{"player":"Nobody","item":"minecraft:diamond"}')" '"isError":true'
 expect "send_message reaches the chat" "$(call 69 send_message '{"message":"hello from the typed tool"}')" '"isError":false'
+sleep 1
+expect "and the chat line is attributed to MCP, not to the console" "$(tail -n 30 server.log)" "[MCP] hello from the typed tool"
 expect "a message cannot span lines" "$(call 70 send_message '{"message":"hi\nstop"}')" 'must not contain control characters'
 expect "kick_player needs confirmation" "$(call 71 kick_player '{"player":"Nobody","confirm":false}')" 'requires confirmation'
 expect "and a confirmed kick of an absent player is the game's error" "$(call 72 kick_player '{"player":"Nobody","confirm":true}')" '"isError":true'

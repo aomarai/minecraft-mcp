@@ -200,4 +200,111 @@ class JsonlAuditLogTest {
     void discardingLogAcceptsEntries() {
         assertDoesNotThrow(() -> AuditLog.discarding().record(entry(Map.of(), "ok")));
     }
+
+    // ---- rotation ----
+
+    private JsonlAuditLog rotating(Path file, long maxBytes) {
+        return new JsonlAuditLog(file, List.of(TOKEN), OwnerOnlyFile::prepare, maxBytes);
+    }
+
+    /** How many bytes one entry with this detail takes in the file. */
+    private long sizeOfOneEntry(String detail) throws IOException {
+        Path probe = dir.resolve("probe.jsonl");
+        new JsonlAuditLog(probe, List.of()).record(entry(Map.of(), detail));
+        return Files.size(probe);
+    }
+
+    @Test
+    void theFileIsRotatedExactlyWhenTheNextEntryWouldPassTheLimit() throws IOException {
+        long one = sizeOfOneEntry("e1");
+        Path file = dir.resolve("audit.jsonl");
+        JsonlAuditLog log = rotating(file, 2 * one);
+
+        log.record(entry(Map.of(), "e1"));
+        log.record(entry(Map.of(), "e2"));
+        assertEquals(2 * one, Files.size(file), "a file exactly at the limit is not rotated");
+        assertFalse(Files.exists(dir.resolve("audit.jsonl.1")));
+
+        log.record(entry(Map.of(), "e3"));
+
+        assertEquals(List.of("e3"), lines(file).stream().map(l -> l.get("detail")).toList());
+        assertEquals(List.of("e1", "e2"), lines(dir.resolve("audit.jsonl.1")).stream().map(l -> l.get("detail")).toList());
+    }
+
+    @Test
+    void oneByteUnderTheLimitStillTakesTheNextEntryAfterOneMoreByteDoesNot() throws IOException {
+        long one = sizeOfOneEntry("e1");
+        Path file = dir.resolve("audit.jsonl");
+        JsonlAuditLog log = rotating(file, 2 * one - 1);
+
+        log.record(entry(Map.of(), "e1"));
+        log.record(entry(Map.of(), "e2"));
+
+        assertEquals(List.of("e2"), lines(file).stream().map(l -> l.get("detail")).toList());
+        assertEquals(List.of("e1"), lines(dir.resolve("audit.jsonl.1")).stream().map(l -> l.get("detail")).toList());
+    }
+
+    @Test
+    void anEntryLargerThanTheLimitIsStillWrittenWholeToAFileOfItsOwn() throws IOException {
+        Path file = dir.resolve("audit.jsonl");
+        JsonlAuditLog log = rotating(file, 10);
+
+        log.record(entry(Map.of(), "first"));
+        log.record(entry(Map.of(), "second"));
+
+        assertEquals(List.of("second"), lines(file).stream().map(l -> l.get("detail")).toList());
+        assertEquals(List.of("first"), lines(dir.resolve("audit.jsonl.1")).stream().map(l -> l.get("detail")).toList());
+        assertFalse(Files.exists(dir.resolve("audit.jsonl.2")), "an empty file is never rotated");
+    }
+
+    @Test
+    void onlyTheNewestRotatedFilesAreKept() throws IOException {
+        long one = sizeOfOneEntry("e1");
+        Path file = dir.resolve("audit.jsonl");
+        JsonlAuditLog log = rotating(file, one);
+
+        for (int i = 1; i <= JsonlAuditLog.KEPT + 3; i++) {
+            log.record(entry(Map.of(), "e" + i));
+        }
+
+        int newest = JsonlAuditLog.KEPT + 3;
+        assertEquals(List.of("e" + newest), lines(file).stream().map(l -> l.get("detail")).toList());
+        for (int n = 1; n <= JsonlAuditLog.KEPT; n++) {
+            assertEquals(List.of("e" + (newest - n)),
+                    lines(dir.resolve("audit.jsonl." + n)).stream().map(l -> l.get("detail")).toList());
+        }
+        assertFalse(Files.exists(dir.resolve("audit.jsonl." + (JsonlAuditLog.KEPT + 1))));
+    }
+
+    @Test
+    void rotatedAndNewFilesAreOwnerOnly() throws IOException {
+        assumeTrue(java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        long one = sizeOfOneEntry("e1");
+        Path file = dir.resolve("audit.jsonl");
+        JsonlAuditLog log = rotating(file, one);
+
+        log.record(entry(Map.of(), "e1"));
+        log.record(entry(Map.of(), "e2"));
+
+        assertTrue(OwnerOnlyFile.holds(file));
+        assertTrue(OwnerOnlyFile.holds(dir.resolve("audit.jsonl.1")));
+    }
+
+    @Test
+    void aRotationThatFailsFailsTheEntryAndLosesNothing() throws IOException {
+        long one = sizeOfOneEntry("e1");
+        Path file = dir.resolve("audit.jsonl");
+        JsonlAuditLog log = rotating(file, one);
+        log.record(entry(Map.of(), "e1"));
+        // A directory where the first rotated file belongs and something inside it, so the move cannot happen.
+        Files.createDirectories(dir.resolve("audit.jsonl.1").resolve("blocker"));
+        Files.createDirectories(dir.resolve("audit.jsonl.2"));
+        Files.writeString(dir.resolve("audit.jsonl.2").resolve("blocker"), "x");
+        Files.createDirectories(dir.resolve("audit.jsonl.4"));
+        Files.writeString(dir.resolve("audit.jsonl.4").resolve("blocker"), "x");
+
+        assertThrows(UncheckedIOException.class, () -> log.record(entry(Map.of(), "e2")));
+
+        assertEquals(List.of("e1"), lines(file).stream().map(l -> l.get("detail")).toList());
+    }
 }

@@ -31,6 +31,8 @@ final class FakeRconServer implements AutoCloseable {
     volatile boolean ignoreAuth;
     volatile boolean ignoreCommands;
     volatile boolean hangUpAfterCommand;
+    /** When set, a command is answered with packets that never stop coming, this many milliseconds apart (0: as fast as possible). */
+    volatile long floodPauseMillis = -1;
     /** When set, a command waits here before it is answered. */
     volatile CountDownLatch holdCommands;
     /** Counted down when a command has arrived. */
@@ -122,6 +124,10 @@ final class FakeRconServer implements AutoCloseable {
         }
         if (noiseBeforeReply) {
             out.write(new RconPacket(99, RconPacket.RESPONSE, "noise").encode());
+        }
+        while (floodPauseMillis >= 0) {
+            out.write(new RconPacket(request.id(), RconPacket.RESPONSE, "x".repeat(1000)).encode());
+            Thread.sleep(floodPauseMillis);
         }
         for (String chunk : replies.apply(request.payload())) {
             out.write(new RconPacket(request.id(), RconPacket.RESPONSE, chunk).encode());

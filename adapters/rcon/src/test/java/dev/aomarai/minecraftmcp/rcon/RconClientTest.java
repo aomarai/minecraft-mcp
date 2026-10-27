@@ -246,6 +246,84 @@ class RconClientTest {
     }
 
     @Test
+    void aReplyOverTheByteCapIsCutOffAndTheNextCommandUsesAFreshConnection() throws Exception {
+        server.floodPauseMillis = 0;
+
+        CommandResult flooded = run("help");
+
+        assertFalse(flooded.success());
+        assertEquals("the RCON reply is larger than " + RconClient.MAX_REPLY_BYTES
+                + " bytes; the connection was closed and the command may still have taken effect", flooded.feedback().get(0));
+        assertTrue(server.awaitDisconnections(1));
+
+        server.floodPauseMillis = -1;
+        assertEquals("ran list", run("list").output());
+        assertEquals(2, server.connections.get());
+    }
+
+    @Test
+    void aReplyThatTrickledInForLongerThanTheTimeoutEndsAtTheTimeoutNotAtTheLastPacket() throws Exception {
+        server.floodPauseMillis = 40;
+
+        long start = System.nanoTime();
+        CommandResult dripped = client.runCommand("help", Duration.ofMillis(300)).get(20, TimeUnit.SECONDS);
+        long elapsed = (System.nanoTime() - start) / 1_000_000;
+
+        assertFalse(dripped.success());
+        assertEquals("RCON did not answer within 300 ms; the command may still have taken effect", dripped.feedback().get(0));
+        assertTrue(elapsed >= 300 && elapsed < 2_000, "elapsed " + elapsed);
+        assertTrue(server.awaitDisconnections(1));
+
+        server.floodPauseMillis = -1;
+        assertEquals("ran list", run("list").output());
+        assertEquals(2, server.connections.get());
+    }
+
+    /** A clock that says 0 when the round trip starts and {@code later} for every look after that. */
+    private RconClient clientWhoseClockSays(long laterMillis) {
+        long[] now = {0};
+        java.util.function.LongSupplier clock = () -> {
+            long value = now[0];
+            now[0] = laterMillis * 1_000_000L;
+            return value;
+        };
+        return new RconClient(config(server.port(), FakeRconServer.PASSWORD), Socket::new, clock);
+    }
+
+    @Test
+    void aReplyIsReadWhileAMillisecondIsLeftOfTheTimeout() throws Exception {
+        try (RconClient timed = clientWhoseClockSays(99)) {
+            CommandResult result = timed.runCommand("list", Duration.ofMillis(100)).get(20, TimeUnit.SECONDS);
+
+            assertEquals("ran list", result.output());
+        }
+    }
+
+    @Test
+    void noReplyIsReadOnceTheTimeoutHasRunOut() throws Exception {
+        try (RconClient timed = clientWhoseClockSays(100)) {
+            CommandResult result = timed.runCommand("list", Duration.ofMillis(100)).get(20, TimeUnit.SECONDS);
+
+            assertEquals("RCON did not answer within 100 ms; the command may still have taken effect", result.feedback().get(0));
+        }
+    }
+
+    @Test
+    void aReplyOfExactlyTheByteCapIsAcceptedAndOneByteMoreIsNot() throws Exception {
+        String chunk = "x".repeat(4000);
+        int full = RconClient.MAX_REPLY_BYTES / 4000;
+        String rest = "y".repeat(RconClient.MAX_REPLY_BYTES - full * 4000);
+        java.util.List<String> packets = new java.util.ArrayList<>(java.util.Collections.nCopies(full, chunk));
+        packets.add(rest);
+        server.replies = command -> packets;
+
+        assertTrue(run("help").success());
+
+        packets.add("z");
+        assertFalse(run("help").success());
+    }
+
+    @Test
     void aServerThatIsNotListeningIsAnError() throws Exception {
         try (Socket reserved = refusingPort();
              RconClient nobody = new RconClient(config(reserved.getLocalPort(), FakeRconServer.PASSWORD))) {

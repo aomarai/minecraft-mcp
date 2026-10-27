@@ -11,6 +11,11 @@ import java.util.regex.Pattern;
  * or another argument. Player names are a strict word, ids are resource locations, numbers are
  * bounded and written without exponents, and free text (a message, a reason) may not contain
  * control characters, so it cannot span lines.</p>
+ *
+ * <p>The game resolves entity selectors inside a message argument whenever the source may use them, and the MCP
+ * source may. So free text is refused if it contains {@code @} followed by a selector letter ({@code a}, {@code e},
+ * {@code p}, {@code r}, {@code s}, {@code n}), which is exactly what the game would parse as one. The text is
+ * otherwise sent as it is, so {@code say} and {@code tell} look as they always did.</p>
  */
 final class CommandBuilder {
 
@@ -18,6 +23,7 @@ final class CommandBuilder {
     static final int MAX_TEXT = 256;
     static final int MAX_ITEM_COUNT = 6400;
 
+    private static final Pattern SELECTOR = Pattern.compile("@[aeprsn]");
     private static final Pattern PLAYER = Pattern.compile("[A-Za-z0-9_.]{1,32}");
 
     private CommandBuilder() {
@@ -81,7 +87,7 @@ final class CommandBuilder {
         return reason.isEmpty() ? "" : " " + text(reason, "reason");
     }
 
-    /** Free text on one line, at most {@value #MAX_TEXT} characters. */
+    /** Free text on one line, at most {@value #MAX_TEXT} characters, with no entity selector in it. */
     private static String text(String raw, String what) {
         String text = raw.strip();
         if (text.isEmpty()) {
@@ -92,6 +98,9 @@ final class CommandBuilder {
         }
         if (text.chars().anyMatch(Character::isISOControl)) {
             throw new IllegalArgumentException(what + " must not contain control characters or line breaks");
+        }
+        if (SELECTOR.matcher(text).find()) {
+            throw new IllegalArgumentException(what + " must not contain an entity selector such as @a or @e");
         }
         return text;
     }
