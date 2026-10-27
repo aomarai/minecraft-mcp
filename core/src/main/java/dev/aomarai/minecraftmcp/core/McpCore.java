@@ -90,7 +90,7 @@ public final class McpCore implements AutoCloseable {
                 .build();
 
         McpServer.SyncSpecification<?> builder = McpServer.sync(transport)
-                .serverInfo("minecraft-mcp", "0.1.0")
+                .serverInfo("minecraft-mcp", McpVersion.current())
                 .tools(catalog.specs(invoker));
         McpSchema.ServerCapabilities.Builder capabilities = McpSchema.ServerCapabilities.builder().tools(false);
         if (events.isPresent()) {

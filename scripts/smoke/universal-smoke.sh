@@ -67,7 +67,8 @@ if [ "$KIND" = "fabric" ]; then
   # A modded server: Fabric with its API, the way a modpack runs, but without this project's mod. The versions
   # are the ones the Fabric adapter is built for.
   NODE_PROPERTIES="$REPO/adapters/fabric/versions/1.21.1/gradle.properties"
-  property() { sed -n "s/^$1=//p" "$NODE_PROPERTIES" | tr -d ''; }
+  property() { sed -n "s/^$1=//p" "$NODE_PROPERTIES" | tr -d '
+'; }
   LOADER_VERSION="$(property fabric_loader_version)"; API_VERSION="$(property fabric_api_version)"
   [ -n "$LOADER_VERSION" ] && [ -n "$API_VERSION" ] || { echo "FAIL: cannot read the Fabric versions from $NODE_PROPERTIES"; exit 2; }
   curl -fsSLo server.jar "https://meta.fabricmc.net/v2/versions/loader/$MINECRAFT_VERSION/$LOADER_VERSION/1.1.2/server/jar"     || { echo "FAIL: cannot download the Fabric server launcher"; exit 2; }
@@ -120,6 +121,7 @@ expect "no token is rejected (401)" "$(curl -s -o /dev/null -w '%{http_code}' -X
 expect "wrong token is rejected (401)" "$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$PORT/mcp" -H 'Authorization: Bearer not-the-token-not-the-token-1234' -d '{}')" "401"
 start_session
 [ -n "$SESSION" ] && pass "initialize returned a session" || fail "initialize returned no session id"
+expect_jar_version "$JAR"
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 for tool in server_info list_players read_log read_events fill_blocks teleport give_item send_message kick_player ban_player save_world stop_server run_command run_admin_command; do

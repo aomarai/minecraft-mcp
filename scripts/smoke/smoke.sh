@@ -119,6 +119,7 @@ expect "no token is rejected (401)" "$(curl -s -o /dev/null -w '%{http_code}' -X
 expect "wrong token is rejected (401)" "$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$PORT/mcp" -H 'Authorization: Bearer not-the-token-not-the-token-1234' -d '{}')" "401"
 start_session
 [ -n "$SESSION" ] && pass "initialize returned a session" || fail "initialize returned no session id"
+expect_jar_version "$JAR"
 
 TOOLS="$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 TOOL_COUNT="$(printf '%s' "$TOOLS" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
