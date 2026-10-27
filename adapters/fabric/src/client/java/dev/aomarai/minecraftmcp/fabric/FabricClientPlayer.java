@@ -1,10 +1,12 @@
 package dev.aomarai.minecraftmcp.fabric;
 
+import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.PlayerController;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
@@ -125,12 +127,15 @@ final class FabricClientPlayer implements PlayerController {
             if (!(player.getMainHandItem().getItem() instanceof BlockItem)) {
                 throw new IllegalStateException("the main hand holds no block");
             }
+            // The registry id, read before the block is placed: afterwards the last block of a stack is gone, and the
+            // item's own name is text its owner chose (an anvil rename), which must not reach the model.
+            String placed = BuiltInRegistries.ITEM.getKey(player.getMainHandItem().getItem()).toString();
             for (Direction direction : Direction.values()) {
                 BlockPos neighbour = pos.relative(direction);
                 if (!minecraft.level.getBlockState(neighbour).isAir()
                         && !minecraft.level.getBlockState(neighbour).canBeReplaced()) {
                     use(minecraft, player, neighbour, direction.getOpposite());
-                    return "placed " + player.getMainHandItem().getHoverName().getString() + " at " + describe(pos);
+                    return "placed " + placed + " at " + describe(pos);
                 }
             }
             throw new IllegalStateException("there is no block next to " + describe(pos) + " to place against");
@@ -167,7 +172,7 @@ final class FabricClientPlayer implements PlayerController {
             if (answer != null) {
                 finish(minecraft, current, answer, null);
             }
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             finish(minecraft, current, null, e);
         }
     }
@@ -198,7 +203,7 @@ final class FabricClientPlayer implements PlayerController {
         return result;
     }
 
-    private void finish(Minecraft minecraft, Running done, String answer, RuntimeException failure) {
+    private void finish(Minecraft minecraft, Running done, String answer, Throwable failure) {
         minecraft.options.keyUp.setDown(false);
         minecraft.options.keyJump.setDown(false);
         if (minecraft.gameMode != null) {
@@ -208,7 +213,7 @@ final class FabricClientPlayer implements PlayerController {
             running = null;
         }
         if (failure != null) {
-            done.result().completeExceptionally(failure);
+            MainThread.fail(done.result(), failure);
         } else if (answer != null) {
             done.result().complete(answer);
         }
