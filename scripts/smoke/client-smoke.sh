@@ -90,12 +90,14 @@ screen_name() { text_of "$(c get_screen '{"limit":1}')" | sed -n 's/.*"screen":"
 click_label() {
   local out id
   out="$(c get_screen "{\"label\":\"$1\",\"role\":\"button\"}")"
-  id="$(printf '%s' "$out" | grep -o '[0-9]*:button' | head -1)"
+  id="$(printf '%s' "$out" | grep -o '[0-9]*:button:[0-9]*:[0-9a-f]*' | head -1)"
   [ -n "$id" ] || { echo "no button '$1'"; return 1; }
   c click_screen_element "{\"element\":\"$id\"}" > /dev/null
 }
-# The id of the first element with this role whose label contains the text, as "<index>:<role>".
-find_id() { text_of "$(c get_screen "{\"role\":\"$1\",\"label\":\"$2\"}")" | grep -o '"id":"[0-9]*:[a-z_]*"' | head -1 | sed 's/"id":"\(.*\)"/\1/'; }
+# The id of the first element with this role whose label contains the text, as "<index>:<role>:<generation>:<hash>".
+find_id() { text_of "$(c get_screen "{\"role\":\"$1\",\"label\":\"$2\"}")" | grep -o '"id":"[0-9]*:[a-z_]*:[0-9]*:[0-9a-f]*"' | head -1 | sed 's/"id":"\(.*\)"/\1/'; }
+# The id of the element at this position of the open screen.
+id_at() { text_of "$(c get_screen '{"limit":300}')" | grep -o "\"id\":\"$1:[a-z_]*:[0-9]*:[0-9a-f]*\"" | head -1 | sed 's/"id":"\(.*\)"/\1/'; }
 click_id() { c click_screen_element "{\"element\":\"$1\"}" > /dev/null; sleep 1; }
 # A cycle button (World Type, Game Mode) shows its choice in its label: press it until the label says what is wanted.
 cycle_until() {
@@ -124,7 +126,7 @@ configure_world() {
   c type_in_screen "{\"text\":\"$SEED\"}" > /dev/null
   local structures
   structures="$(find_id label "Generate Structures" | sed 's/:.*//')"
-  [ -n "$structures" ] && click_id "$((structures + 1)):button"
+  [ -n "$structures" ] && click_id "$(id_at "$((structures + 1))")"
 }
 SEED=20260101
 configured=""
@@ -251,8 +253,10 @@ expect "get_screen lists the inventory screen's slots" "$slots" '"role":"slot"'
 expect "an empty slot says so" "$slots" '"label":"empty"'
 expect "a held stack shows its registry id and count" "$slots" 'minecraft:'
 [ "$(printf '%s' "$slots" | grep -o '"role":"slot"' | wc -l)" -ge 36 ] && pass "the inventory's slots are listed" || fail "fewer than 36 slots listed"
-slot="$(printf '%s' "$slots" | grep -o '"id":"[0-9]*:slot"' | head -1 | sed 's/"id":"\(.*\)"/\1/')"
+slot="$(printf '%s' "$slots" | grep -o '"id":"[0-9]*:slot:[0-9]*:[0-9a-f]*"' | head -1 | sed 's/"id":"\(.*\)"/\1/')"
 expect "a slot can be clicked through the screen's own input handling" "$(c click_screen_element "{\"element\":\"$slot\"}")" "clicked slot"
+c open_inventory '{}' > /dev/null
+expect "an id from the screen that was replaced is refused" "$(c click_screen_element "{\"element\":\"$slot\"}")" "call get_screen again"
 
 echo
 if [ "$FAILURES" -gt 0 ]; then
