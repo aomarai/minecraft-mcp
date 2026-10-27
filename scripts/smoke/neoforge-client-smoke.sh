@@ -2,11 +2,11 @@
 # Smoke test of the NeoForge game client: starts a real client (Gradle's runClient, which loads the shaded mod jar
 # from the run's mods/ folder) on a virtual display, joins a throwaway single-player world, and checks that the
 # integrated server serves MCP on port 25599 like a dedicated server: server_info, list_players (the player is
-# in the world) and one write (send_message). Only 1.21.1 for now.
+# in the world) and one write (send_message). 26.x nodes need JDK 25 on the PATH.
 #
 #   scripts/smoke/neoforge-client-smoke.sh [node]      default 1.21.1
 #
-# Needs Java 21, xvfb-run, a software OpenGL (Mesa) and network access (it fetches Mojang's server jar once to
+# Needs Java 21 (25 for the 26.x nodes), xvfb-run, a software OpenGL (Mesa) and network access (it fetches Mojang's server jar once to
 # generate the flat world the client joins). Without a display and without xvfb-run it says so and exits 0.
 # The world is made by Mojang's server with eula=true written into a throwaway folder; nothing is redistributed.
 set -u
@@ -67,7 +67,8 @@ TOKEN="$(read_token)"
 start_session
 [ -n "$SESSION" ] && pass "initialize returned a session" || fail "initialize returned no session id"
 expect "server_info says NeoForge on this Minecraft version" "$(call 2 server_info '{}')" "NeoForge"
-expect "list_players sees the player in the world" "$(call 3 list_players '{}')" '\"dimension\":\"minecraft:overworld\"'
+# The server answers a moment before the player has finished joining, so ask again for a few seconds.
+expect_eventually "list_players sees the player in the world" '\"dimension\":\"minecraft:overworld\"' 3 list_players '{}'
 expect "a write goes through (send_message)" "$(call 4 send_message '{"message":"hello from the client smoke test"}')" '"isError":false'
 sleep 1
 expect "and it is attributed to MCP" "$(cat "$RUN_DIR/logs/latest.log")" "[MCP] hello from the client smoke test"
