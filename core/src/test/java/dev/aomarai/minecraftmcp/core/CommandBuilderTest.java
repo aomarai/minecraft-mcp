@@ -117,6 +117,31 @@ class CommandBuilderTest {
         assertEquals("reason must not contain control characters or line breaks", message(() -> CommandBuilder.kick("Steve", text)));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"hello @a", "@e[type=zombie] hi", "@p", "x@r", "@s!", "look @n", "me@alice.com"})
+    void textWithAnEntitySelectorIsRejected(String text) {
+        String expected = " must not contain an entity selector such as @a or @e";
+        assertEquals("message" + expected, message(() -> CommandBuilder.message("", text)));
+        assertEquals("message" + expected, message(() -> CommandBuilder.message("Steve", text)));
+        assertEquals("reason" + expected, message(() -> CommandBuilder.kick("Steve", text)));
+    }
+
+    @Test
+    void anAtSignThatIsNotASelectorIsSent() {
+        assertEquals("say mail a@b.c or @ me", CommandBuilder.message("", "mail a@b.c or @ me"));
+        assertEquals("tell Steve @B @1 @", CommandBuilder.message("Steve", "@B @1 @"));
+        assertEquals("kick Steve mail @x", CommandBuilder.kick("Steve", "mail @x"));
+    }
+
+    @Test
+    void aSelectorIsFoundAtTheEndOfTheLongestMessage() {
+        String atLimit = "m".repeat(CommandBuilder.MAX_TEXT - 2) + "@e";
+        assertEquals("message must not contain an entity selector such as @a or @e",
+                message(() -> CommandBuilder.message("", atLimit)));
+        String half = "m".repeat(CommandBuilder.MAX_TEXT - 1) + "@";
+        assertEquals("say " + half, CommandBuilder.message("", half));
+    }
+
     @Test
     void textMustBeNonEmptyAndShortEnough() {
         assertEquals("message must not be empty", message(() -> CommandBuilder.message("", "   ")));

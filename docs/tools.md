@@ -104,9 +104,9 @@ read-only tools); they are not enforcement. The policy gate decides what actuall
 | `fill_blocks` | ACT | `dimension`, `min_x`..`max_z`, `block`, optional `dry_run`. Fills a box with one block, bounded by `maxBlockVolume`. `dry_run` reports the `volume` and the exact `command` and changes nothing |
 | `teleport` | ACT | `player`, `x`, `y`, `z`, optional `dimension` |
 | `give_item` | ACT | `player`, `item` (registry id), optional `count` (1-6400, default 1) |
-| `send_message` | ACT | `message` (one line, up to 256 characters), optional `player` (omit to tell everyone) |
-| `kick_player` | ADMIN | `player`, optional `reason`, `confirm` |
-| `ban_player` | ADMIN | `player`, optional `reason`, `confirm` |
+| `send_message` | ACT | `message` (one line, up to 256 characters, with no entity selector: text containing `@a`, `@e`, `@p`, `@r`, `@s` or `@n` is refused, because the game would expand it into entity names), optional `player` (omit to tell everyone) |
+| `kick_player` | ADMIN | `player`, optional `reason` (same rules as `message`), `confirm` |
+| `ban_player` | ADMIN | `player`, optional `reason` (same rules as `message`), `confirm` |
 | `save_world` | ADMIN | `confirm` (flushes pending world data to disk) |
 | `stop_server` | ADMIN | `confirm` |
 | `take_screenshot` | OBSERVE | none. **Client only**, and served by the Fabric client mod on its own endpoint (see `docs/fabric.md`); a dedicated server never offers it. The answer is one `image/png` content block, at most 1280 x 720 pixels and 2 MiB, enforced by the core (`Screenshot`); the capture stays in memory and is never written to disk, and the audit log records only `image/png WxH, N bytes` |
