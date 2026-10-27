@@ -36,10 +36,16 @@ public final class ToolPolicy {
             "fill", "clone", "setblock", "summon", "tp", "teleport", "spreadplayers",
             "save-off", "save-all", "reload", "kick", "difficulty", "gamerule");
 
-    /** Everyday vanilla commands that cannot destroy anything or run other commands. */
+    /**
+     * Everyday vanilla commands that cannot hurt a player, destroy anything or run other commands. Left out on
+     * purpose, because they can: {@code effect} (instant damage kills), {@code xp}/{@code experience} (a negative
+     * amount wipes levels), {@code give} (any count, to everyone), {@code particle}, {@code playsound} and
+     * {@code title} (flood every client), and {@code tellraw} (a clickable command in front of an operator). They
+     * need admin and confirmation like any unrecognised command; an operator who trusts one lists it in
+     * {@code allowedCommands}.
+     */
     private static final Set<String> SAFE_ROOTS = Set.of(
-            "say", "tell", "msg", "w", "me", "tellraw", "title", "list", "seed", "help",
-            "time", "weather", "give", "xp", "experience", "effect", "playsound", "particle");
+            "say", "tell", "msg", "w", "me", "list", "seed", "help", "time", "weather");
 
     private final boolean allowWrites;
     private final boolean allowAdmin;

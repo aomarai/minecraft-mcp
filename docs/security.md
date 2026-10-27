@@ -91,9 +91,10 @@ Every tool call goes through `ToolDispatcher`:
    one of three kinds, by its first word (case-insensitive, `minecraft:` ignored, so `minecraft:kill`
    is `kill`):
    - **Known safe**: a small built-in list of everyday vanilla commands (`say`, `tell`, `msg`, `w`,
-     `me`, `tellraw`, `title`, `list`, `seed`, `help`, `time`, `weather`, `give`, `xp`,
-     `experience`, `effect`, `playsound`, `particle`) plus the operator's `allowedCommands`. Needs
-     `allowWrites`.
+     `me`, `list`, `seed`, `help`, `time`, `weather`) plus the operator's `allowedCommands`. Needs
+     `allowWrites`. Commands that can hurt players or flood them (`effect`, `xp`, `experience`, `give`,
+     `particle`, `playsound`, `title`) or put a clickable command in front of an operator (`tellraw`) are not on it:
+     they need admin and confirmation, or an entry in `allowedCommands`.
    - **Destructive**: the built-in list (`kill`, `op`, `stop`, `fill`, `setblock`, `tp`, `ban`, ...)
      plus the operator's `destructiveCommands`. Needs admin plus `confirm=true`.
    - **Anything else** (a modded command such as `mymod:wipe_world`, or `execute`, `function`,
