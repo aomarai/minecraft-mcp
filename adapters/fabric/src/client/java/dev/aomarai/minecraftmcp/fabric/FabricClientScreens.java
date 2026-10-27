@@ -1,5 +1,6 @@
 package dev.aomarai.minecraftmcp.fabric;
 
+import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.ScreenControl;
 import dev.aomarai.minecraftmcp.core.ScreenElement;
 import dev.aomarai.minecraftmcp.core.ScreenElement.Role;
@@ -228,8 +229,8 @@ final class FabricClientScreens implements ScreenReader, ScreenControl {
             }
             try {
                 result.complete(action.apply(minecraft));
-            } catch (RuntimeException e) {
-                result.completeExceptionally(e);
+            } catch (Throwable e) {
+                MainThread.fail(result, e);
             }
         });
         return result;

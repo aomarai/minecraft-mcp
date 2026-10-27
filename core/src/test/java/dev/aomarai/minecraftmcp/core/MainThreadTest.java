@@ -60,6 +60,54 @@ class MainThreadTest {
     }
 
     @Test
+    void anErrorFailsTheCallAtOnceAndNeverEscapesIntoTheGameLoop() {
+        QueuedThread game = new QueuedThread();
+        long[] clock = {0};
+        CallTiming timing = CallTiming.begin(() -> clock[0]);
+        CompletableFuture<String> future;
+        try {
+            future = MainThread.call(game, () -> {
+                clock[0] += 7;
+                throw new NoSuchMethodError("Minecraft.newName");
+            });
+        } finally {
+            CallTiming.end();
+        }
+
+        assertDoesNotThrow(game::runAll);
+        assertEquals(7, timing.finish().mainThreadNanos(), "the time on the game thread is still recorded");
+
+        assertTrue(future.isCompletedExceptionally());
+        ExecutionException e = assertThrows(ExecutionException.class, future::get);
+        assertEquals("NoSuchMethodError: Minecraft.newName", e.getCause().getMessage());
+        assertInstanceOf(NoSuchMethodError.class, e.getCause().getCause());
+    }
+
+    @Test
+    void aVirtualMachineErrorIsRethrownAfterTheFutureIsCompleted() {
+        QueuedThread game = new QueuedThread();
+        CompletableFuture<String> future = MainThread.call(game, () -> {
+            throw new OutOfMemoryError("heap");
+        });
+
+        assertThrows(OutOfMemoryError.class, game::runAll);
+
+        assertTrue(future.isCompletedExceptionally());
+        assertEquals("OutOfMemoryError: heap",
+                assertThrows(ExecutionException.class, future::get).getCause().getMessage());
+    }
+
+    @Test
+    void failKeepsARuntimeExceptionAsItIs() {
+        CompletableFuture<String> future = new CompletableFuture<>();
+        IllegalArgumentException thrown = new IllegalArgumentException("bad");
+
+        MainThread.fail(future, thrown);
+
+        assertSame(thrown, assertThrows(ExecutionException.class, future::get).getCause());
+    }
+
+    @Test
     void workCancelledBeforeItStartsNeverRuns() {
         QueuedThread game = new QueuedThread();
         List<String> ran = new ArrayList<>();

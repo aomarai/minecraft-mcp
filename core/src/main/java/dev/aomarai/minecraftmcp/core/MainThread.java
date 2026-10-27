@@ -38,6 +38,24 @@ public final class MainThread {
         }
     }
 
+    /**
+     * Completes {@code future} exceptionally with whatever the game-thread work threw, so the caller learns the real
+     * failure at once instead of waiting out its timeout. An {@link Error} (a {@link LinkageError} from a renamed game
+     * member, say) is wrapped so the message names it. Only a {@link VirtualMachineError} is rethrown, after the
+     * future is done: the game's task loop contains {@code Exception}, not {@code Error}.
+     */
+    public static void fail(CompletableFuture<?> future, Throwable thrown) {
+        if (thrown instanceof Error) {
+            future.completeExceptionally(new IllegalStateException(
+                    thrown.getClass().getSimpleName() + ": " + thrown.getMessage(), thrown));
+        } else {
+            future.completeExceptionally(thrown);
+        }
+        if (thrown instanceof VirtualMachineError vme) {
+            throw vme;
+        }
+    }
+
     public static <T> Call<T> call(Executor mainThread, Supplier<T> task) {
         Call<T> future = new Call<>();
         // Taken here, on the calling thread, which is the one the dispatcher is timing; the work below runs elsewhere.
@@ -50,8 +68,8 @@ public final class MainThread {
             long start = timing == null ? 0 : timing.now();
             try {
                 future.complete(task.get());
-            } catch (RuntimeException e) {
-                future.completeExceptionally(e);
+            } catch (Throwable e) {
+                fail(future, e);
             } finally {
                 if (timing != null) {
                     timing.addMainThread(timing.now() - start);
