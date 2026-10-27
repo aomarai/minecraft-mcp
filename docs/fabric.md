@@ -5,13 +5,15 @@ client, the integrated server and the client's own endpoint; see below).
 
 ## Requirements
 
-- Minecraft 1.21.1 dedicated server, Java 21.
+- A dedicated server or a game client on Minecraft 1.21.1 (Java 21), 26.2 or 26.3 (Java 25); see
+  `docs/version-matrix.md` for the jar of each.
 - Fabric Loader 0.16.0 or newer, and Fabric API (any version). Without Fabric API the loader stops
   with `Install fabric-api, any version.`
 
 ## Install
 
-Put `minecraft-mcp-<version>+1.21.1-fabric.jar` and Fabric API in the server's `mods/` folder and
+Put the jar for your Minecraft version (`minecraft-mcp-<version>+<minecraft>-fabric.jar`, for example
+`minecraft-mcp-<version>+1.21.1-fabric.jar`) and Fabric API in the server's `mods/` folder and
 start the server. On the first start the mod creates `config/minecraft-mcp.json` (loopback,
 read-only, with a generated bearer token, owner-only) and `config/minecraft-mcp-audit.jsonl`. See
 `docs/configuration.md`. The log shows `MCP server listening on port 25599`.
@@ -47,14 +49,14 @@ every write. A container screen's item slots are listed as `slot` elements label
 fields of `AbstractContainerScreen`, which an access widener (`adapters/fabric/src/accesswidener/`) opens. Not done
 yet: a handler for owo-lib screens, which waits on the decision to add that dependency (#130). Player tools act on the local player only; see `docs/tools.md`.
 
-**State:** a real client on Minecraft 1.21.1 and 26.2 is smoke-tested in CI on a virtual display
+**State:** a real client on Minecraft 1.21.1, 26.2 and 26.3 is smoke-tested in CI on a virtual display
 (`scripts/smoke/client-smoke.sh <node>`; it needs Java 21 and 25, `xvfb-run` and a software OpenGL (26.3: software Vulkan, `mesa-vulkan-drivers`), and
 skips cleanly without them). It checks the tool list, a screenshot, a world made with the screen tools, and the local player moving,
-digging and placing, against the integrated server's own endpoint. It runs on 1.21.1, 26.2 and 26.3.
+digging and placing, against the integrated server's own endpoint.
 
 ## What it provides
 
-All five tools in `docs/tools.md` are served.
+Every server-side tool in `docs/tools.md` is served: the reads, the typed write and admin tools and the two command tools.
 
 | Tool | How |
 |---|---|

@@ -38,8 +38,9 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>Environment variables: {@code MINECRAFT_MCP_HOST}, {@code _PORT},
- * {@code _ALLOW_WRITES}, {@code _ALLOW_ADMIN}, {@code _ALLOW_REMOTE}, {@code _MAX_BLOCK_VOLUME},
- * {@code _CALL_TIMEOUT_MS}, {@code _TOKEN}.</p>
+ * {@code _ALLOW_WRITES}, {@code _ALLOW_ADMIN}, {@code _ALLOW_REMOTE}, {@code _ALLOWED_HOSTS},
+ * {@code _TLS_KEYSTORE}, {@code _TLS_KEYSTORE_PASSWORD}, {@code _MAX_BLOCK_VOLUME},
+ * {@code _CALL_TIMEOUT_MS}, {@code _ALLOWED_COMMANDS}, {@code _DESTRUCTIVE_COMMANDS}, {@code _TOKEN}.</p>
  */
 public final class ConfigLoader {
 
