@@ -48,7 +48,7 @@ server log (`read_log`), and chat and death messages (`read_events`, and the `mi
 resource). The core never lets such text influence a decision: the policy looks only at
 the tool, its arguments and the configuration. The tools mark it anyway, so a client can treat it as
 data: the `read_log` result carries `"untrusted": true`, and the descriptions of `list_entities` and
-`read_log` say so. `get_inventory` leaves item names out entirely. `read_log` also masks IPv4
+`read_log` say so. `get_inventory` leaves item names out entirely. `read_log` also masks IPv4 and IPv6
 addresses and cuts very long lines, so it does not leak players' addresses or flood the client.
 Event text is cleaned (control characters, including line breaks, become spaces) and cut at 256
 characters before it is stored, and every event is marked `untrusted` when it carries player text.
