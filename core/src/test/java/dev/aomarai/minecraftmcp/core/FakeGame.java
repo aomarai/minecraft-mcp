@@ -16,7 +16,7 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     final List<Duration> commandTimeouts = new ArrayList<>();
     final List<BlockQuery> queries = new ArrayList<>();
     final List<RegistryQuery> registryQueries = new ArrayList<>();
-    final List<EntityQuery> entityQueries = new ArrayList<>();
+    final List<EntityQuery> entityQueries = new java.util.concurrent.CopyOnWriteArrayList<>();
     final List<String> stateQueries = new ArrayList<>();
     final List<String> inventoryQueries = new ArrayList<>();
     final List<Integer> logQueries = new ArrayList<>();

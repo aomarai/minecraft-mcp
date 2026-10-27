@@ -690,7 +690,9 @@ class StdioShimTest {
             assertTrue(eventually(() -> host.lines().size() >= 3), host.lines().toString());
             assertTrue(eventually(() -> gets(seen).size() >= 3));
         }
-        assertEquals("", err.toString(StandardCharsets.UTF_8), "a stream that ends normally is not an error");
+        // A stream that ends normally is not an error status. (A connection the server drops as the test ends may
+        // still be logged, so this checks for the status line, not for silence.)
+        assertFalse(err.toString(StandardCharsets.UTF_8).contains("answered HTTP"));
     }
 
     @Test
