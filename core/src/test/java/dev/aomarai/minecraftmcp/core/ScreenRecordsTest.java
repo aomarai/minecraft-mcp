@@ -14,10 +14,64 @@ class ScreenRecordsTest {
     }
 
     @Test
-    void anIdIsTheIndexAndTheRoleName() {
-        assertEquals("3:text_field", ScreenElement.idOf(3, ScreenElement.Role.TEXT_FIELD));
-        assertEquals("0:button", ScreenElement.idOf(0, ScreenElement.Role.BUTTON));
+    void anIdIsTheIndexTheRoleTheScreenGenerationAndAHashOfTheLabel() {
+        assertEquals("3:text_field:5:77df1a9a", ScreenElement.idOf(3, ScreenElement.Role.TEXT_FIELD, 5, "Cancel"));
+        assertEquals("0:button:0:0", ScreenElement.idOf(0, ScreenElement.Role.BUTTON, 0, ""));
         assertEquals("text_field", ScreenElement.Role.TEXT_FIELD.json());
+    }
+
+    @Test
+    void theSameScreenListedTwiceGivesTheSameIds() {
+        assertEquals(ScreenElement.idOf(1, ScreenElement.Role.BUTTON, 2, "Cancel"),
+                ScreenElement.idOf(1, ScreenElement.Role.BUTTON, 2, "Cancel"));
+    }
+
+    @Test
+    void aLabelThatIsCleanedHashesTheSameAsItsCleanedForm() {
+        assertEquals(ScreenElement.idOf(1, ScreenElement.Role.BUTTON, 2, "Cancel me"),
+                ScreenElement.idOf(1, ScreenElement.Role.BUTTON, 2, "Cancel\nme"));
+    }
+
+    private static List<ScreenElement> screen(long generation, String first, String second) {
+        return List.of(
+                new ScreenElement(ScreenElement.idOf(0, ScreenElement.Role.BUTTON, generation, first),
+                        ScreenElement.Role.BUTTON, first, 0, 0, 1, 1, true, false),
+                new ScreenElement(ScreenElement.idOf(1, ScreenElement.Role.BUTTON, generation, second),
+                        ScreenElement.Role.BUTTON, second, 0, 0, 1, 1, true, false));
+    }
+
+    @Test
+    void anIdResolvesToItsPositionOnTheScreenItCameFrom() {
+        List<ScreenElement> listed = screen(4, "Delete", "Cancel");
+
+        assertEquals(0, ScreenElement.resolve(listed, listed.get(0).id()));
+        assertEquals(1, ScreenElement.resolve(screen(4, "Delete", "Cancel"), listed.get(1).id()));
+    }
+
+    @Test
+    void anIdFromAnOlderScreenGenerationIsRefused() {
+        String id = screen(4, "Delete", "Cancel").get(1).id();
+
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> ScreenElement.resolve(screen(5, "Delete", "Cancel"), id));
+
+        assertEquals("no element " + id + " on this screen; it may have changed, call get_screen again", e.getMessage());
+    }
+
+    @Test
+    void anIdWhoseLabelChangedIsRefused() {
+        String id = screen(4, "Delete", "Cancel").get(1).id();
+
+        assertThrows(IllegalStateException.class, () -> ScreenElement.resolve(screen(4, "Delete", "Keep"), id));
+    }
+
+    @Test
+    void anIdThatPointsOutsideTheScreenOrIsMalformedIsRefused() {
+        List<ScreenElement> listed = screen(4, "Delete", "Cancel");
+
+        for (String id : new String[]{"2:button:4:0", "-1:button:4:0", ":button", "x:button:4:0", "", "button"}) {
+            assertThrows(IllegalStateException.class, () -> ScreenElement.resolve(listed, id), id);
+        }
     }
 
     @Test

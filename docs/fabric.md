@@ -5,13 +5,15 @@ client, the integrated server and the client's own endpoint; see below).
 
 ## Requirements
 
-- Minecraft 1.21.1 dedicated server, Java 21.
+- A dedicated server or a game client on Minecraft 1.21.1 (Java 21), 26.2 or 26.3 (Java 25); see
+  `docs/version-matrix.md` for the jar of each.
 - Fabric Loader 0.16.0 or newer, and Fabric API (any version). Without Fabric API the loader stops
   with `Install fabric-api, any version.`
 
 ## Install
 
-Put `minecraft-mcp-<version>+1.21.1-fabric.jar` and Fabric API in the server's `mods/` folder and
+Put the jar for your Minecraft version (`minecraft-mcp-<version>+<minecraft>-fabric.jar`, for example
+`minecraft-mcp-<version>+1.21.1-fabric.jar`) and Fabric API in the server's `mods/` folder and
 start the server. On the first start the mod creates `config/minecraft-mcp.json` (loopback,
 read-only, with a generated bearer token, owner-only) and `config/minecraft-mcp-audit.jsonl`. See
 `docs/configuration.md`. The log shows `MCP server listening on port 25599`.
@@ -47,14 +49,14 @@ every write. A container screen's item slots are listed as `slot` elements label
 fields of `AbstractContainerScreen`, which an access widener (`adapters/fabric/src/accesswidener/`) opens. Not done
 yet: a handler for owo-lib screens, which waits on the decision to add that dependency (#130). Player tools act on the local player only; see `docs/tools.md`.
 
-**State:** a real client on Minecraft 1.21.1 and 26.2 is smoke-tested in CI on a virtual display
+**State:** a real client on Minecraft 1.21.1, 26.2 and 26.3 is smoke-tested in CI on a virtual display
 (`scripts/smoke/client-smoke.sh <node>`; it needs Java 21 and 25, `xvfb-run` and a software OpenGL (26.3: software Vulkan, `mesa-vulkan-drivers`), and
 skips cleanly without them). It checks the tool list, a screenshot, a world made with the screen tools, and the local player moving,
-digging and placing, against the integrated server's own endpoint. It runs on 1.21.1, 26.2 and 26.3.
+digging and placing, against the integrated server's own endpoint.
 
 ## What it provides
 
-All five tools in `docs/tools.md` are served.
+Every server-side tool in `docs/tools.md` is served: the reads, the typed write and admin tools and the two command tools.
 
 | Tool | How |
 |---|---|
@@ -77,7 +79,7 @@ All five tools in `docs/tools.md` are served.
 - **Registry-driven:** dimensions and blocks are resolved by registry id, never by a hardcoded
   vanilla list. An unknown dimension is reported together with the available ones.
 - **Command permission level:** commands run from a dedicated "MCP" source (not the console, not a
-  player) at vanilla permission level 2, or level 4 only when `allowAdmin` is on. The core's policy
+  player), so `send_message` shows as `[MCP] ...` and operators can tell it from their own console, at vanilla permission level 2, or level 4 only when `allowAdmin` is on. The core's policy
   decides first; this is a second line of defense, so the game itself refuses admin commands unless
   admin access is enabled.
 - **Not covered by a test mod:** that a block from another mod resolves is true by construction
@@ -97,6 +99,15 @@ it); anyone else gets "You do not have permission to use /mcp (operator level 4 
 If the token comes from `MINECRAFT_MCP_TOKEN`, the environment supplies it and rotation is refused
 with that explanation: change the variable instead. The work runs off the game thread, so a restart
 cannot stall the server.
+
+### The client endpoint
+
+In a game client, the client's own endpoint (`minecraft-mcp-client.json`, port 25598) has the same three
+subcommands under `/mcpclient`: `/mcpclient status`, `/mcpclient reload` and `/mcpclient token rotate`. They are
+Fabric client commands, so they work in any world or on any server and are never sent to it, and they need no
+operator level: they act for the person at the keyboard. They behave like the `/mcp` ones (a bad configuration is
+refused and the running endpoint is left alone; the new token is never shown, read it from
+`config/minecraft-mcp-client.json`). `/mcp` itself only reaches the integrated server's endpoint.
 
 ## Build
 

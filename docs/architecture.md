@@ -51,9 +51,9 @@ Every tool runs on one side, `SERVER` (a dedicated or integrated server) or `CLI
 and needs one capability. `ToolCatalog.availableFor` offers a tool only when it is on the adapter's
 side *and* the adapter provides its capability, so a dedicated server never advertises screenshot or
 UI tools and a client never advertises server administration. The Fabric mod asks the loader which
-environment it is in and today loads on dedicated servers only (`fabric.mod.json`:
-`"environment": "server"`). The client adapter, and with it the first tools that actually run on a
-client, is the post-v1 epic (#7).
+environment it is in and loads on both (`fabric.mod.json`: `"environment": "*"`): a dedicated or
+integrated server serves the `SERVER` tools, and the game client runs its own endpoint for the `CLIENT` tools
+(screenshot, screens, the local player; `docs/fabric.md`, "In a game client").
 
 ## Adapter responsibilities
 
@@ -95,7 +95,7 @@ dry-run mode that validates before applying.
 
 - **Stonecutter** builds each loader's adapter for every Minecraft version from one source tree: a
   controller per loader and a node per version (`docs/version-matrix.md`). Fabric uses Loom and
-  NeoForge will use ModDevGradle, directly; one artifact per loader and version.
+  NeoForge uses ModDevGradle, directly; one artifact per loader and version.
 - Start with 1.21.1 and 26.2/26.3; widen deliberately.
 - Mixins are a last resort. Prefer loader APIs and registry access. Any mixin must be
   version-gated and kept small.

@@ -90,7 +90,7 @@ public final class McpCore implements AutoCloseable {
                 .build();
 
         McpServer.SyncSpecification<?> builder = McpServer.sync(transport)
-                .serverInfo("minecraft-mcp", "0.1.0")
+                .serverInfo("minecraft-mcp", McpVersion.current())
                 .tools(catalog.specs(invoker));
         McpSchema.ServerCapabilities.Builder capabilities = McpSchema.ServerCapabilities.builder().tools(false);
         if (events.isPresent()) {
@@ -129,9 +129,21 @@ public final class McpCore implements AutoCloseable {
                 new HttpConnectionFactory());
     }
 
-    /** Starts the HTTP listener. Call before connecting a client. */
+    /**
+     * Starts the HTTP listener. Call before connecting a client. If it cannot start (the port is in use, the keystore
+     * is bad) the core is closed again and the failure is thrown: the constructor already subscribed to
+     * the event feed, which outlives this core.
+     */
     public void start() throws Exception {
-        jetty.start();
+        boolean started = false;
+        try {
+            jetty.start();
+            started = true;
+        } finally {
+            if (!started) {
+                close();
+            }
+        }
     }
 
     /** The bearer token clients must present. A secret: for tests and the code that created the core. */

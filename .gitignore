@@ -26,6 +26,9 @@ logs/
 
 # Local configuration and secrets
 config/minecraft-mcp.json
+minecraft-mcp*.json
+minecraft-mcp*-audit.jsonl
+*.p12
 *.token
 .env
 

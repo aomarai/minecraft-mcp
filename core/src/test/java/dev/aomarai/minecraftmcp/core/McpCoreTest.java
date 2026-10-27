@@ -22,7 +22,7 @@ class McpCoreTest {
                 McpSchema.InitializeResult init = client.initialize();
                 assertNotNull(init.protocolVersion());
                 assertEquals("minecraft-mcp", init.serverInfo().name());
-                assertEquals("0.1.0", init.serverInfo().version());
+                assertEquals(McpVersion.current(), init.serverInfo().version());
                 assertNotNull(init.capabilities().tools());
                 assertNotEquals(Boolean.TRUE, init.capabilities().tools().listChanged());
 

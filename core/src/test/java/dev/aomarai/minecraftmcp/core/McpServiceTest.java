@@ -113,6 +113,23 @@ class McpServiceTest {
     }
 
     @Test
+    void aFailedStartLeavesNoListenerOnTheFeedAndNoNotifierThread() throws Exception {
+        EventBuffer buffer = new EventBuffer(10);
+        CountingFeed feed = new CountingFeed(buffer);
+        try (ServerSocket taken = new ServerSocket(0)) {
+            Path file = config(taken.getLocalPort());
+
+            assertThrows(Exception.class, () -> McpService.start(file, dir.resolve("audit.jsonl"),
+                    config -> new GameServices(Side.SERVER, feed)));
+        }
+
+        assertEquals(0, feed.listeners());
+        buffer.publish(EventType.JOIN, "Steve", "");
+        assertTrue(Thread.getAllStackTraces().keySet().stream()
+                .noneMatch(thread -> thread.getName().equals("minecraft-mcp-events") && thread.isAlive()));
+    }
+
+    @Test
     void aPortThatIsInUseFailsAndLeavesNothingRunning() throws Exception {
         try (ServerSocket taken = new ServerSocket(0)) {
             int port = taken.getLocalPort();

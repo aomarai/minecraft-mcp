@@ -246,6 +246,20 @@ class BearerAuthFilterTest {
     }
 
     @Test
+    void aFilterThatKeepsGettingTheSameBadRequestLogsItOnce() throws Exception {
+        BearerAuthFilter one = filter();
+        Map<String, String> headers = good();
+        headers.put("Authorization", "Bearer nope");
+        try (LogCapture logs = new LogCapture()) {
+            for (int i = 0; i < 5; i++) {
+                assertEquals(401, run(one, headers).status());
+            }
+
+            assertEquals(1, logs.lines().size(), logs.lines().toString());
+        }
+    }
+
+    @Test
     void anUnexpectedOriginIsLoggedAsSuch() throws Exception {
         try (LogCapture logs = new LogCapture()) {
             Map<String, String> headers = good();
