@@ -7,11 +7,13 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.server.permissions.PermissionLevel;
+import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.server.players.ServerOpListEntry;
 import net.minecraft.world.entity.Entity;
@@ -20,6 +22,7 @@ import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -135,12 +138,30 @@ final class GameCompat {
                 && levelBased.level().isEqualOrHigherThan(PermissionLevel.OWNERS);
     }
 
+    /**
+     * A source named "MCP", so commands show up as {@code [MCP] ...} and operators can tell what the AI did from what
+     * they did at the console. The public constructor changed between 26.2 (text name and display name) and 26.3
+     * (display name only), and neither can be named in code that must build for both, so the one this game has is
+     * found by its shape. A game that has neither fails loudly rather than running commands as the console.
+     */
     static CommandSourceStack commandSource(CommandSource output, MinecraftServer server, int permissionLevel) {
-        // The constructor changed again between 26.2 and 26.3, so start from the server's own source.
-        return server.createCommandSourceStack()
-                .withSource(output)
-                .withPosition(Vec3.ZERO)
-                .withRotation(Vec2.ZERO)
-                .withPermission(LevelBasedPermissionSet.forLevel(PermissionLevel.byId(permissionLevel)));
+        PermissionSet permissions = LevelBasedPermissionSet.forLevel(PermissionLevel.byId(permissionLevel));
+        Component name = Component.literal("MCP");
+        try {
+            for (Constructor<?> constructor : CommandSourceStack.class.getConstructors()) {
+                Class<?>[] types = constructor.getParameterTypes();
+                if (types.length == 9 && types[5] == String.class && types[6] == Component.class) {
+                    return (CommandSourceStack) constructor.newInstance(output, Vec3.ZERO, Vec2.ZERO, server.overworld(),
+                            permissions, "MCP", name, server, null);
+                }
+                if (types.length == 7 && types[5] == Component.class && types[6] == MinecraftServer.class) {
+                    return (CommandSourceStack) constructor.newInstance(output, Vec3.ZERO, Vec2.ZERO, server.overworld(),
+                            permissions, name, server);
+                }
+            }
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("cannot build the MCP command source", e);
+        }
+        throw new IllegalStateException("this Minecraft version has no CommandSourceStack constructor that takes a name");
     }
 }

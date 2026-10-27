@@ -174,6 +174,7 @@ final class ToolHandlers {
             entities.add(item);
         }
         Map<String, Object> out = new LinkedHashMap<>();
+        out.put("untrusted", true);
         out.put("dimension", found.dimension());
         out.put("truncated", found.truncated());
         out.put("entities", entities);

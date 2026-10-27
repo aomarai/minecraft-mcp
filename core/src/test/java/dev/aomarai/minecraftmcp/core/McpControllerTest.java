@@ -141,6 +141,23 @@ class McpControllerTest {
     }
 
     @Test
+    void aFailedReloadLeavesNoListenerOnTheFeed() throws Exception {
+        CountingFeed feed = new CountingFeed(new EventBuffer(10));
+        writeConfig("{\"port\": " + freePort() + "}");
+        try (McpController controller = new McpController(configFile, dir.resolve("audit.jsonl"),
+                config -> new GameServices(Side.SERVER, feed), Map.of());
+             ServerSocket taken = new ServerSocket(0)) {
+            controller.start();
+            assertEquals(1, feed.listeners());
+            Files.writeString(configFile, "{\"port\": " + taken.getLocalPort() + ", \"token\": \"" + token() + "\"}");
+
+            assertThrows(Exception.class, controller::reload);
+
+            assertEquals(0, feed.listeners());
+        }
+    }
+
+    @Test
     void aPortThatCannotBeBoundLeavesTheServerStopped() throws Exception {
         writeConfig("{\"port\": " + freePort() + "}");
         try (McpController controller = controller(Map.of()); ServerSocket taken = new ServerSocket(0)) {

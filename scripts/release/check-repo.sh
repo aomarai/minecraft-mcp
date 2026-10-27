@@ -16,4 +16,8 @@ jars=$(git ls-files | grep -Ei '\.(jar|war)$' | grep -vx 'gradle/wrapper/gradle-
 world=$(git ls-files | grep -Ei '(^|/)(level\.dat(_old)?|eula\.txt|server\.properties|usercache\.json|session\.lock)$|\.(mca|mcr)$|(^|/)(world|world_nether|world_the_end|playerdata)/' )
 [ -z "$world" ] || problem "server or world data is committed: $world"
 
+# The jars write their config (with the generated token) and audit log into the folder they run from.
+configs=$(git ls-files | grep -E '(^|/)minecraft-mcp[^/]*\.json$' | grep -Ev '/src/test/resources/')
+[ -z "$configs" ] || problem "a generated config file (it holds a bearer token) is committed: $configs"
+
 exit $fail

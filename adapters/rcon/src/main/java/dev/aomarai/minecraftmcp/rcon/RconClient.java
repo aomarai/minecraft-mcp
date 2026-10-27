@@ -13,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -34,19 +35,28 @@ public final class RconClient implements CommandRunner, AutoCloseable {
     /** An empty request of a type the server does not know is answered right after the command's own reply, so it marks the end of a multi-packet reply. */
     private static final int END_MARKER_ID = 3;
 
+    /** The most reply bytes one command may bring. A server that sends more is cut off, not listened to. */
+    static final int MAX_REPLY_BYTES = 64 * 1024;
+
     private final RconConfig config;
     private final Supplier<Socket> sockets;
+    private final LongSupplier nanos;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(DaemonThreads.named("minecraft-mcp-rcon"));
     /** The logged-in connection, if any. Only the worker thread opens and uses it; close() may close it from another thread. */
     private volatile Socket connection;
 
     public RconClient(RconConfig config) {
-        this(config, Socket::new);
+        this(config, Socket::new, System::nanoTime);
     }
 
     RconClient(RconConfig config, Supplier<Socket> sockets) {
+        this(config, sockets, System::nanoTime);
+    }
+
+    RconClient(RconConfig config, Supplier<Socket> sockets, LongSupplier nanos) {
         this.config = config;
         this.sockets = sockets;
+        this.nanos = nanos;
     }
 
     @Override
@@ -78,10 +88,12 @@ public final class RconClient implements CommandRunner, AutoCloseable {
                 current = connect(millis);
                 connection = current;
             }
-            current.setSoTimeout(millis);
-            return CommandResult.ok(roundTrip(current, command));
+            return CommandResult.ok(roundTrip(current, command, millis));
         } catch (AuthenticationException e) {
             // connect() has already closed the connection and it was never kept.
+            return CommandResult.error(e.getMessage());
+        } catch (ReplyTooLargeException e) {
+            disconnect();
             return CommandResult.error(e.getMessage());
         } catch (SocketTimeoutException e) {
             disconnect();
@@ -114,17 +126,30 @@ public final class RconClient implements CommandRunner, AutoCloseable {
         }
     }
 
-    private static String roundTrip(Socket connected, String command) throws IOException {
+    /** One command and its whole reply, within {@code millis} in total and {@link #MAX_REPLY_BYTES} bytes. */
+    private String roundTrip(Socket connected, String command, int millis) throws IOException {
+        long deadline = nanos.getAsLong() + millis * 1_000_000L;
         var out = connected.getOutputStream();
         out.write(new RconPacket(COMMAND_ID, RconPacket.COMMAND, command).encode());
         out.write(new RconPacket(END_MARKER_ID, RconPacket.RESPONSE, "").encode());
         StringBuilder reply = new StringBuilder();
+        int bytes = 0;
         while (true) {
+            // Each read waits at most what is left, so a server that keeps sending cannot hold the worker past the call's timeout.
+            long left = (deadline - nanos.getAsLong()) / 1_000_000L;
+            if (left < 1) {
+                throw new SocketTimeoutException();
+            }
+            connected.setSoTimeout((int) Math.min(left, Integer.MAX_VALUE));
             RconPacket packet = RconPacket.read(connected.getInputStream());
             if (packet.id() == END_MARKER_ID) {
                 return reply.toString();
             }
             if (packet.id() == COMMAND_ID) {
+                bytes += packet.payload().getBytes(StandardCharsets.UTF_8).length;
+                if (bytes > MAX_REPLY_BYTES) {
+                    throw new ReplyTooLargeException();
+                }
                 reply.append(packet.payload());
             }
         }
@@ -150,6 +175,13 @@ public final class RconClient implements CommandRunner, AutoCloseable {
     public void close() {
         worker.shutdownNow();
         disconnect();
+    }
+
+    /** The server sent more than {@link #MAX_REPLY_BYTES}; the connection is dropped, so the rest never reaches the next command. */
+    private static final class ReplyTooLargeException extends IOException {
+        ReplyTooLargeException() {
+            super("the RCON reply is larger than " + MAX_REPLY_BYTES + " bytes; the connection was closed and the command may still have taken effect");
+        }
     }
 
     /** The server rejected the password. The message never contains it. */

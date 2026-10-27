@@ -33,6 +33,10 @@ import java.util.Set;
  * follows it. The {@code Mcp-Session-Id} the server returns is remembered and
  * sent on later requests.</p>
  *
+ * <p>A {@code 404} on a request that carried a session id means the session has ended (the server restarted or
+ * was reloaded). The shim forgets the id, so the next request does not repeat it, and says the host must
+ * reconnect: the Streamable HTTP spec has the client start a new session with {@code initialize}.</p>
+ *
  * <p>Failures never hang the host: an unreachable server, a timeout, an HTTP
  * error status or an unreadable response becomes a JSON-RPC error response for
  * that request's id, with a message that names the problem.</p>
@@ -55,6 +59,8 @@ public final class StdioShim {
     static final int PARSE_ERROR = -32700;
     static final int INVALID_REQUEST = -32600;
     static final int SERVER_ERROR = -32000;
+    static final String SESSION_ENDED = "the MCP session ended (the server restarted or was reloaded): "
+            + "reconnect, so that the host sends initialize again";
 
     private static final Set<String> LOOPBACK = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
     private static final McpJsonMapper JSON = McpJsonDefaults.getMapper();
@@ -158,14 +164,18 @@ public final class StdioShim {
                 .header("Accept", "application/json, text/event-stream")
                 .header("Authorization", "Bearer " + token)
                 .POST(HttpRequest.BodyPublishers.ofString(body));
-        if (sessionId != null) {
-            request.header("Mcp-Session-Id", sessionId);
+        String carried = sessionId;
+        if (carried != null) {
+            request.header("Mcp-Session-Id", carried);
         }
         HttpResponse<InputStream> response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
         try (InputStream stream = response.body()) {
             response.headers().firstValue("Mcp-Session-Id").ifPresent(value -> sessionId = value);
             int status = response.statusCode();
-            if (status >= 400) {
+            if (status == 404 && carried != null) {
+                sessionId = null;
+                error(out, id, SERVER_ERROR, SESSION_ENDED);
+            } else if (status >= 400) {
                 error(out, id, SERVER_ERROR, describeStatus(status));
             } else {
                 // A 202 or 204 has no body, so there is nothing to relay.

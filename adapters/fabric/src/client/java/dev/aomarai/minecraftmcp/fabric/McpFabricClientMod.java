@@ -6,6 +6,7 @@ import dev.aomarai.minecraftmcp.core.GameServices;
 import dev.aomarai.minecraftmcp.core.McpController;
 import dev.aomarai.minecraftmcp.core.Side;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -13,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * The client's own MCP endpoint, for the tools only a game client can serve (issue #38). It is separate from the
@@ -27,9 +30,17 @@ public final class McpFabricClientMod implements ClientModInitializer {
 
     private final FabricClientPlayer player = new FabricClientPlayer();
     private volatile McpController controller;
+    /** Runs what /mcpclient does off the client thread; a daemon, so it never keeps the game alive. */
+    private final ExecutorService background = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "minecraft-mcp-client-command");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     @Override
     public void onInitializeClient() {
+        ClientCommandRegistrationCallback.EVENT.register(
+                (dispatcher, registryAccess) -> McpClientCommand.register(dispatcher, () -> controller, background));
         ClientTickEvents.END_CLIENT_TICK.register(player::tick);
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> start());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> stop());
@@ -55,6 +66,7 @@ public final class McpFabricClientMod implements ClientModInitializer {
     }
 
     private void stop() {
+        background.shutdownNow();
         McpController stopping = controller;
         controller = null;
         if (stopping == null) {

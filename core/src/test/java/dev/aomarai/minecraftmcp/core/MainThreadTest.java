@@ -60,6 +60,54 @@ class MainThreadTest {
     }
 
     @Test
+    void anErrorFailsTheCallAtOnceAndNeverEscapesIntoTheGameLoop() {
+        QueuedThread game = new QueuedThread();
+        long[] clock = {0};
+        CallTiming timing = CallTiming.begin(() -> clock[0]);
+        CompletableFuture<String> future;
+        try {
+            future = MainThread.call(game, () -> {
+                clock[0] += 7;
+                throw new NoSuchMethodError("Minecraft.newName");
+            });
+        } finally {
+            CallTiming.end();
+        }
+
+        assertDoesNotThrow(game::runAll);
+        assertEquals(7, timing.finish().mainThreadNanos(), "the time on the game thread is still recorded");
+
+        assertTrue(future.isCompletedExceptionally());
+        ExecutionException e = assertThrows(ExecutionException.class, future::get);
+        assertEquals("NoSuchMethodError: Minecraft.newName", e.getCause().getMessage());
+        assertInstanceOf(NoSuchMethodError.class, e.getCause().getCause());
+    }
+
+    @Test
+    void aVirtualMachineErrorIsRethrownAfterTheFutureIsCompleted() {
+        QueuedThread game = new QueuedThread();
+        CompletableFuture<String> future = MainThread.call(game, () -> {
+            throw new OutOfMemoryError("heap");
+        });
+
+        assertThrows(OutOfMemoryError.class, game::runAll);
+
+        assertTrue(future.isCompletedExceptionally());
+        assertEquals("OutOfMemoryError: heap",
+                assertThrows(ExecutionException.class, future::get).getCause().getMessage());
+    }
+
+    @Test
+    void failKeepsARuntimeExceptionAsItIs() {
+        CompletableFuture<String> future = new CompletableFuture<>();
+        IllegalArgumentException thrown = new IllegalArgumentException("bad");
+
+        MainThread.fail(future, thrown);
+
+        assertSame(thrown, assertThrows(ExecutionException.class, future::get).getCause());
+    }
+
+    @Test
     void workCancelledBeforeItStartsNeverRuns() {
         QueuedThread game = new QueuedThread();
         List<String> ran = new ArrayList<>();
@@ -102,6 +150,45 @@ class MainThreadTest {
         game.runAll();
 
         assertFalse(call.started());
+    }
+
+    @Test
+    void aCancelThatArrivesWhileTheWorkRunsDoesNotUndoStarted() {
+        QueuedThread game = new QueuedThread();
+        List<String> ran = new ArrayList<>();
+        MainThread.Call<String>[] holder = new MainThread.Call[1];
+        holder[0] = MainThread.call(game, () -> {
+            holder[0].cancel(true);
+            ran.add("ran");
+            return "x";
+        });
+
+        game.runAll();
+
+        assertEquals(List.of("ran"), ran);
+        assertTrue(holder[0].started(), "the work ran, so the timeout message must say it was already running");
+        assertTrue(holder[0].isCancelled());
+    }
+
+    @Test
+    void workRunsExactlyWhenItWasNotCancelledFirst() {
+        for (boolean cancelFirst : new boolean[]{true, false}) {
+            QueuedThread game = new QueuedThread();
+            List<String> ran = new ArrayList<>();
+            MainThread.Call<String> call = MainThread.call(game, () -> {
+                ran.add("ran");
+                return "x";
+            });
+
+            if (cancelFirst) {
+                call.cancel(true);
+            }
+            game.runAll();
+
+            assertEquals(cancelFirst, call.cancel(true), "a finished call cannot be cancelled");
+            assertEquals(!cancelFirst, call.started());
+            assertEquals(call.started(), !ran.isEmpty(), "started() is true if and only if the work ran");
+        }
     }
 
     @Test

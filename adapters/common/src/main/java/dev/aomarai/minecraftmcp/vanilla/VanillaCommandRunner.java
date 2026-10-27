@@ -10,8 +10,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -38,22 +36,32 @@ public final class VanillaCommandRunner implements CommandRunner {
     }
 
     private CommandResult run(String command) {
-        List<String> output = new ArrayList<>();
-        CommandSourceStack source = GameCompat.commandSource(new Collector(output), server, permissionLevel);
+        Collector output = new Collector();
+        CommandSourceStack source = GameCompat.commandSource(output, server, permissionLevel);
         String line = command.startsWith("/") ? command.substring(1) : command;
         try {
             server.getCommands().getDispatcher().execute(line, source);
-            return CommandResult.ok(String.join("\n", output));
+            return CommandResult.ok(output.text());
         } catch (CommandSyntaxException e) {
             return CommandResult.error(e.getMessage());
         }
     }
 
-    /** Collects what the command says, successes and failures alike. */
-    private record Collector(List<String> lines) implements CommandSource {
+    /** Collects what the command says, successes and failures alike, and stops once there is more than a result keeps. */
+    private static final class Collector implements CommandSource {
+        private final StringBuilder lines = new StringBuilder();
+        private boolean any;
+
+        String text() {
+            return lines.toString();
+        }
+
         @Override
         public void sendSystemMessage(Component message) {
-            lines.add(message.getString());
+            if (lines.length() <= CommandResult.MAX_OUTPUT) {
+                lines.append(any ? "\n" : "").append(message.getString());
+                any = true;
+            }
         }
 
         @Override
