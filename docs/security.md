@@ -113,6 +113,12 @@ The audit log is JSONL, one object per line: `ts`, `phase` (`decision` or `resul
 `arguments`, `decision` (`allow`, `deny`, `confirm`) and `detail`. The bearer token is replaced
 by `[redacted]` in every string, and strings over 256 characters are truncated.
 
+The audit log is bounded. A file never grows past 10 MiB: before an entry that would, the file is renamed to
+`<name>.1`, the older ones move up (`.1` to `.2` and so on), and `<name>.4` is deleted, so the log keeps at
+most five files, about 50 MiB. Only whole lines are written, a new file is owner-only like the first, and a
+rotation that fails refuses the call like any other audit failure. The size and count are fixed, not
+configuration keys.
+
 A `result` entry also records how long the call took: `mainThreadMicros` (how long it held the game's main
 thread), `totalMicros` (from the start of the call to its end) and `overrun` (true when the main-thread share is
 over 50 ms, one tick). A call that overruns is also logged as a warning naming the tool. The measurement is one

@@ -34,6 +34,12 @@ Environment values win over the file and are never written back to it. Command n
 words (no spaces or slashes), case-insensitive, and the `minecraft:` prefix is ignored. An empty
 variable clears the list.
 
+## Audit log retention
+
+The audit log (`minecraft-mcp-audit.jsonl` next to the config) is rotated by size and has no configuration
+keys: at 10 MiB it becomes `.1`, older files move up, and `.4` is deleted, so at most five files (about
+50 MiB) are kept. See `docs/security.md`.
+
 ## Failure behavior
 
 Configuration errors fail fast with a `ConfigException` that names the offending key or
