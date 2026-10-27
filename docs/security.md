@@ -113,6 +113,12 @@ The audit log is JSONL, one object per line: `ts`, `phase` (`decision` or `resul
 `arguments`, `decision` (`allow`, `deny`, `confirm`) and `detail`. The bearer token is replaced
 by `[redacted]` in every string, and strings over 256 characters are truncated.
 
+Calls are limited too: at most 16 tool calls run at once on an endpoint. HTTP workers can queue work on the game
+thread, so a client stuck in a loop could otherwise stack many calls for one tick. The next call is refused at
+once with `too many tool calls are in progress (at most 16 at once); try again shortly`, and a `deny` entry is
+written to the audit log (if even that cannot be written the call is still refused). The number is fixed, not a
+configuration key.
+
 The audit log is bounded. A file never grows past 10 MiB: before an entry that would, the file is renamed to
 `<name>.1`, the older ones move up (`.1` to `.2` and so on), and `<name>.4` is deleted, so the log keeps at
 most five files, about 50 MiB. Only whole lines are written, a new file is owner-only like the first, and a

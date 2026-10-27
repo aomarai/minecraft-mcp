@@ -7,6 +7,7 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import java.util.function.LongSupplier;
 
 /**
@@ -22,12 +23,20 @@ import java.util.function.LongSupplier;
  * the operator's OP. Destructive commands through {@code run_command} are
  * refused and must use {@code run_admin_command} with {@code confirm=true}.</p>
  *
+ * <p>At most {@value #MAX_IN_FLIGHT} calls run at once on this dispatcher. HTTP workers can queue work on the game
+ * thread, so a client (or a model stuck in a loop) could stack many main-thread calls for one tick. A call over the
+ * limit is refused at once, without waiting, and the refusal is audited like any other denial.</p>
+ *
  * <p>What each tool does once allowed lives in {@link ToolHandlers}; calls wait for a port at most
  * {@link McpConfig#callTimeout()} (see {@link CallAwaiter}).</p>
  */
 public final class ToolDispatcher implements ToolInvoker {
 
     private static final System.Logger LOG = System.getLogger(ToolDispatcher.class.getName());
+    /** How many calls may be in progress at once; the next one is refused until one finishes. */
+    static final int MAX_IN_FLIGHT = 16;
+    static final String BUSY = "too many tool calls are in progress (at most " + MAX_IN_FLIGHT
+            + " at once); try again shortly";
     private static final String CONFIRM = "confirm";
     private static final String COMMAND = "command";
 
@@ -36,6 +45,7 @@ public final class ToolDispatcher implements ToolInvoker {
     private final AuditLog audit;
     private final Clock clock;
     private final LongSupplier nanos;
+    private final Semaphore inFlight = new Semaphore(MAX_IN_FLIGHT);
 
     public ToolDispatcher(McpConfig config, GameServices services, AuditLog audit) {
         this(config, services, audit, Clock.systemUTC(), System::nanoTime);
@@ -56,16 +66,30 @@ public final class ToolDispatcher implements ToolInvoker {
 
     @Override
     public McpSchema.CallToolResult call(ToolDescriptor tool, Map<String, Object> arguments) {
+        Map<String, Object> args = arguments == null ? Map.of() : arguments;
+        if (!inFlight.tryAcquire()) {
+            return refuseBusy(tool, args);
+        }
         CallTiming timing = CallTiming.begin(nanos);
         try {
-            return call(tool, arguments, timing);
+            return call(tool, args, timing);
         } finally {
             CallTiming.end();
+            inFlight.release();
         }
     }
 
-    private McpSchema.CallToolResult call(ToolDescriptor tool, Map<String, Object> arguments, CallTiming timing) {
-        Map<String, Object> args = arguments == null ? Map.of() : arguments;
+    /** Refused without waiting or touching the game; the refusal is audited, and is refused all the same if it cannot be. */
+    private McpSchema.CallToolResult refuseBusy(ToolDescriptor tool, Map<String, Object> arguments) {
+        try {
+            record(AuditEntry.DECISION, tool, arguments, "deny", BUSY);
+        } catch (RuntimeException e) {
+            LOG.log(System.Logger.Level.WARNING, "cannot audit a call refused as busy: {0}", e.toString());
+        }
+        return error(BUSY);
+    }
+
+    private McpSchema.CallToolResult call(ToolDescriptor tool, Map<String, Object> args, CallTiming timing) {
         ToolPolicy.Decision decision = decide(tool, args);
         String verdict = verdict(decision);
 
