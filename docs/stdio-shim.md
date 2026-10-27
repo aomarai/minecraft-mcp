@@ -27,6 +27,14 @@ Configuration errors stop the shim at start-up with a message naming the variabl
 - Anything that goes wrong becomes a JSON-RPC error response for that request's id: server
   unreachable, timeout, HTTP 401/403/404/other, or a response that is not JSON. The shim never
   hangs the host. Diagnostics go to stderr.
+- A 404 on a request that carried a session id means the session ended, because the server restarted or was
+  reloaded (`/mcp reload`, `/mcp token rotate`). The shim forgets the id and answers that error, so the host
+  must reconnect and send `initialize` again; the next request goes out without the old id. A 404 on a request
+  without a session id still says the URL is wrong.
+- A 404 on a request that carried a session id means the session ended, because the server restarted or was
+  reloaded (`/mcp reload`, `/mcp token rotate`). The shim forgets the id and answers that error, so the host
+  must reconnect and send `initialize` again; the next request goes out without the old id. A 404 on a request
+  without a session id still says the URL is wrong.
 - The token is never logged and never put in an error message.
 
 ## The jar

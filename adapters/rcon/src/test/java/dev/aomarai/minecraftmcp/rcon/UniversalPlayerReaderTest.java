@@ -195,9 +195,116 @@ class UniversalPlayerReaderTest {
         UniversalPlayerReader slow = new UniversalPlayerReader(() -> List.of("Steve"), (command, timeout) ->
                 CompletableFuture.supplyAsync(() -> CommandResult.ok(answers.get(command)),
                         CompletableFuture.delayedExecutor(300, TimeUnit.MILLISECONDS)),
-                dir.resolve("ops.json"), Duration.ofMillis(100), Runnable::run);
+                dir.resolve("ops.json"), Duration.ofMillis(100), Runnable::run, () -> 0L);
 
         assertEquals(1, list(slow).size());
+    }
+
+    /** A clock that says 0 when the listing starts and {@code laterNanos} for every look after that. */
+    private static java.util.function.LongSupplier clockThatJumpsTo(long laterNanos) {
+        long[] now = {0};
+        return () -> {
+            long value = now[0];
+            now[0] = laterNanos;
+            return value;
+        };
+    }
+
+    private UniversalPlayerReader readerWithClock(java.util.function.LongSupplier clock) {
+        return new UniversalPlayerReader(() -> List.of("Steve"), (command, timeout) -> {
+            asked.add(command);
+            return CompletableFuture.completedFuture(CommandResult.ok(answers.get(command)));
+        }, dir.resolve("ops.json"), Duration.ofMillis(100), Runnable::run, clock);
+    }
+
+    @Test
+    void theListingIsGivenTheCallsTimeInTotalAndAskedNothingOnceItIsSpent() {
+        playerIs("Steve", "[1.0d, 2.0d, 3.0d]", "\"minecraft:overworld\"", "[I; 0, 0, 0, 1]");
+
+        ExecutionException failure = assertThrows(ExecutionException.class,
+                () -> readerWithClock(clockThatJumpsTo(100_000_000L)).listPlayers().get(10, TimeUnit.SECONDS));
+
+        assertEquals("stopped listing the players: the call was cancelled or took longer than 100 ms", failure.getCause().getCause().getMessage());
+        assertEquals(List.of(), asked);
+    }
+
+    @Test
+    void aNanosecondOfTheListingsTimeIsStillEnoughToAsk() throws Exception {
+        playerIs("Steve", "[1.0d, 2.0d, 3.0d]", "\"minecraft:overworld\"", "[I; 0, 0, 0, 1]");
+
+        assertEquals(1, list(readerWithClock(clockThatJumpsTo(99_999_999L))).size());
+    }
+
+    @Test
+    void eachCommandGetsOnlyWhatIsLeftOfTheListingsTime() throws Exception {
+        playerIs("Steve", "[1.0d, 2.0d, 3.0d]", "\"minecraft:overworld\"", "[I; 0, 0, 0, 1]");
+        List<Duration> given = new CopyOnWriteArrayList<>();
+        UniversalPlayerReader reader = new UniversalPlayerReader(() -> List.of("Steve"), (command, timeout) -> {
+            given.add(timeout);
+            return CompletableFuture.completedFuture(CommandResult.ok(answers.get(command)));
+        }, dir.resolve("ops.json"), Duration.ofMillis(100), Runnable::run, clockThatJumpsTo(40_000_000L));
+
+        list(reader);
+
+        assertEquals(List.of(Duration.ofMillis(60), Duration.ofMillis(60), Duration.ofMillis(60)), given);
+    }
+
+    @Test
+    void onceTheCallIsCancelledNoFurtherCommandIsSentAndTheNextCommandIsNotKeptWaiting() throws Exception {
+        playerIs("Steve", "[1.0d, 2.0d, 3.0d]", "\"minecraft:overworld\"", "[I; 0, 0, 0, 1]");
+        playerIs("Alex", "[1.0d, 2.0d, 3.0d]", "\"minecraft:overworld\"", "[I; 0, 0, 0, 2]");
+        java.util.concurrent.ExecutorService worker = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            CompletableFuture<CommandResult> first = new CompletableFuture<>();
+            java.util.concurrent.CountDownLatch askedFirst = new java.util.concurrent.CountDownLatch(1);
+            UniversalPlayerReader reader = new UniversalPlayerReader(() -> List.of("Steve", "Alex"), (command, timeout) -> {
+                asked.add(command);
+                askedFirst.countDown();
+                return asked.size() == 1 ? first : CompletableFuture.completedFuture(CommandResult.ok(answers.get(command)));
+            }, dir.resolve("ops.json"), TIMEOUT, worker);
+
+            CompletableFuture<List<PlayerInfo>> listing = reader.listPlayers();
+            assertTrue(askedFirst.await(10, TimeUnit.SECONDS));
+            listing.cancel(true);
+            first.complete(CommandResult.ok(answers.get("data get entity Steve Pos")));
+            worker.submit(() -> { }).get(10, TimeUnit.SECONDS);
+
+            assertEquals(List.of("data get entity Steve Pos"), asked, "nothing was asked after the cancel");
+        } finally {
+            worker.shutdownNow();
+        }
+    }
+
+    @Test
+    void aCancelBetweenPlayersStopsBeforeTheNextPlayer() throws Exception {
+        playerIs("Steve", "[1.0d, 2.0d, 3.0d]", "\"minecraft:overworld\"", "[I; 0, 0, 0, 1]");
+        playerIs("Alex", "[1.0d, 2.0d, 3.0d]", "\"minecraft:overworld\"", "[I; 0, 0, 0, 2]");
+        java.util.concurrent.ExecutorService worker = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            java.util.concurrent.atomic.AtomicReference<CompletableFuture<List<PlayerInfo>>> listing =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            java.util.concurrent.CountDownLatch assigned = new java.util.concurrent.CountDownLatch(1);
+            UniversalPlayerReader reader = new UniversalPlayerReader(() -> List.of("Steve", "Alex"), (command, timeout) -> {
+                try {
+                    assigned.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                asked.add(command);
+                if (command.endsWith("UUID")) {
+                    listing.get().cancel(true);
+                }
+                return CompletableFuture.completedFuture(CommandResult.ok(answers.get(command)));
+            }, dir.resolve("ops.json"), TIMEOUT, worker);
+
+            listing.set(reader.listPlayers());
+            assigned.countDown();
+            worker.submit(() -> { }).get(10, TimeUnit.SECONDS);
+
+            assertEquals(List.of("data get entity Steve Pos", "data get entity Steve Dimension", "data get entity Steve UUID"), asked);
+        } finally {
+            worker.shutdownNow();
+        }
     }
 
     @Test

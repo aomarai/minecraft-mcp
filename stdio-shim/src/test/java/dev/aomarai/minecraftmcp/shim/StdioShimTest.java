@@ -256,6 +256,53 @@ class StdioShimTest {
         }
     }
 
+    private static Reply initializeThenAnswer(int laterStatus) {
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        return exchange -> {
+            if (calls.getAndIncrement() == 0) {
+                exchange.getResponseHeaders().add("Mcp-Session-Id", "session-1");
+                answer(200, "application/json", "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}").send(exchange);
+            } else {
+                answer(laterStatus, null, "").send(exchange);
+            }
+        };
+    }
+
+    @Test
+    void aNotFoundForARequestThatCarriedASessionMeansTheSessionEndedAndTheIdIsForgotten() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = stub(seen, initializeThenAnswer(404));
+
+        List<String> out = run(shim(url(server), Duration.ofSeconds(5)), INIT, LIST, LIST);
+
+        assertEquals(3, out.size());
+        assertEquals(StdioShim.SESSION_ENDED, errorOf(out.get(1)).get("message"));
+        assertEquals(2, json(out.get(1)).get("id"));
+        assertEquals("no MCP endpoint at that URL (HTTP 404): check MINECRAFT_MCP_URL", errorOf(out.get(2)).get("message"));
+        assertNull(seen.get(0).sessionId());
+        assertEquals("session-1", seen.get(1).sessionId());
+        assertNull(seen.get(2).sessionId(), "the next request goes out without the dead id");
+    }
+
+    @Test
+    void aNotFoundForARequestWithoutASessionStillPointsAtTheUrl() throws Exception {
+        HttpServer server = stub(new CopyOnWriteArrayList<>(), answer(404, null, ""));
+
+        List<String> out = run(shim(url(server), Duration.ofSeconds(5)), LIST);
+
+        assertEquals("no MCP endpoint at that URL (HTTP 404): check MINECRAFT_MCP_URL", errorOf(out.get(0)).get("message"));
+    }
+
+    @Test
+    void otherErrorsKeepTheSession() throws Exception {
+        List<Seen> seen = new CopyOnWriteArrayList<>();
+        HttpServer server = stub(seen, initializeThenAnswer(500));
+
+        run(shim(url(server), Duration.ofSeconds(5)), INIT, LIST, LIST);
+
+        assertEquals("session-1", seen.get(2).sessionId());
+    }
+
     @Test
     void anErrorStatusOnANotificationGoesToTheLogOnlyWithANullId() throws Exception {
         HttpServer server = stub(new CopyOnWriteArrayList<>(), answer(500, null, ""));

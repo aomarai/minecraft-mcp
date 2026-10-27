@@ -113,7 +113,8 @@ MCP server is listening on 127.0.0.1:25599, read-only, 20 tools
   and even then every such call needs an explicit confirmation from the client. Then run `/mcp reload`
   (Fabric/NeoForge) or restart the jar.
 - **New token:** `/mcp token rotate` writes a fresh one and the old one stops working at once. Update your
-  clients afterwards.
+  clients afterwards. In a game client, the client endpoint has its own: `/mcpclient reload` and
+  `/mcpclient token rotate`.
 
 All the settings: [configuration.md](configuration.md). What is protected and how: [security.md](security.md).
 

@@ -148,6 +148,22 @@ class QueryRecordsTest {
         assertThrows(UnsupportedOperationException.class, () -> inventory.stacks().clear());
     }
 
+    private static String entityName(String name) {
+        return new EntityList.EntityInfo("minecraft:pig", "u", name, 0, 0, 0).name();
+    }
+
+    @Test
+    void entityNamesAreCleanedAndCutAtTheCap() {
+        assertEquals("Bob rm -rf", entityName("Bob\nrm\t-rf"));
+        assertEquals("a b c", entityName("a\u0000b\u001bc"));
+        assertEquals("", entityName(null));
+        String atCapMinusOne = "n".repeat(EntityList.EntityInfo.MAX_NAME - 1);
+        String atCap = "n".repeat(EntityList.EntityInfo.MAX_NAME);
+        assertEquals(atCapMinusOne, entityName(atCapMinusOne));
+        assertEquals(atCap, entityName(atCap));
+        assertEquals(atCap + "...", entityName(atCap + "n"));
+    }
+
     @Test
     void entityListCopiesItsEntities() {
         List<EntityList.EntityInfo> source = new ArrayList<>(List.of(new EntityList.EntityInfo("minecraft:pig", "u", "Pig", 1, 2, 3)));

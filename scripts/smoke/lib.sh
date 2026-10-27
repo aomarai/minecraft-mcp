@@ -43,6 +43,15 @@ call() { # call <id> <tool> <arguments-json>
   mcp "{\"jsonrpc\":\"2.0\",\"id\":$1,\"method\":\"tools/call\",\"params\":{\"name\":\"$2\",\"arguments\":$3}}"
 }
 
+# expect_jar_version <jar>: initialize reports the version in the jar's file name (minecraft-mcp-<version>[+...]).
+expect_jar_version() {
+  local version init
+  version="$(basename "$1" .jar | sed -E 's/^minecraft-mcp-//; s/(\+.*|-universal)$//')"
+  init="$(curl -s -X POST "http://127.0.0.1:$PORT/mcp" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}')"
+  expect "initialize reports the jar's version $version" "$init" "\"serverInfo\":{\"name\":\"minecraft-mcp\",\"version\":\"$version\""
+}
+
 read_token() { sed -n 's/.*"token": *"\([^"]*\)".*/\1/p' "$CONFIG_FILE"; }
 
 # start_session: initialize and mark the client ready. A restarted endpoint has forgotten old sessions.

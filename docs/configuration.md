@@ -9,8 +9,9 @@ If the file does not exist it is created with secure defaults and a freshly gene
 bearer token (256 bits, URL-safe base64). If the file exists but has no `token`, one is
 generated and added without touching the other keys.
 
-The file is restricted to its owner before the token is written (mode `0600` on POSIX) and is
-re-restricted on every load. On file systems without POSIX modes this is best effort.
+The file is restricted to its owner before the token is written (mode `0600` on POSIX; on Windows an ACL that
+grants only the owner) and is re-restricted on every load. If the file system supports neither, or refuses, the
+file keeps the access its folder gives it and the log gets one warning naming the file, so check that folder.
 
 ## Keys
 
@@ -33,6 +34,12 @@ re-restricted on every load. On file systems without POSIX modes this is best ef
 Environment values win over the file and are never written back to it. Command names are single
 words (no spaces or slashes), case-insensitive, and the `minecraft:` prefix is ignored. An empty
 variable clears the list.
+
+## Audit log retention
+
+The audit log (`minecraft-mcp-audit.jsonl` next to the config) is rotated by size and has no configuration
+keys: at 10 MiB it becomes `.1`, older files move up, and `.4` is deleted, so at most five files (about
+50 MiB) are kept. See `docs/security.md`.
 
 ## Failure behavior
 

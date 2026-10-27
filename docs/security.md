@@ -48,7 +48,7 @@ server log (`read_log`), and chat and death messages (`read_events`, and the `mi
 resource). The core never lets such text influence a decision: the policy looks only at
 the tool, its arguments and the configuration. The tools mark it anyway, so a client can treat it as
 data: the `read_log` result carries `"untrusted": true`, and the descriptions of `list_entities` and
-`read_log` say so. `get_inventory` leaves item names out entirely. `read_log` also masks IPv4
+`read_log` say so. `get_inventory` leaves item names out entirely. `read_log` also masks IPv4 and IPv6
 addresses and cuts very long lines, so it does not leak players' addresses or flood the client.
 Event text is cleaned (control characters, including line breaks, become spaces) and cut at 256
 characters before it is stored, and every event is marked `untrusted` when it carries player text.
@@ -113,6 +113,12 @@ The audit log is JSONL, one object per line: `ts`, `phase` (`decision` or `resul
 `arguments`, `decision` (`allow`, `deny`, `confirm`) and `detail`. The bearer token is replaced
 by `[redacted]` in every string, and strings over 256 characters are truncated.
 
+The audit log is bounded. A file never grows past 10 MiB: before an entry that would, the file is renamed to
+`<name>.1`, the older ones move up (`.1` to `.2` and so on), and `<name>.4` is deleted, so the log keeps at
+most five files, about 50 MiB. Only whole lines are written, a new file is owner-only like the first, and a
+rotation that fails refuses the call like any other audit failure. The size and count are fixed, not
+configuration keys.
+
 A `result` entry also records how long the call took: `mainThreadMicros` (how long it held the game's main
 thread), `totalMicros` (from the start of the call to its end) and `overrun` (true when the main-thread share is
 over 50 ms, one tick). A call that overruns is also logged as a warning naming the tool. The measurement is one
@@ -130,7 +136,8 @@ pair of `System.nanoTime` calls per stretch of main-thread work.
   command) is refused through `run_command` even with admin on and `confirm=true` sent;
 - an audit file that cannot be written stops every call; the token is replaced by `[redacted]` in the file;
 - the core listens on `127.0.0.1` unless told otherwise, and the files holding the token are owner-only
-  (`OwnerOnlyFileTest`; skipped on file systems without POSIX modes, where CI on Linux still runs it).
+  (`OwnerOnlyFileTest`: modes on POSIX, an ACL with only the owner on Windows, and one warning naming the file
+  when neither can be applied; the ACL path is tested with a fake ACL view, because CI runs Linux).
 
 ## Rules
 
@@ -147,7 +154,8 @@ pair of `System.nanoTime` calls per stretch of main-thread work.
   dry-run before applying.
 - Rotate the token with `/mcp token rotate`. It writes a new token to the config file and restarts the
   endpoint, which invalidates the old token at once. The token is never printed or logged. See
-  `docs/fabric.md`.
+  `docs/fabric.md`. The client endpoint in a game client has its own token: rotate it with
+  `/mcpclient token rotate`.
 
 ## Reporting
 

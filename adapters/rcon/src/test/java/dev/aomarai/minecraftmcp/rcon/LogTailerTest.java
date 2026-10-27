@@ -326,15 +326,129 @@ class LogTailerTest {
         assertEquals("one", got.get(0).text());
     }
 
+    /** A log file that cannot be read: a directory of that name makes every read fail. */
+    private LogTailer tailerOfADirectoryNamed(Path path) throws IOException {
+        Files.createDirectories(path);
+        return new LogTailer(path, (type, player, text) -> seen.add(new Seen(type, player, text)));
+    }
+
     @Test
-    void aFailedStepIsShruggedOffWhateverWentWrong() {
-        assertDoesNotThrow(() -> LogTailer.quietly(() -> {
-            throw new IOException("the file is mid-rotation");
-        }));
-        assertDoesNotThrow(() -> LogTailer.quietly(() -> {
-            throw new IllegalStateException("the sink refused");
-        }));
-        assertDoesNotThrow(() -> LogTailer.quietly(() -> { }));
+    void aMissingLogIsOneWarningNamingTheFileAndThenRecoveryIsOne() throws IOException {
+        Path missing = dir.resolve("logs").resolve("latest.log");
+        LogTailer waiting = new LogTailer(missing, (type, player, text) -> seen.add(new Seen(type, player, text)));
+
+        try (LogCapture logs = new LogCapture()) {
+            waiting.pollReportingFailure();
+            waiting.pollReportingFailure();
+            waiting.pollReportingFailure();
+
+            assertEquals(List.of(missing + " is missing or is not a regular file; will keep trying "), logs.lines());
+
+            Files.createDirectories(missing.getParent());
+            Files.writeString(missing, "[10:00:00] [Server thread/INFO]: Done (1.0s)!\n");
+            waiting.pollReportingFailure();
+            waiting.pollReportingFailure();
+
+            assertEquals(2, logs.lines().size(), logs.lines().toString());
+            assertEquals("Reading " + missing + " works again ", logs.lines().get(1));
+        }
+    }
+
+    @Test
+    void aFailingReadIsWarnedAboutOnceNotOnEveryPollAndRecoveryOnce() throws IOException {
+        Path file = dir.resolve("latest-2.log");
+        Files.writeString(file, "[10:00:00] [Server thread/INFO]: Done (1.0s)!\n");
+        boolean[] failing = {false};
+        LogTailer flaky = new LogTailer(file, (type, player, text) -> seen.add(new Seen(type, player, text)),
+                path -> {
+                    if (failing[0]) {
+                        throw new IllegalStateException("no identity today");
+                    }
+                    return null;
+                });
+        flaky.pollReportingFailure();
+
+        try (LogCapture logs = new LogCapture()) {
+            failing[0] = true;
+            flaky.pollReportingFailure();
+            flaky.pollReportingFailure();
+            flaky.pollReportingFailure();
+
+            assertEquals(List.of("Cannot read " + file + ": java.lang.IllegalStateException: no identity today; "
+                    + "will keep trying "), logs.lines());
+
+            failing[0] = false;
+            flaky.pollReportingFailure();
+            flaky.pollReportingFailure();
+
+            assertEquals(2, logs.lines().size(), logs.lines().toString());
+            assertEquals("Reading " + file + " works again ", logs.lines().get(1));
+
+            failing[0] = true;
+            flaky.pollReportingFailure();
+            assertEquals(3, logs.lines().size(), "a new failure after recovery is reported again");
+        }
+    }
+
+    @Test
+    void anIoFailureWhileReadingIsReportedAndNeverEscapes() throws IOException {
+        Path file = dir.resolve("unreadable.log");
+        Files.writeString(file, "a\n");
+        LogTailer broken = new LogTailer(file, (type, player, text) -> { }, path -> null);
+        broken.pollReportingFailure();
+        Files.delete(file);
+        Files.createDirectories(file); // a directory is "not a regular file" for the next poll
+
+        try (LogCapture logs = new LogCapture()) {
+            assertDoesNotThrow(broken::pollReportingFailure);
+
+            assertEquals(1, logs.lines().size(), logs.lines().toString());
+            assertTrue(logs.lines().get(0).contains(file.toString()), logs.lines().get(0));
+        }
+    }
+
+    @Test
+    void whatTheLogSaysIsNeverLogged() throws IOException {
+        tailer.poll();
+        append("[10:00:01] [Server thread/INFO]: <Steve> my password is hunter2\n");
+        LogTailer refusing = new LogTailer(log, (type, player, text) -> {
+            throw new IllegalStateException("refused " + type);
+        });
+        refusing.poll();
+        append("[10:00:02] [Server thread/INFO]: <Steve> my password is hunter2\n");
+
+        try (LogCapture logs = new LogCapture()) {
+            refusing.poll();
+
+            assertEquals(1, logs.lines().size(), logs.lines().toString());
+            assertFalse(logs.lines().get(0).contains("hunter2"), logs.lines().get(0));
+        }
+    }
+
+    @Test
+    void aSinkThatRefusesEventsIsWarnedAboutOnceAndWhenItRecovers() throws IOException {
+        boolean[] refusing = {true};
+        LogTailer picky = new LogTailer(log, (type, player, text) -> {
+            if (refusing[0]) {
+                throw new IllegalStateException("full");
+            }
+        });
+        picky.poll();
+
+        try (LogCapture logs = new LogCapture()) {
+            append("[10:00:01] [Server thread/INFO]: <Steve> one\n[10:00:02] [Server thread/INFO]: <Steve> two\n");
+            picky.poll();
+
+            assertEquals(List.of("The event sink refused an event: java.lang.IllegalStateException: full; will keep trying "),
+                    logs.lines());
+
+            refusing[0] = false;
+            append("[10:00:03] [Server thread/INFO]: <Steve> three\n[10:00:04] [Server thread/INFO]: <Steve> four\n");
+            picky.poll();
+
+            assertEquals(2, logs.lines().size(), logs.lines().toString());
+            assertEquals("The event sink takes events again ", logs.lines().get(1));
+        }
     }
 
     @Test
