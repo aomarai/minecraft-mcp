@@ -113,6 +113,12 @@ The audit log is JSONL, one object per line: `ts`, `phase` (`decision` or `resul
 `arguments`, `decision` (`allow`, `deny`, `confirm`) and `detail`. The bearer token is replaced
 by `[redacted]` in every string, and strings over 256 characters are truncated.
 
+Calls are limited too: at most 16 tool calls run at once on an endpoint. HTTP workers can queue work on the game
+thread, so a client stuck in a loop could otherwise stack many calls for one tick. The next call is refused at
+once with `too many tool calls are in progress (at most 16 at once); try again shortly`, and a `deny` entry is
+written to the audit log (if even that cannot be written the call is still refused). The number is fixed, not a
+configuration key.
+
 A `result` entry also records how long the call took: `mainThreadMicros` (how long it held the game's main
 thread), `totalMicros` (from the start of the call to its end) and `overrun` (true when the main-thread share is
 over 50 ms, one tick). A call that overruns is also logged as a warning naming the tool. The measurement is one
