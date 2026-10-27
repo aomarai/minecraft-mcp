@@ -2,6 +2,7 @@ package dev.aomarai.minecraftmcp.core;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
@@ -30,11 +31,27 @@ public final class MainThread {
      */
     public static final class Call<T> extends CompletableFuture<T> {
 
-        private volatile boolean started;
+        private static final int NEW = 0;
+        private static final int STARTED = 1;
+        private static final int CANCELLED = 2;
+
+        /** One decision, taken once: the game thread wins {@code STARTED} or a cancel wins {@code CANCELLED}. */
+        private final AtomicInteger state = new AtomicInteger(NEW);
 
         /** Whether the game thread has started the work. */
         public boolean started() {
-            return started;
+            return state.get() == STARTED;
+        }
+
+        private boolean tryStart() {
+            return state.compareAndSet(NEW, STARTED);
+        }
+
+        /** A cancel that comes first stops the work from ever starting; one that comes later cannot stop it. */
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            state.compareAndSet(NEW, CANCELLED);
+            return super.cancel(mayInterruptIfRunning);
         }
     }
 
@@ -61,10 +78,9 @@ public final class MainThread {
         // Taken here, on the calling thread, which is the one the dispatcher is timing; the work below runs elsewhere.
         CallTiming timing = CallTiming.current();
         mainThread.execute(() -> {
-            if (future.isCancelled()) {
+            if (!future.tryStart()) {
                 return;
             }
-            future.started = true;
             long start = timing == null ? 0 : timing.now();
             try {
                 future.complete(task.get());
