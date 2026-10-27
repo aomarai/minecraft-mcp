@@ -185,11 +185,42 @@ jobs:
           exit 1
       - run: bash scripts/smoke/client-smoke.sh ${{ matrix.node }}
 
+  # The NeoForge game client in single-player (issue #180): a real client on a virtual display joins a flat world
+  # made by Mojang's server, and the integrated server's endpoint answers a read and a write. It builds the node
+  # itself (Gradle's runClient), so it does not wait for the jars.
+  smoke-neoforge-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["1.21.1", "26.2", "26.3"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-build
+      - name: Virtual display and software OpenGL (and Vulkan for 26.3, which has no OpenGL window under Xvfb)
+        env:
+          # Only 26.3 needs the (large) software Vulkan driver.
+          VULKAN: ${{ matrix.node == '26.3' && 'mesa-vulkan-drivers libvulkan1' || '' }}
+        run: |
+          # A mirror that trickles one package once held a run for 8 minutes and then again for 9, past any
+          # inactivity timeout. Bound each attempt as a whole and retry; apt resumes a partial download.
+          # The runner's default mirror (azure.archive.ubuntu.com) was slow for every package and stalled on the 19 MB
+          # Vulkan driver, while archive.ubuntu.com answered at once: use that.
+          echo "https://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          sudo apt-get update -o Acquire::Retries=3
+          for attempt in 1 2 3; do
+            timeout 120 sudo apt-get install -o Acquire::Retries=3 -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 libegl1 libopenal1 libxrandr2 libxxf86vm1 libxcursor1 libxi6 libxinerama1 libxext6 libxrender1 libxtst6 $VULKAN && exit 0
+            echo "apt attempt $attempt did not finish; retrying"
+          done
+          exit 1
+      - run: bash scripts/smoke/neoforge-client-smoke.sh ${{ matrix.node }}
+
   # The repository ruleset requires a check named build-and-test. This job keeps that name and passes only
   # when every job above passed, so a failing or skipped job still blocks the merge.
   build-and-test:
     if: always()
-    needs: [core, mutation, fabric, neoforge, universal, smoke-fabric, smoke-neoforge, smoke-universal, smoke-client]
+    needs: [core, mutation, fabric, neoforge, universal, smoke-fabric, smoke-neoforge, smoke-universal, smoke-client, smoke-neoforge-client]
     runs-on: ubuntu-latest
     permissions:
       actions: read
