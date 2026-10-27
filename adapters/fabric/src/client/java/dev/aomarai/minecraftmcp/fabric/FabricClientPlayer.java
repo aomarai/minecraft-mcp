@@ -1,5 +1,6 @@
 package dev.aomarai.minecraftmcp.fabric;
 
+import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.PlayerController;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -167,7 +168,7 @@ final class FabricClientPlayer implements PlayerController {
             if (answer != null) {
                 finish(minecraft, current, answer, null);
             }
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             finish(minecraft, current, null, e);
         }
     }
@@ -198,7 +199,7 @@ final class FabricClientPlayer implements PlayerController {
         return result;
     }
 
-    private void finish(Minecraft minecraft, Running done, String answer, RuntimeException failure) {
+    private void finish(Minecraft minecraft, Running done, String answer, Throwable failure) {
         minecraft.options.keyUp.setDown(false);
         minecraft.options.keyJump.setDown(false);
         if (minecraft.gameMode != null) {
@@ -208,7 +209,7 @@ final class FabricClientPlayer implements PlayerController {
             running = null;
         }
         if (failure != null) {
-            done.result().completeExceptionally(failure);
+            MainThread.fail(done.result(), failure);
         } else if (answer != null) {
             done.result().complete(answer);
         }
