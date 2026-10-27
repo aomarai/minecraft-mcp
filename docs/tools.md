@@ -57,6 +57,11 @@ Nothing a caller sends can add a second command or another argument. That is why
 their scope alone: `teleport` needs only write access even though a free-form `tp` is destructive,
 and the ADMIN ones need admin access and `confirm=true`. Prefer them over `run_command`.
 
+Command output is bounded: whatever a command says (`run_command`, `run_admin_command` and the typed tools) is
+cut at 16384 characters and ends with `… (truncated at 16384 characters)`. The universal tier also stops
+reading an RCON reply after 64 KiB or when the call's timeout runs out, closes that connection, and reports
+an error; the next command opens a fresh one.
+
 ## How to add a tool
 
 1. Add the port method to the right capability port in `core/` (or a new port plus a `Capability`

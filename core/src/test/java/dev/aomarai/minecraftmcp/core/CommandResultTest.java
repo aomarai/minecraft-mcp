@@ -45,4 +45,24 @@ class CommandResultTest {
         assertEquals(List.of("a"), result.feedback());
         assertThrows(UnsupportedOperationException.class, () -> result.feedback().add("c"));
     }
+
+    @Test
+    void outputIsCutAtTheCapWithANoteSayingSo() {
+        String note = "\u2026 (truncated at 16384 characters)";
+        String belowCap = "o".repeat(CommandResult.MAX_OUTPUT - 1);
+        String atCap = "o".repeat(CommandResult.MAX_OUTPUT);
+
+        assertEquals(belowCap, CommandResult.ok(belowCap).output());
+        assertEquals(atCap, CommandResult.ok(atCap).output());
+        assertEquals(atCap + note, CommandResult.ok(atCap + "o").output());
+        assertEquals(atCap + note, CommandResult.ok(atCap + "o".repeat(100_000)).output());
+    }
+
+    @Test
+    void theCutNeverSplitsASurrogatePair() {
+        String note = "\u2026 (truncated at 16384 characters)";
+        String text = "o".repeat(CommandResult.MAX_OUTPUT - 1) + "\uD83D\uDE00";
+
+        assertEquals("o".repeat(CommandResult.MAX_OUTPUT - 1) + note, CommandResult.ok(text).output());
+    }
 }
