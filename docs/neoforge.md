@@ -14,9 +14,9 @@ Docker smoke test runs in CI ([version matrix](version-matrix.md)); it does for 
   ([configuration](configuration.md)).
 - **Single-player and LAN:** in a NeoForge game client `ServerStartedEvent` fires for the integrated server, which is
   served on port 25599 exactly like a dedicated one (same config in the game folder's `config/`). The client-only
-  tools (screenshots, screens, the local player) stay Fabric-only. Smoke-tested on **1.21.1 only** with
+  tools (screenshots, screens, the local player) stay Fabric-only. Smoke-tested on **1.21.1 and 26.2** with
   `scripts/smoke/neoforge-client-smoke.sh` (a real client on a virtual display joins a flat world; the script
-  needs Java 21, `xvfb-run`, Mesa and network access, and is not in CI yet). 26.2 and 26.3 are not tested as clients.
+  needs Java 21, `xvfb-run`, Mesa and network access, and is not in CI yet). 26.3 is not tested as a client: it renders with Vulkan, and the machine this was run on had no software Vulkan device, so the client never opened.
 - **Ports:** `NeoForgeRuntimeInfo` (`server_info` reports `NeoForge <version> / Minecraft <version> / server`).
   Everything else (players, blocks, registries, entities, world state, permissions, inventories, the
   log, commands, events) is the shared code in `adapters/common`, the same classes Fabric uses.
