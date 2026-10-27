@@ -275,13 +275,14 @@ class StdioShimTest {
 
         List<String> out = run(shim(url(server), Duration.ofSeconds(5)), INIT, LIST, LIST);
 
+        List<Seen> posts = seen.stream().filter(request -> request.method().equals("POST")).toList();
         assertEquals(3, out.size());
         assertEquals(StdioShim.SESSION_ENDED, errorOf(out.get(1)).get("message"));
         assertEquals(2, json(out.get(1)).get("id"));
         assertEquals("no MCP endpoint at that URL (HTTP 404): check MINECRAFT_MCP_URL", errorOf(out.get(2)).get("message"));
-        assertNull(seen.get(0).sessionId());
-        assertEquals("session-1", seen.get(1).sessionId());
-        assertNull(seen.get(2).sessionId(), "the next request goes out without the dead id");
+        assertNull(posts.get(0).sessionId());
+        assertEquals("session-1", posts.get(1).sessionId());
+        assertNull(posts.get(2).sessionId(), "the next request goes out without the dead id");
     }
 
     @Test
@@ -300,7 +301,8 @@ class StdioShimTest {
 
         run(shim(url(server), Duration.ofSeconds(5)), INIT, LIST, LIST);
 
-        assertEquals("session-1", seen.get(2).sessionId());
+        List<Seen> posts = seen.stream().filter(request -> request.method().equals("POST")).toList();
+        assertEquals("session-1", posts.get(2).sessionId());
     }
 
     @Test
