@@ -124,7 +124,7 @@ read-only tools); they are not enforcement. The policy gate decides what actuall
 | `look_at` | ACT | `x`, `y`, `z`. **Client only.** Turns the local player to face the point |
 | `jump` | ACT | none. **Client only.** One jump; fails if the player is not on the ground |
 | `break_block` | ACT | `x`, `y`, `z` (integers). **Client only.** Digs the block with the game's own dig calls until it breaks, at most 100 ticks. Fails if it is beyond reach (4.5 blocks) or there is no block |
-| `place_block` | ACT | `x`, `y`, `z` (integers). **Client only.** Places the block in the main hand at an empty position, against a neighbouring block. Fails if the hand holds no block, the position is taken, or nothing is next to it |
+| `place_block` | ACT | `x`, `y`, `z` (integers). **Client only.** Places the block in the main hand at an empty position, against a neighbouring block, and answers with the block's registry id (`placed minecraft:stone at x, y, z`), never the item's own name, which its owner can set. Fails if the hand holds no block, the position is taken, or nothing is next to it |
 | `interact` | ACT | `x`, `y`, `z` (integers). **Client only.** Uses the main hand on the block, like a right click (doors, buttons, chests) |
 | `run_command` | ACT | `command` |
 | `run_admin_command` | ADMIN | `command`, `confirm` (must be true) |
