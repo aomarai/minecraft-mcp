@@ -13,7 +13,7 @@
       "additionalProperties": false,
       "properties": {
         "element": {
-          "description": "Element id from get_screen, e.g. 3:button.",
+          "description": "Element id from get_screen, copied exactly (it is only valid for the screen it was listed on).",
           "type": "string"
         }
       },
