@@ -24,7 +24,7 @@ class ToolDispatcherTest {
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private final FakeGame game = new FakeGame();
-    private final List<AuditEntry> audit = new ArrayList<>();
+    private final List<AuditEntry> audit = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private static McpConfig config(boolean writes, boolean admin, int maxVolume, Duration timeout) {
         return new McpConfig("127.0.0.1", 25599, writes, admin, maxVolume, timeout);
