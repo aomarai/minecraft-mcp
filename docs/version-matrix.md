@@ -42,6 +42,7 @@ best-effort.
 - The universal tier lists players only when a server directory is configured, and reports no TPS.
 - Quilt is expected to load the Fabric jar but is not tested.
 - The endpoint speaks plain HTTP on loopback. Remote access is by serving HTTPS from a keystore, an SSH tunnel or a TLS reverse proxy ([remote-access.md](remote-access.md)); the HTTPS path is tested with a self-made keystore but not yet on a second machine or with a public certificate. The OAuth 2.1 flow is not implemented.
+- NeoForge in single-player (the integrated server, port 25599) is smoke-tested on 1.21.1 only, by hand (`scripts/smoke/neoforge-client-smoke.sh`); it is not in CI and 26.2 and 26.3 are not tested as clients.
 - The Fabric client endpoint (the client-only tools: screenshot, screens, local player) is smoke-tested in CI on 1.21.1, 26.2 and 26.3 (`scripts/smoke/client-smoke.sh`, a real client on a virtual display; 26.3 uses a software Vulkan device).
 - Publishing to Modrinth and CurseForge is wired into the release workflow but needs the owner's tokens and project ids ([release.md](release.md)); it has not run against the live sites.
 

@@ -7,11 +7,16 @@ Docker smoke test runs in CI ([version matrix](version-matrix.md)); it does for 
 
 ## What exists
 
-- **Entry point:** `McpNeoForgeMod` (`@Mod("minecraft_mcp")`, dedicated server only) starts the
+- **Entry point:** `McpNeoForgeMod` (`@Mod("minecraft_mcp")`, both dists) starts the
   `McpController` on `ServerStartedEvent` and stops it on `ServerStoppingEvent`. A configuration or
   start-up problem is logged and never crashes the game. Config and audit files live in NeoForge's
   `config/` directory, with the same file format, defaults and security rules as on Fabric
   ([configuration](configuration.md)).
+- **Single-player and LAN:** in a NeoForge game client `ServerStartedEvent` fires for the integrated server, which is
+  served on port 25599 exactly like a dedicated one (same config in the game folder's `config/`). The client-only
+  tools (screenshots, screens, the local player) stay Fabric-only. Smoke-tested on **1.21.1 only** with
+  `scripts/smoke/neoforge-client-smoke.sh` (a real client on a virtual display joins a flat world; the script
+  needs Java 21, `xvfb-run`, Mesa and network access, and is not in CI yet). 26.2 and 26.3 are not tested as clients.
 - **Ports:** `NeoForgeRuntimeInfo` (`server_info` reports `NeoForge <version> / Minecraft <version> / server`).
   Everything else (players, blocks, registries, entities, world state, permissions, inventories, the
   log, commands, events) is the shared code in `adapters/common`, the same classes Fabric uses.
