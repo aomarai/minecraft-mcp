@@ -217,7 +217,7 @@ else
   use_server; c give_item "{\"player\":\"$PNAME\",\"item\":\"minecraft:dirt\",\"count\":4}" > /dev/null; sleep 1
   use_client
   out="$(c place_block "{\"x\":$BX,\"y\":$BY,\"z\":$BZ}")"
-  expect "place_block says it placed a block" "$out" "placed"
+  expect "place_block says which block it placed, by registry id" "$out" "placed minecraft:"
   sleep 1
   [ "$(block_at "$BX" "$BY" "$BZ")" != "(air)" ] && pass "the server agrees: a block is there" || fail "nothing was placed"
   expect "placing on a taken position is refused" "$(c place_block "{\"x\":$BX,\"y\":$BY,\"z\":$BZ}")" "already a block"

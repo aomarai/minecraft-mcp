@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
@@ -125,12 +126,15 @@ final class FabricClientPlayer implements PlayerController {
             if (!(player.getMainHandItem().getItem() instanceof BlockItem)) {
                 throw new IllegalStateException("the main hand holds no block");
             }
+            // The registry id, read before the block is placed: afterwards the last block of a stack is gone, and the
+            // item's own name is text its owner chose (an anvil rename), which must not reach the model.
+            String placed = BuiltInRegistries.ITEM.getKey(player.getMainHandItem().getItem()).toString();
             for (Direction direction : Direction.values()) {
                 BlockPos neighbour = pos.relative(direction);
                 if (!minecraft.level.getBlockState(neighbour).isAir()
                         && !minecraft.level.getBlockState(neighbour).canBeReplaced()) {
                     use(minecraft, player, neighbour, direction.getOpposite());
-                    return "placed " + player.getMainHandItem().getHoverName().getString() + " at " + describe(pos);
+                    return "placed " + placed + " at " + describe(pos);
                 }
             }
             throw new IllegalStateException("there is no block next to " + describe(pos) + " to place against");
