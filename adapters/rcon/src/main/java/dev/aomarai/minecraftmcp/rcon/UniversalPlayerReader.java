@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 
 /**
@@ -28,6 +29,10 @@ import java.util.regex.Pattern;
  * <p>A name from the network is untrusted, and it is put into a command, so only a real player name
  * (letters, digits and underscores, at most 16) is ever used; anything else is skipped. A player who leaves
  * while the list is being built is skipped too. At most {@value #MAX_PLAYERS} players are listed.</p>
+ *
+ * <p>The whole listing, not each command, gets the call's timeout, and it stops asking the server as soon as the
+ * call is cancelled: a listing nobody waits for must not keep the single RCON thread busy for the commands of the
+ * players still to come.</p>
  */
 final class UniversalPlayerReader implements PlayerReader {
 
@@ -45,8 +50,15 @@ final class UniversalPlayerReader implements PlayerReader {
     private final Path opsFile;
     private final Duration timeout;
     private final Executor worker;
+    private final LongSupplier nanos;
 
     UniversalPlayerReader(OnlinePlayers online, CommandRunner commands, Path opsFile, Duration timeout, Executor worker) {
+        this(online, commands, opsFile, timeout, worker, System::nanoTime);
+    }
+
+    UniversalPlayerReader(OnlinePlayers online, CommandRunner commands, Path opsFile, Duration timeout, Executor worker,
+                          LongSupplier nanos) {
+        this.nanos = nanos;
         this.online = online;
         this.commands = commands;
         this.opsFile = opsFile;
@@ -56,16 +68,20 @@ final class UniversalPlayerReader implements PlayerReader {
 
     @Override
     public CompletableFuture<List<PlayerInfo>> listPlayers() {
-        return CompletableFuture.supplyAsync(() -> {
+        CompletableFuture<List<PlayerInfo>> result = new CompletableFuture<>();
+        // completeAsync does not start a listing that was cancelled while it waited its turn.
+        return result.completeAsync(() -> {
             try {
-                return list();
+                return list(result);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
         }, worker);
     }
 
-    private List<PlayerInfo> list() throws IOException {
+    /** Builds the list; {@code wanted} is checked before every command, so a cancelled listing asks the server nothing more. */
+    private List<PlayerInfo> list(CompletableFuture<?> wanted) throws IOException {
+        long deadline = nanos.getAsLong() + timeout.toNanos();
         Set<String> operators = OpList.names(opsFile);
         List<PlayerInfo> players = new ArrayList<>();
         for (String name : online.names()) {
@@ -73,17 +89,18 @@ final class UniversalPlayerReader implements PlayerReader {
                 break;
             }
             if (PLAYER_NAME.matcher(name).matches()) {
-                describe(name, operators.contains(name.toLowerCase(Locale.ROOT))).ifPresent(players::add);
+                describe(name, operators.contains(name.toLowerCase(Locale.ROOT)), wanted, deadline).ifPresent(players::add);
             }
         }
         return players;
     }
 
     /** Empty when the player is gone by the time the game is asked. */
-    private java.util.Optional<PlayerInfo> describe(String name, boolean operator) throws IOException {
-        CommandResult position = run("data get entity " + name + " Pos");
-        CommandResult dimension = run("data get entity " + name + " Dimension");
-        CommandResult uuid = run("data get entity " + name + " UUID");
+    private java.util.Optional<PlayerInfo> describe(String name, boolean operator, CompletableFuture<?> wanted,
+                                                    long deadline) throws IOException {
+        CommandResult position = run("data get entity " + name + " Pos", wanted, deadline);
+        CommandResult dimension = run("data get entity " + name + " Dimension", wanted, deadline);
+        CommandResult uuid = run("data get entity " + name + " UUID", wanted, deadline);
         if (!position.success() || !dimension.success() || !uuid.success()) {
             return java.util.Optional.empty();
         }
@@ -92,9 +109,16 @@ final class UniversalPlayerReader implements PlayerReader {
                 EntityData.dimension(dimension.output()), at[0], at[1], at[2], operator));
     }
 
-    private CommandResult run(String command) throws IOException {
+    /** One command, within what is left of the listing's timeout; once the call is cancelled, nothing more is asked. */
+    private CommandResult run(String command, CompletableFuture<?> wanted, long deadline) throws IOException {
+        long left = deadline - nanos.getAsLong();
+        if (wanted.isCancelled() || left <= 0) {
+            throw new IOException("stopped listing the players: the call was cancelled or took longer than "
+                    + timeout.toMillis() + " ms");
+        }
         try {
-            return commands.runCommand(command, timeout).get(timeout.toMillis() + 1000, TimeUnit.MILLISECONDS);
+            return commands.runCommand(command, Duration.ofNanos(left))
+                    .get(TimeUnit.NANOSECONDS.toMillis(left) + 1000, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("interrupted while asking the server");

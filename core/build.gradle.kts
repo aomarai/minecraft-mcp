@@ -17,6 +17,18 @@ dependencies {
     testRuntimeOnly("org.slf4j:slf4j-simple:2.0.20")
 }
 
+// The version the build was asked for, where McpVersion reads it: next to the class, so shaded jars carry it too.
+val versionResource = tasks.register<WriteProperties>("versionResource") {
+    destinationFile.set(layout.buildDirectory.file("generated/version.properties"))
+    property("version", project.version.toString())
+}
+
+tasks.processResources {
+    from(versionResource) {
+        into("dev/aomarai/minecraftmcp/core")
+    }
+}
+
 // Mutation testing. Run with `./gradlew :core:pitest`; it is not part of
 // `build` because it is slow. The threshold keeps the suite honest: a mutant
 // that survives means a behavior no test pins down.

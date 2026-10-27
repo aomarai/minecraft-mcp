@@ -26,6 +26,11 @@ import java.util.regex.Pattern;
  * one from the start. It records nothing but the player's name and what they said: the address in a login
  * line is never read, let alone kept.</p>
  *
+ * <p>Failures do not stop it: a tailer that stopped on one bad read would never recover, because a scheduled task
+ * that throws is never run again. But they are not silent either. The first failure to read the log (a file that
+ * is missing or not readable, a wrong {@code serverDirectory}) is logged as a warning, once, and so is the recovery;
+ * the same goes for an event sink that refuses events. What a line says is never logged.</p>
+ *
  * <p>Whatever players write is untrusted. The core's {@code EventBuffer} cleans and shortens it and marks
  * it so, and nothing here acts on it.</p>
  */
@@ -47,11 +52,34 @@ public final class LogTailer implements AutoCloseable {
     /** Cap on what one poll reads, so a log that suddenly grows by gigabytes cannot stall or exhaust memory. */
     private static final int MAX_READ = 1 << 20;
 
+    private static final System.Logger LOG = System.getLogger(LogTailer.class.getName());
+
+    /** A condition that is reported when it starts and again when it ends, not on every poll in between. */
+    private static final class Problem {
+        private boolean active;
+
+        void raise(String message) {
+            if (!active) {
+                active = true;
+                LOG.log(System.Logger.Level.WARNING, message + "; will keep trying");
+            }
+        }
+
+        void clear(String message) {
+            if (active) {
+                active = false;
+                LOG.log(System.Logger.Level.WARNING, message);
+            }
+        }
+    }
+
     private final Path file;
     private final Sink events;
     private final ScheduledExecutorService poller =
             Executors.newSingleThreadScheduledExecutor(DaemonThreads.named("minecraft-mcp-log-tail"));
     private final Function<Path, Object> identityOf;
+    private final Problem reading = new Problem();
+    private final Problem sink = new Problem();
     private long position;
     private boolean positioned;
     private Object identity;
@@ -81,24 +109,15 @@ public final class LogTailer implements AutoCloseable {
 
     /** Polls the file every {@code interval} until closed. */
     public void start(Duration interval) {
-        poller.scheduleWithFixedDelay(() -> quietly(this::poll), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
+        poller.scheduleWithFixedDelay(this::pollReportingFailure, 0, interval.toMillis(), TimeUnit.MILLISECONDS);
     }
 
-    @FunctionalInterface
-    interface Step {
-        void run() throws IOException;
-    }
-
-    /**
-     * Runs one step and shrugs off its failure. The file may be mid-rotation, and one event that the sink
-     * cannot take must not cost the lines after it; a tailer that stopped on one bad read would never
-     * recover, because a scheduled task that throws is never run again.
-     */
-    static void quietly(Step step) {
+    /** One poll that never throws: the file may be mid-rotation, so the next poll tries again. */
+    void pollReportingFailure() {
         try {
-            step.run();
+            poll();
         } catch (IOException | RuntimeException e) {
-            // Try again next time.
+            reading.raise("Cannot read " + file + ": " + e);
         }
     }
 
@@ -106,8 +125,14 @@ public final class LogTailer implements AutoCloseable {
     void poll() throws IOException {
         if (!Files.isRegularFile(file)) {
             positioned = false;
+            reading.raise(file + " is missing or is not a regular file");
             return;
         }
+        follow();
+        reading.clear("Reading " + file + " works again");
+    }
+
+    private void follow() throws IOException {
         Object current = identityOf.apply(file);
         long size = Files.size(file);
         if (!positioned) {
@@ -158,7 +183,12 @@ public final class LogTailer implements AutoCloseable {
 
     /** One event the sink cannot take must not cost the lines after it. */
     private void deliver(EventType type, String player, String text) {
-        quietly(() -> events.accept(type, player, text));
+        try {
+            events.accept(type, player, text);
+            sink.clear("The event sink takes events again");
+        } catch (RuntimeException e) {
+            sink.raise("The event sink refused an event: " + e);
+        }
     }
 
     @Override

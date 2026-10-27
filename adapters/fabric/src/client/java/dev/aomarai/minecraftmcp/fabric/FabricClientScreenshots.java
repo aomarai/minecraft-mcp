@@ -2,6 +2,7 @@ package dev.aomarai.minecraftmcp.fabric;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.aomarai.minecraftmcp.core.FrameEncoder;
+import dev.aomarai.minecraftmcp.core.MainThread;
 import dev.aomarai.minecraftmcp.core.Screenshot;
 import dev.aomarai.minecraftmcp.core.ScreenshotCapture;
 import net.minecraft.client.Minecraft;
@@ -24,8 +25,8 @@ final class FabricClientScreenshots implements ScreenshotCapture {
             }
             try {
                 ClientCompat.grab(minecraft, image -> encode(image, maxWidth, maxHeight, result));
-            } catch (RuntimeException e) {
-                result.completeExceptionally(e);
+            } catch (Throwable e) {
+                MainThread.fail(result, e);
             }
         });
         return result;
@@ -39,15 +40,15 @@ final class FabricClientScreenshots implements ScreenshotCapture {
             width = image.getWidth();
             height = image.getHeight();
             pixels = ClientCompat.abgr(image);
-        } catch (RuntimeException e) {
-            result.completeExceptionally(e);
+        } catch (Throwable e) {
+            MainThread.fail(result, e);
             return;
         }
         CompletableFuture.runAsync(() -> {
             try {
                 result.complete(FrameEncoder.encode(pixels, width, height, maxWidth, maxHeight));
-            } catch (Exception e) {
-                result.completeExceptionally(e);
+            } catch (Throwable e) {
+                MainThread.fail(result, e);
             }
         });
     }

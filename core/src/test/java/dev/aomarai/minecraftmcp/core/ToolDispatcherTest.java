@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static dev.aomarai.minecraftmcp.core.ToolResults.text;
@@ -187,10 +188,83 @@ class ToolDispatcherTest {
                 .call(tool("list_entities"), entityArgs("type", "zombie", "limit", 3));
 
         assertFalse(result.isError());
-        assertEquals("{\"dimension\":\"minecraft:overworld\",\"truncated\":true,\"entities\":["
+        assertEquals("{\"untrusted\":true,\"dimension\":\"minecraft:overworld\",\"truncated\":true,\"entities\":["
                 + "{\"type\":\"minecraft:zombie\",\"uuid\":\"uuid-2\",\"name\":\"Zombie\",\"x\":1.5,\"y\":64.0,\"z\":-2.5}]}",
                 text(result));
         assertEquals(new EntityQuery("minecraft:overworld", 1, 64, -2, 8, "minecraft:zombie", 3), game.entityQueries.get(0));
+    }
+
+    /** Starts MAX_IN_FLIGHT list_entities calls that stay in the game until the test finishes them. */
+    private List<Thread> fillEveryCallSlot(ToolDispatcher d, List<McpSchema.CallToolResult> results) throws InterruptedException {
+        game.pendingEntities = new CompletableFuture<>();
+        List<Thread> callers = new ArrayList<>();
+        for (int i = 0; i < ToolDispatcher.MAX_IN_FLIGHT; i++) {
+            Thread caller = new Thread(() -> results.add(d.call(tool("list_entities"), entityArgs())));
+            caller.start();
+            callers.add(caller);
+        }
+        for (int i = 0; i < 500 && game.entityQueries.size() < ToolDispatcher.MAX_IN_FLIGHT; i++) {
+            Thread.sleep(20);
+        }
+        assertEquals(ToolDispatcher.MAX_IN_FLIGHT, game.entityQueries.size(), "every slot is taken by a call in the game");
+        return callers;
+    }
+
+    private void finishTheBlockedCalls(List<Thread> callers) throws InterruptedException {
+        game.pendingEntities.complete(new EntityList("minecraft:overworld", List.of(), false));
+        for (Thread caller : callers) {
+            caller.join(10_000);
+        }
+    }
+
+    @Test
+    void theCallAfterTheLastFreeSlotIsRefusedAtOnceAndAuditedAndAFinishedCallFreesASlot() throws Exception {
+        ToolDispatcher d = dispatcher(config(false, false, 32768, Duration.ofSeconds(30)), game.services(), audit::add);
+        List<McpSchema.CallToolResult> results = new CopyOnWriteArrayList<>();
+        List<Thread> callers = fillEveryCallSlot(d, results);
+        audit.clear();
+
+        long start = System.nanoTime();
+        McpSchema.CallToolResult refused = d.call(tool("list_entities"), entityArgs());
+        long millis = (System.nanoTime() - start) / 1_000_000;
+
+        assertTrue(refused.isError());
+        assertEquals("too many tool calls are in progress (at most 16 at once); try again shortly", text(refused));
+        assertTrue(millis < 1_000, "refused without waiting: " + millis + " ms");
+        assertEquals(ToolDispatcher.MAX_IN_FLIGHT, game.entityQueries.size(), "it never reached the game");
+        assertEquals(1, audit.size());
+        assertEquals("deny", audit.get(0).decision());
+        assertEquals(ToolDispatcher.BUSY, audit.get(0).detail());
+        assertEquals("list_entities", audit.get(0).tool());
+
+        finishTheBlockedCalls(callers);
+
+        assertEquals(ToolDispatcher.MAX_IN_FLIGHT, results.size());
+        assertTrue(results.stream().noneMatch(McpSchema.CallToolResult::isError));
+        assertFalse(d.call(tool("list_entities"), entityArgs()).isError(), "a slot is free again");
+    }
+
+    @Test
+    void aCallRefusedAsBusyIsRefusedEvenWhenTheRefusalCannotBeAudited() throws Exception {
+        boolean[] auditFails = {false};
+        ToolDispatcher d = dispatcher(config(false, false, 32768, Duration.ofSeconds(30)), game.services(), entry -> {
+            if (auditFails[0]) {
+                throw new IllegalStateException("disk full");
+            }
+        });
+        List<Thread> callers = fillEveryCallSlot(d, new CopyOnWriteArrayList<>());
+        auditFails[0] = true;
+
+        try (LogCapture logs = new LogCapture()) {
+            McpSchema.CallToolResult refused = d.call(tool("list_entities"), null);
+
+            assertTrue(refused.isError());
+            assertEquals(ToolDispatcher.BUSY, text(refused));
+            assertEquals(1, logs.lines().size(), logs.lines().toString());
+            assertTrue(logs.lines().get(0).contains("disk full"), logs.lines().get(0));
+        }
+        auditFails[0] = false;
+        finishTheBlockedCalls(callers);
     }
 
     @Test
@@ -386,7 +460,7 @@ class ToolDispatcherTest {
         assertTrue(json.contains("\"sequence\":1,"), json);
         assertTrue(json.contains("\"type\":\"join\",\"player\":\"Steve\",\"text\":\"\",\"untrusted\":false"), json);
         assertTrue(json.contains("\"type\":\"chat\",\"player\":\"Steve\",\"text\":\"hello world\",\"untrusted\":true"), json);
-        assertTrue(json.endsWith("\"latest\":2,\"dropped\":0}"), json);
+        assertTrue(json.endsWith("\"latest\":2,\"dropped\":0,\"reset\":false}"), json);
         assertEquals(List.of("-1,50"), game.eventReads);
     }
 

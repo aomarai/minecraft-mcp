@@ -27,6 +27,14 @@ Configuration errors stop the shim at start-up with a message naming the variabl
 - Anything that goes wrong becomes a JSON-RPC error response for that request's id: server
   unreachable, timeout, HTTP 401/403/404/other, or a response that is not JSON. The shim never
   hangs the host. Diagnostics go to stderr.
+- A 404 on a request that carried a session id means the session ended, because the server restarted or was
+  reloaded (`/mcp reload`, `/mcp token rotate`). The shim forgets the id and answers that error, so the host
+  must reconnect and send `initialize` again; the next request goes out without the old id. A 404 on a request
+  without a session id still says the URL is wrong.
+- A 404 on a request that carried a session id means the session ended, because the server restarted or was
+  reloaded (`/mcp reload`, `/mcp token rotate`). The shim forgets the id and answers that error, so the host
+  must reconnect and send `initialize` again; the next request goes out without the old id. A 404 on a request
+  without a session id still says the URL is wrong.
 - The token is never logged and never put in an error message.
 
 ## The jar
@@ -43,7 +51,17 @@ CI starts the universal jar and talks to it through this jar the way a stdio hos
 SLF4J "no providers" notice; stdout carries only MCP messages. Host-specific snippets are in
 [install.md](install.md).
 
+## Messages the server sends on its own
+
+After `initialize` succeeds the shim opens the server's optional message stream (`GET` with the session id and
+`Accept: text/event-stream`) on a background thread and writes each message to stdout as one line, like a reply.
+This is how `notifications/resources/updated` for the subscribed `minecraft://events` resource reaches a stdio
+host. Writes to stdout are serialized, so a notification never shares a line with a reply. When the stream ends
+or fails, the shim opens it again after 1 s, doubling up to 30 s (a working stream starts the delay over). It
+stops quietly when the server answers `405` (it offers no stream) or `404` (the session ended). Failures go to
+stderr, never to the host.
+
 ## Limits
 
-- The shim does not open the optional server-to-client SSE stream, so server-initiated requests are
-  not relayed yet.
+- Server-initiated *requests* (not notifications) are relayed to the host, but the host's answer to one is a
+  message the shim posts like any other; that path is not smoke tested.
