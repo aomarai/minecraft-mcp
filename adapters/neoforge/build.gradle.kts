@@ -43,6 +43,9 @@ neoForge {
         // The game client, to prove the integrated server is served (scripts/smoke/neoforge-client-smoke.sh).
         create("client") {
             client()
+            // The shaded jar is what ships, so it is what the client loads: from the run's mods/ folder, not as a
+            // source set (whose core classes the mod layer cannot see).
+            loadedMods.empty()
             // -PquickPlay=<world> joins (or creates) that single-player world at start-up.
             providers.gradleProperty("quickPlay").orNull?.let { programArguments.addAll("--quickPlaySingleplayer", it) }
         }
@@ -103,6 +106,18 @@ tasks.named<ShadowJar>("shadowJar") {
 // The plain jar is not loadable (its dependencies are missing); only the shaded one is.
 tasks.jar {
     archiveClassifier.set("dev")
+}
+
+tasks.matching { it.name == "runClient" }.configureEach {
+    dependsOn(tasks.named("shadowJar"))
+    doFirst {
+        val mods = layout.projectDirectory.dir("run/mods").asFile
+        mods.mkdirs()
+        copy {
+            from(tasks.named<ShadowJar>("shadowJar").flatMap { it.archiveFile })
+            into(mods)
+        }
+    }
 }
 
 tasks.assemble {
