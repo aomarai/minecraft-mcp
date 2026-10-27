@@ -43,7 +43,17 @@ CI starts the universal jar and talks to it through this jar the way a stdio hos
 SLF4J "no providers" notice; stdout carries only MCP messages. Host-specific snippets are in
 [install.md](install.md).
 
+## Messages the server sends on its own
+
+After `initialize` succeeds the shim opens the server's optional message stream (`GET` with the session id and
+`Accept: text/event-stream`) on a background thread and writes each message to stdout as one line, like a reply.
+This is how `notifications/resources/updated` for the subscribed `minecraft://events` resource reaches a stdio
+host. Writes to stdout are serialized, so a notification never shares a line with a reply. When the stream ends
+or fails, the shim opens it again after 1 s, doubling up to 30 s (a working stream starts the delay over). It
+stops quietly when the server answers `405` (it offers no stream) or `404` (the session ended). Failures go to
+stderr, never to the host.
+
 ## Limits
 
-- The shim does not open the optional server-to-client SSE stream, so server-initiated requests are
-  not relayed yet.
+- Server-initiated *requests* (not notifications) are relayed to the host, but the host's answer to one is a
+  message the shim posts like any other; that path is not smoke tested.

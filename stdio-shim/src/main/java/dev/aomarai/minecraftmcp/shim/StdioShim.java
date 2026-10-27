@@ -21,6 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Bridges an MCP host that only launches stdio servers to the mod's Streamable
@@ -32,6 +33,13 @@ import java.util.Set;
  * order, so {@code initialize} always completes before the notification that
  * follows it. The {@code Mcp-Session-Id} the server returns is remembered and
  * sent on later requests.</p>
+ *
+ * <p>After {@code initialize} succeeds the shim also opens the server's optional message stream
+ * ({@code GET} with the session id, {@code Accept: text/event-stream}) on a daemon thread and writes every message
+ * the server sends on its own, such as {@code notifications/resources/updated} for a subscribed resource, to
+ * stdout as one line, exactly like a reply. Writes to stdout are serialized, so lines never interleave. The stream
+ * is reopened with a growing delay when it ends or fails, and given up quietly when the server answers {@code 405}
+ * (it offers none) or {@code 404} (the session ended).</p>
  *
  * <p>Failures never hang the host: an unreachable server, a timeout, an HTTP
  * error status or an unreadable response becomes a JSON-RPC error response for
@@ -52,6 +60,9 @@ public final class StdioShim {
     static final String ENV_TIMEOUT_MS = "MINECRAFT_MCP_TIMEOUT_MS";
     static final long DEFAULT_TIMEOUT_MS = 30_000;
 
+    static final Duration RECONNECT_FIRST = Duration.ofSeconds(1);
+    static final Duration RECONNECT_CAP = Duration.ofSeconds(30);
+
     static final int PARSE_ERROR = -32700;
     static final int INVALID_REQUEST = -32600;
     static final int SERVER_ERROR = -32000;
@@ -64,9 +75,16 @@ public final class StdioShim {
     private final Duration timeout;
     private final HttpClient http;
     private final PrintStream log;
-    private String sessionId;
+    private final Supplier<Backoff> backoffs;
+    private volatile String sessionId;
+    private Thread stream;
 
     StdioShim(URI endpoint, String token, Duration timeout, PrintStream log) {
+        this(endpoint, token, timeout, log, () -> new Backoff(RECONNECT_FIRST, RECONNECT_CAP));
+    }
+
+    StdioShim(URI endpoint, String token, Duration timeout, PrintStream log, Supplier<Backoff> backoffs) {
+        this.backoffs = backoffs;
         this.endpoint = endpoint;
         this.token = token;
         this.timeout = timeout;
@@ -120,11 +138,15 @@ public final class StdioShim {
 
     /** Handles every line until the input ends. */
     void pump(BufferedReader in, PrintStream out) throws IOException {
-        String line;
-        while ((line = in.readLine()) != null) {
-            if (!line.isBlank()) {
-                handle(line, out);
+        try {
+            String line;
+            while ((line = in.readLine()) != null) {
+                if (!line.isBlank()) {
+                    handle(line, out);
+                }
             }
+        } finally {
+            stopStream();
         }
     }
 
@@ -143,6 +165,10 @@ public final class StdioShim {
         Object id = message.get("id");
         try {
             forward(line, id, out);
+            // The server assigns a session only to an initialize it accepted.
+            if ("initialize".equals(message.get("method")) && sessionId != null) {
+                startStream(out);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             error(out, id, SERVER_ERROR, "interrupted while waiting for the MCP server");
@@ -172,6 +198,65 @@ public final class StdioShim {
                 relay(response.headers().firstValue("Content-Type").orElse(""), stream, id, out);
             }
         }
+    }
+
+    /** (Re)starts the message stream for the current session, ending the one of an earlier session. */
+    private void startStream(PrintStream out) {
+        stopStream();
+        String session = sessionId;
+        Backoff backoff = backoffs.get();
+        stream = Thread.ofPlatform().daemon().name("minecraft-mcp-shim-stream").start(() -> follow(session, backoff, out));
+    }
+
+    private void stopStream() {
+        if (stream != null) {
+            stream.interrupt();
+        }
+    }
+
+    /** Opens the stream, relays it, and opens it again after a pause, until told to stop or the server has none. */
+    private void follow(String session, Backoff backoff, PrintStream out) {
+        try {
+            while (openStream(session, backoff, out)) {
+                Thread.sleep(backoff.next().toMillis());
+            }
+        } catch (InterruptedException e) {
+            // stopStream() ended this stream: the host went away or initialized again.
+        }
+    }
+
+    /** The thread following the server's message stream, or null; for tests to wait on. */
+    Thread stream() {
+        return stream;
+    }
+
+    /** One connection: false when there is no point in trying again (405: no stream offered; 404: session gone). */
+    private boolean openStream(String session, Backoff backoff, PrintStream out) throws InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(endpoint)
+                .header("Accept", "text/event-stream")
+                .header("Authorization", "Bearer " + token)
+                .header("Mcp-Session-Id", session)
+                .GET()
+                .build();
+        try {
+            HttpResponse<InputStream> response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            int status = response.statusCode();
+            try (InputStream body = response.body()) {
+                if (status < 400) {
+                    backoff.reset();
+                    relay("text/event-stream", body, null, out);
+                }
+            }
+            if (status == 405 || status == 404) {
+                return false;
+            }
+            if (status >= 400) {
+                log.println("minecraft-mcp-shim: the message stream answered HTTP " + status + "; trying again");
+            }
+        } catch (IOException e) {
+            log.println("minecraft-mcp-shim: the message stream ended: " + describe(e));
+        }
+        return true;
     }
 
     private void relay(String contentType, InputStream stream, Object id, PrintStream out) throws IOException {
@@ -217,9 +302,12 @@ public final class StdioShim {
         line(out, JSON.writeValueAsString(response));
     }
 
+    /** One whole line, never mixed with another thread's. */
     private static void line(PrintStream out, String json) {
-        out.print(json + "\n");
-        out.flush();
+        synchronized (out) {
+            out.print(json + "\n");
+            out.flush();
+        }
     }
 
     private static String describeStatus(int status) {
