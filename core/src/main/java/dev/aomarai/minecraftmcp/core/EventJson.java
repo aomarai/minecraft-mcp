@@ -30,6 +30,7 @@ final class EventJson {
         out.put("events", events);
         out.put("latest", page.latest());
         out.put("dropped", page.dropped());
+        out.put("reset", page.reset());
         return mapper.writeValueAsString(out);
     }
 }

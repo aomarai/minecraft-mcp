@@ -63,13 +63,14 @@ public final class EventBuffer implements EventFeed {
             throw new IllegalArgumentException("limit must be between 1 and " + MAX_LIMIT);
         }
         List<GameEvent> all = List.copyOf(events);
-        if (after < 0) {
-            return new EventPage(all.subList(Math.max(0, all.size() - limit), all.size()), latest, 0);
+        boolean reset = after > latest;
+        if (after < 0 || reset) {
+            return new EventPage(all.subList(Math.max(0, all.size() - limit), all.size()), latest, 0, reset);
         }
         // Whatever lies between the cursor and the oldest kept event was thrown away before it was read.
         long dropped = all.isEmpty() ? 0 : Math.max(0, all.get(0).sequence() - (after + 1));
         List<GameEvent> newer = all.stream().filter(event -> event.sequence() > after).limit(limit).toList();
-        return new EventPage(newer, latest, dropped);
+        return new EventPage(newer, latest, dropped, false);
     }
 
     @Override

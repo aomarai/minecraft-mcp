@@ -386,7 +386,7 @@ class ToolDispatcherTest {
         assertTrue(json.contains("\"sequence\":1,"), json);
         assertTrue(json.contains("\"type\":\"join\",\"player\":\"Steve\",\"text\":\"\",\"untrusted\":false"), json);
         assertTrue(json.contains("\"type\":\"chat\",\"player\":\"Steve\",\"text\":\"hello world\",\"untrusted\":true"), json);
-        assertTrue(json.endsWith("\"latest\":2,\"dropped\":0}"), json);
+        assertTrue(json.endsWith("\"latest\":2,\"dropped\":0,\"reset\":false}"), json);
         assertEquals(List.of("-1,50"), game.eventReads);
     }
 
