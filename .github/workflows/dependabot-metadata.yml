@@ -35,27 +35,23 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-        with:
-          # The restored cache can hold artifacts resolved before the metadata
-          # changed, which then fail verification. Resolve fresh.
-          cache-disabled: true
+      # JDK 21 and 25 (the 26.x nodes need 25) and Gradle without a cache: the same setup every build job uses.
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       - name: Regenerate dependency verification metadata
-        # A clean Gradle home makes the resolve see every transitive POM and
-        # record its checksum. :core:test is the current dependency surface;
-        # widen to `build` as adapters gain code.
+        # A clean Gradle home makes the resolve see every transitive POM and record its checksum. It builds what CI
+        # builds (core, shim, universal tier and every loader node, which is where Loom, ModDevGradle, Fabric API
+        # and NeoForge are resolved) and runs the Pitest and shadow tasks, so a bump that only an adapter or a
+        # plugin resolves gets its checksum too. The same command is in AGENTS.md.
         run: |
           rm -rf "$RUNNER_TEMP/gradle-home"
+          mkdir -p "$RUNNER_TEMP/gradle-home"
+          # The setup action told Gradle where the JDKs are in ~/.gradle; this run uses a clean Gradle home.
+          cp ~/.gradle/gradle.properties "$RUNNER_TEMP/gradle-home/gradle.properties"
           GRADLE_USER_HOME="$RUNNER_TEMP/gradle-home" \
-            ./gradlew --write-verification-metadata sha256 :core:test --no-daemon
+            ./gradlew build :core:pitest :stdio-shim:pitest :adapters:rcon:pitest :adapters:rcon:shadowJar \
+              :stdio-shim:shadowJar --write-verification-metadata sha256 --no-daemon
 
       - name: Commit and push metadata changes
         run: |

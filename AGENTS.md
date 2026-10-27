@@ -70,7 +70,7 @@ check to get green; add a test that pins real behavior instead.
 ## Dependencies
 
 - Dependency verification is on. After adding or bumping anything, regenerate
-  `gradle/verification-metadata.xml` with `./gradlew build :core:pitest --write-verification-metadata sha256`
+  `gradle/verification-metadata.xml` with `./gradlew build :core:pitest :stdio-shim:pitest :adapters:rcon:pitest :adapters:rcon:shadowJar :stdio-shim:shadowJar --write-verification-metadata sha256` (the same command `.github/workflows/dependabot-metadata.yml` runs)
   and review the diff; commit it with the change.
 - Adding a dependency needs a reason in the PR. Prefer what the MCP SDK already provides
   (for example its `McpJsonMapper`) over a new library.
