@@ -77,7 +77,7 @@ All five tools in `docs/tools.md` are served.
 - **Registry-driven:** dimensions and blocks are resolved by registry id, never by a hardcoded
   vanilla list. An unknown dimension is reported together with the available ones.
 - **Command permission level:** commands run from a dedicated "MCP" source (not the console, not a
-  player) at vanilla permission level 2, or level 4 only when `allowAdmin` is on. The core's policy
+  player), so `send_message` shows as `[MCP] ...` and operators can tell it from their own console, at vanilla permission level 2, or level 4 only when `allowAdmin` is on. The core's policy
   decides first; this is a second line of defense, so the game itself refuses admin commands unless
   admin access is enabled.
 - **Not covered by a test mod:** that a block from another mod resolves is true by construction
