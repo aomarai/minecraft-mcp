@@ -29,7 +29,7 @@ jobs:
   core:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Release hygiene (MIT license, no jars or world data committed)
         run: scripts/release/check-repo.sh
       - uses: ./.github/actions/setup-build
@@ -45,14 +45,14 @@ jobs:
       matrix:
         module: [":core", ":stdio-shim", ":adapters:rcon"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-build
       - run: ./gradlew ${{ matrix.module }}:pitest --configure-on-demand --no-daemon
 
   fabric:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-build
       # Every Fabric version node (see docs/version-matrix.md).
       # Then the Fabric game tests: a real server with fake players joining, chatting, dying and leaving. One Gradle
@@ -63,7 +63,7 @@ jobs:
           mkdir jars
           cp adapters/fabric/versions/*/build/libs/minecraft-mcp-*.jar jars/
           ls -l jars
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jars-fabric
           path: jars/
@@ -72,7 +72,7 @@ jobs:
   neoforge:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-build
       # Every NeoForge version node. They prepare Minecraft one at a time (the neoformRuntime build service).
       - run: ./gradlew :adapters:neoforge:1.21.1:build :adapters:neoforge:26.2:build :adapters:neoforge:26.3:build --no-daemon --refresh-dependencies
@@ -81,7 +81,7 @@ jobs:
           mkdir jars
           cp adapters/neoforge/versions/*/build/libs/minecraft-mcp-*.jar jars/
           ls -l jars
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jars-neoforge
           path: jars/
@@ -92,7 +92,7 @@ jobs:
   universal:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-build
       - run: ./gradlew :adapters:rcon:shadowJar :stdio-shim:shadowJar --configure-on-demand --no-daemon --refresh-dependencies
       - name: The shim jar talks to the universal jar over stdio
@@ -102,7 +102,7 @@ jobs:
           mkdir jars
           cp adapters/rcon/build/libs/minecraft-mcp-*-universal.jar stdio-shim/build/libs/minecraft-mcp-*-stdio-shim.jar jars/
           ls -l jars
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jars-universal
           path: jars/
@@ -117,8 +117,8 @@ jobs:
       matrix:
         server: [vanilla, paper, fabric-server]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: jars-universal
           path: jars
@@ -132,8 +132,8 @@ jobs:
       matrix:
         node: ["1.21.1", "26.2", "26.3"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: jars-fabric
           path: jars
@@ -147,8 +147,8 @@ jobs:
       matrix:
         node: ["1.21.1", "26.2", "26.3"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: jars-neoforge
           path: jars
@@ -165,7 +165,7 @@ jobs:
       matrix:
         node: ["1.21.1", "26.2", "26.3"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-build
       - name: Virtual display and software OpenGL (and Vulkan for 26.3, which has no OpenGL window under Xvfb)
         env:
@@ -196,7 +196,7 @@ jobs:
     steps:
       # How long every job took, on the run page, and a warning when the run is over its budget. It reads the API and
       # must never decide the result, so a failure here is ignored.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Job durations
         continue-on-error: true
         env:
