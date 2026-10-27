@@ -40,6 +40,12 @@ neoForge {
             server()
             programArguments.add("--nogui")
         }
+        // The game client, to prove the integrated server is served (scripts/smoke/neoforge-client-smoke.sh).
+        create("client") {
+            client()
+            // -PquickPlay=<world> joins (or creates) that single-player world at start-up.
+            providers.gradleProperty("quickPlay").orNull?.let { programArguments.addAll("--quickPlaySingleplayer", it) }
+        }
     }
 }
 

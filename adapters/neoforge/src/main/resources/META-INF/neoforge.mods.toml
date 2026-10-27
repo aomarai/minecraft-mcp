@@ -14,11 +14,11 @@ modId = "neoforge"
 type = "required"
 versionRange = "${neoforge_range}"
 ordering = "NONE"
-side = "SERVER"
+side = "BOTH"
 
 [[dependencies.minecraft_mcp]]
 modId = "minecraft"
 type = "required"
 versionRange = "${minecraft_range}"
 ordering = "NONE"
-side = "SERVER"
+side = "BOTH"
