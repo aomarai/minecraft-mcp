@@ -38,7 +38,9 @@ cannot be built without a token of at least 16 characters.
 
 Rejected requests never reach the MCP transport. They are logged with the remote address only,
 never the header or token, and are not written to the audit file, so an anonymous caller cannot
-fill it. There is no lockout; a 256-bit generated token is not guessable, and the server binds to
+fill it. The log is throttled too: the first rejection from an address in a minute is logged and the
+repeats are only counted, and at most 20 lines are logged per minute from all addresses together. The next
+rejection after the minute is preceded by one line with the exact number of requests that were not logged. There is no lockout; a 256-bit generated token is not guessable, and the server binds to
 loopback by default. Rotating the token requires a restart of the transport.
 
 ## Untrusted text in tool results

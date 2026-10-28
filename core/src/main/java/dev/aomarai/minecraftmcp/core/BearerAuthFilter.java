@@ -41,7 +41,7 @@ import java.util.function.IntSupplier;
  *
  * <p>A rejected request never reaches the MCP transport. Rejections are logged
  * with the remote address only: never the header value, never the token, and
- * throttled per address (see {@link RejectionLog}). They are deliberately not
+ * throttled per address and in total (see {@link RejectionLog}). They are deliberately not
  * written to the audit file, so an anonymous caller cannot fill it.</p>
  */
 final class BearerAuthFilter implements Filter {
