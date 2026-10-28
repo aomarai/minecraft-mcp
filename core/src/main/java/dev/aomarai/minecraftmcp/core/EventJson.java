@@ -28,6 +28,7 @@ final class EventJson {
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("events", events);
+        out.put("run", page.run());
         out.put("latest", page.latest());
         out.put("dropped", page.dropped());
         out.put("reset", page.reset());

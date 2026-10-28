@@ -94,8 +94,8 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
                 case LOGS -> (LogReader) this::tail;
                 case EVENTS -> new EventFeed() {
                     @Override
-                    public EventPage read(long after, int limit) {
-                        return FakeGame.this.read(after, limit);
+                    public EventPage read(long after, int limit, String run) {
+                        return FakeGame.this.read(after, limit, run);
                     }
 
                     @Override
@@ -294,9 +294,9 @@ final class FakeGame implements RuntimeInfo, PlayerReader, WorldReader, CommandR
     }
 
     @Override
-    public EventPage read(long after, int limit) {
-        eventReads.add(after + "," + limit);
-        return events.read(after, limit);
+    public EventPage read(long after, int limit, String run) {
+        eventReads.add(run == null ? after + "," + limit : after + "," + limit + "," + run);
+        return events.read(after, limit, run);
     }
 
     @Override
