@@ -20,4 +20,8 @@ world=$(git ls-files | grep -Ei '(^|/)(level\.dat(_old)?|eula\.txt|server\.prope
 configs=$(git ls-files | grep -E '(^|/)minecraft-mcp[^/]*\.json$' | grep -Ev '/src/test/resources/')
 [ -z "$configs" ] || problem "a generated config file (it holds a bearer token) is committed: $configs"
 
+# The audit log (and its rotated .1 to .4 files) holds every tool call's arguments: player names, commands, typed text.
+audits=$(git ls-files | grep -E '(^|/)minecraft-mcp[^/]*-audit\.jsonl[^/]*$')
+[ -z "$audits" ] || problem "an audit log (it holds tool arguments) is committed: $audits"
+
 exit $fail
