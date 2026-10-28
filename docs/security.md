@@ -38,7 +38,9 @@ cannot be built without a token of at least 16 characters.
 
 Rejected requests never reach the MCP transport. They are logged with the remote address only,
 never the header or token, and are not written to the audit file, so an anonymous caller cannot
-fill it. There is no lockout; a 256-bit generated token is not guessable, and the server binds to
+fill it. The log is throttled too: the first rejection from an address in a minute is logged and the
+repeats are only counted, and at most 20 lines are logged per minute from all addresses together. The next
+rejection after the minute is preceded by one line with the exact number of requests that were not logged. There is no lockout; a 256-bit generated token is not guessable, and the server binds to
 loopback by default. Rotating the token requires a restart of the transport.
 
 ## Untrusted text in tool results
@@ -92,7 +94,10 @@ Every tool call goes through `ToolDispatcher`:
    is `kill`):
    - **Known safe**: a small built-in list of everyday vanilla commands (`say`, `tell`, `msg`, `w`,
      `me`, `list`, `seed`, `help`, `time`, `weather`) plus the operator's `allowedCommands`. Needs
-     `allowWrites`. Commands that can hurt players or flood them (`effect`, `xp`, `experience`, `give`,
+     `allowWrites`. `say`, `tell`, `msg`, `w` and `me` count as safe only without an entity selector
+     (`@a`, `@e`, `@p`, `@r`, `@s`, `@n`) anywhere in the command: the game would resolve it and message every
+     player or post every entity's name, so such a command needs admin plus confirmation, like the typed
+     `send_message`, which refuses selectors outright (one pattern, `CommandBuilder.containsSelector`). Commands that can hurt players or flood them (`effect`, `xp`, `experience`, `give`,
      `particle`, `playsound`, `title`) or put a clickable command in front of an operator (`tellraw`) are not on it:
      they need admin and confirmation, or an entry in `allowedCommands`.
    - **Destructive**: the built-in list (`kill`, `op`, `stop`, `fill`, `setblock`, `tp`, `ban`, ...)

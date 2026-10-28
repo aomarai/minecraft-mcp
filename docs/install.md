@@ -45,6 +45,22 @@ More detail, and what each tool does on Fabric: [fabric.md](fabric.md).
 
 More detail: [neoforge.md](neoforge.md).
 
+## In single-player
+
+The same jars serve a game client's own world (the integrated server), so you can use the mod without a dedicated
+server. Both loaders are smoke-tested this way on 1.21.1, 26.2 and 26.3 ([version-matrix.md](version-matrix.md)).
+
+1. Put the jar for your loader and Minecraft version in the game folder's `mods/` folder (`.minecraft/mods/` for the
+   default launcher). On Fabric also put **Fabric API** there; NeoForge needs nothing else.
+2. Start the game and open or create a world. The log shows `MCP server listening on port 25599`.
+3. The config and token are in the game folder: `.minecraft/config/minecraft-mcp.json`, with the audit log beside
+   it. It has the same defaults as on a server (read-only, this machine only, a generated token), and the endpoint
+   is `http://127.0.0.1:25599/mcp`. The server stops when you leave the world.
+4. **Fabric only:** the game client also runs its own endpoint on port 25598 for the tools only a client can serve
+   (screenshots, screens, the local player), with `config/minecraft-mcp-client.json` and its own token. Use
+   `/mcpclient status`, `/mcpclient reload` and `/mcpclient token rotate` for it. NeoForge has no client endpoint.
+   Details: [fabric.md](fabric.md#in-a-game-client), [neoforge.md](neoforge.md).
+
 ## Install the universal jar (no mod)
 
 For vanilla, Paper and the like. It runs as a separate process next to the game server, on the same machine,

@@ -37,7 +37,8 @@ public final class ToolPolicy {
             "save-off", "save-all", "reload", "kick", "difficulty", "gamerule");
 
     /**
-     * Everyday vanilla commands that cannot hurt a player, destroy anything or run other commands. Left out on
+     * Everyday vanilla commands that cannot hurt a player, destroy anything or run other commands (the ones that
+     * take text or a target do so only without an entity selector, see {@link #MESSAGE_ROOTS}). Left out on
      * purpose, because they can: {@code effect} (instant damage kills), {@code xp}/{@code experience} (a negative
      * amount wipes levels), {@code give} (any count, to everyone), {@code particle}, {@code playsound} and
      * {@code title} (flood every client), and {@code tellraw} (a clickable command in front of an operator). They
@@ -46,6 +47,12 @@ public final class ToolPolicy {
      */
     private static final Set<String> SAFE_ROOTS = Set.of(
             "say", "tell", "msg", "w", "me", "list", "seed", "help", "time", "weather");
+
+    /**
+     * The known-safe commands that carry free text or a target. With an entity selector in them (@a, @e, ...) they
+     * reach every player or post every entity's name, so they are not plain writes then.
+     */
+    private static final Set<String> MESSAGE_ROOTS = Set.of("say", "tell", "msg", "w", "me");
 
     private final boolean allowWrites;
     private final boolean allowAdmin;
@@ -79,6 +86,12 @@ public final class ToolPolicy {
         }
         if (isDestructive(root)) {
             return needsAdmin(confirmed, "admin commands are disabled", "destructive command requires confirmation");
+        }
+        if (MESSAGE_ROOTS.contains(root) && CommandBuilder.containsSelector(command)) {
+            return needsAdmin(confirmed,
+                    "'" + root + "' with an entity selector (@a, @e, ...) needs admin access; "
+                            + "name the player or use send_message",
+                    "'" + root + "' with an entity selector requires confirmation");
         }
         if (isKnownSafe(root)) {
             return allowWrites ? Decision.allow() : Decision.deny("write commands are disabled");

@@ -356,9 +356,6 @@ public final class ConfigLoader {
     }
 
     private static void write(McpJsonMapper mapper, Path file, Map<String, Object> values) throws IOException {
-        // Restrict before writing so the secret never sits in a world-readable file.
-        OwnerOnlyFile.prepare(file);
-
         StringBuilder out = new StringBuilder("{\n");
         int i = 0;
         for (Map.Entry<String, Object> entry : values.entrySet()) {
@@ -367,6 +364,6 @@ public final class ConfigLoader {
                     .append(++i < values.size() ? ",\n" : "\n");
         }
         out.append("}\n");
-        Files.writeString(file, out, StandardCharsets.UTF_8);
+        AtomicFile.write(file, out.toString());
     }
 }

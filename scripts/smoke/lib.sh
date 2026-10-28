@@ -9,6 +9,47 @@ TOKEN=""
 SESSION=""
 
 fail() { echo "FAIL: $1"; FAILURES=$((FAILURES + 1)); }
+
+# Downloads. The jars they fetch run on CI runners, so every one is fetched with -f (an error page is never saved
+# as a jar), named in the message when it cannot be had, and checked against the checksum its publisher gives.
+# They exit the script with status 2 (a setup problem, not a failed check).
+
+# download <what> <url> <file>
+download() {
+  curl -fsSLo "$3" "$2" || { echo "FAIL: cannot download $1 ($2)"; exit 2; }
+}
+
+# check_checksum <what> <file> <sha1|sha256> <expected-hex>
+check_checksum() {
+  local actual
+  actual="$("$3sum" "$2" | cut -d' ' -f1)"
+  [ -n "$4" ] && [ "$actual" = "$(printf '%s' "$4" | tr 'A-F' 'a-f')" ] \
+    || { echo "FAIL: $1 does not match its published $3 checksum (expected '$4', got '$actual')"; exit 2; }
+}
+
+# download_maven <what> <url> <file>: a Maven artifact, checked against the .sha256 file next to it.
+download_maven() {
+  local expected
+  download "$1" "$2" "$3"
+  expected="$(curl -fsSL "$2.sha256")" || { echo "FAIL: cannot download the checksum of $1 ($2.sha256)"; exit 2; }
+  check_checksum "$1" "$3" sha256 "${expected%% *}"
+}
+
+# download_minecraft_server <minecraft-version> <file>: Mojang publishes a manifest of versions, each naming its
+# server jar and the jar's SHA-1.
+download_minecraft_server() {
+  local manifest version_url version_json server_url server_sha1
+  manifest="$(curl -fsSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json | tr -d '\n')" \
+    || { echo "FAIL: cannot download the Minecraft version manifest"; exit 2; }
+  version_url="$(printf '%s' "$manifest" | sed -n "s/.*\"id\": *\"$1\", *\"type\": *\"release\", *\"url\": *\"\\([^\"]*\\)\".*/\\1/p")"
+  [ -n "$version_url" ] || { echo "FAIL: Minecraft $1 is not in the manifest"; exit 2; }
+  version_json="$(curl -fsSL "$version_url" | tr -d '\n')" || { echo "FAIL: cannot download the version description"; exit 2; }
+  server_url="$(printf '%s' "$version_json" | sed -n 's/.*"server": *{[^}]*"url": *"\([^"]*\)".*/\1/p')"
+  server_sha1="$(printf '%s' "$version_json" | sed -n 's/.*"server": *{[^}]*"sha1": *"\([^"]*\)".*/\1/p')"
+  [ -n "$server_url" ] && [ -n "$server_sha1" ] || { echo "FAIL: cannot find the server jar for $1"; exit 2; }
+  download "the Minecraft $1 server" "$server_url" "$2"
+  check_checksum "the Minecraft $1 server jar" "$2" sha1 "$server_sha1"
+}
 pass() { echo "ok:   $1"; }
 
 # expect <label> <haystack> <needle>: fixed-string match, no regex surprises.
