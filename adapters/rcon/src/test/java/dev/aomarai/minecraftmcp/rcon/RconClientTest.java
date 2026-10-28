@@ -279,11 +279,22 @@ class RconClientTest {
         assertEquals(2, server.connections.get());
     }
 
-    /** A clock that says 0 when the round trip starts and {@code later} for every look after that. */
+    /**
+     * A clock that says 0 when the round trip starts and {@code later} for every look after that. Each later look
+     * first waits a moment of real time, so the fake server has answered by then: with a millisecond left, the read
+     * is only sure to see the reply if it is already there, and CI cannot promise that within one millisecond.
+     */
     private RconClient clientWhoseClockSays(long laterMillis) {
         long[] now = {0};
         java.util.function.LongSupplier clock = () -> {
             long value = now[0];
+            if (value != 0) {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             now[0] = laterMillis * 1_000_000L;
             return value;
         };
