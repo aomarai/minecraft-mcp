@@ -6,6 +6,10 @@ plugins {
 dependencies {
     // Only the SDK's JSON mapper is used, to parse and re-serialize JSON-RPC messages.
     implementation("io.modelcontextprotocol.sdk:mcp:2.1.0")
+    constraints {
+        implementation("tools.jackson.core:jackson-core:3.1.7") { because("GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89") }
+        implementation("tools.jackson.core:jackson-databind:3.1.7") { because("GHSA-cxp5-3px4-pw24, GHSA-wv8q-qhhj-9h54, GHSA-gx83-3vf8-gh7j, GHSA-q4xh-88c3-wmh7") }
+    }
 
     // The integration test runs the shim against the real core server.
     testImplementation(project(":core"))

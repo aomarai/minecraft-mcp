@@ -172,3 +172,46 @@ pair of `System.nanoTime` calls per stretch of main-thread work.
 ## Reporting
 
 See [SECURITY.md](https://github.com/aomarai/minecraft-mcp/blob/main/SECURITY.md). Do not open a public issue for an exploitable problem.
+
+## Dependency advisories
+
+Dependabot's alert list is built from every dependency Gradle resolves, including the Minecraft libraries
+the game itself provides and the build tools. That is more than what ends up in a release. This section says,
+per library, what the alerts are and what was done. Check a release jar's contents rather than the alert
+count to know what a server operator receives.
+
+What the jars bundle (checked against the v0.1.0 jars): the MCP SDK, Jackson 3 (`tools.jackson`), networknt
+json-schema-validator and, for the universal jar and the mods, Jetty. Nothing else is shaded in.
+
+| Package | Alerts | Where it comes from | Status |
+|---|---|---|---|
+| `at.yawk.lz4:lz4-java` | 6 | A Gradle-resolved game or build-tool classpath (not traced to one source) | Not bundled. |
+| `com.google.guava:guava` | 1 | Minecraft (guava 32.1.2-jre) | Not bundled. The game supplies it at runtime. |
+| `io.netty:netty-codec` | 3 | Minecraft's network stack (netty 4.1.97 on the 1.21.1 classpath; newer lines on 26.x or build tools) | Not bundled. The game supplies it at runtime. |
+| `io.netty:netty-codec-compression` | 1 | Minecraft's network stack (netty 4.1.97 on the 1.21.1 classpath; newer lines on 26.x or build tools) | Not bundled. The game supplies it at runtime. |
+| `io.netty:netty-codec-http` | 8 | Minecraft's network stack (netty 4.1.97 on the 1.21.1 classpath; newer lines on 26.x or build tools) | Not bundled. The game supplies it at runtime. |
+| `io.netty:netty-common` | 2 | Minecraft's network stack (netty 4.1.97 on the 1.21.1 classpath; newer lines on 26.x or build tools) | Not bundled. The game supplies it at runtime. |
+| `io.netty:netty-handler` | 8 | Minecraft's network stack (netty 4.1.97 on the 1.21.1 classpath; newer lines on 26.x or build tools) | Not bundled. The game supplies it at runtime. |
+| `io.netty:netty-transport-native-epoll` | 1 | Minecraft's network stack (netty 4.1.97 on the 1.21.1 classpath; newer lines on 26.x or build tools) | Not bundled. The game supplies it at runtime. |
+| `org.apache.commons:commons-compress` | 6 | Minecraft (commons-lang3 3.14.0, commons-compress 1.26.0) | Not bundled. The game supplies it at runtime. |
+| `org.apache.commons:commons-lang3` | 1 | Minecraft (commons-lang3 3.14.0, commons-compress 1.26.0) | Not bundled. The game supplies it at runtime. |
+| `org.apache.logging.log4j:log4j-api` | 2 | Minecraft's logging (log4j 2.22.1) | Not bundled. The game supplies it at runtime. |
+| `org.apache.logging.log4j:log4j-core` | 5 | Minecraft's logging (log4j 2.22.1) | Not bundled. The game supplies it at runtime. |
+| `org.codehaus.plexus:plexus-utils` | 1 | Fabric Loom / Gradle build plugins (plexus-utils) | Build time only. Never in a jar. |
+| `org.jline:jline-reader` | 1 | The dedicated server console (jline) | Not bundled. The game supplies it at runtime. |
+| `org.lz4:lz4-java` | 8 | Minecraft's compression (lz4-java 1.8.0) | Not bundled. The game supplies it at runtime. |
+| `tools.jackson.core:jackson-core` | 2 | Fixed: bundled via the MCP SDK; pinned to 3.1.7 | Constraint in core/ and stdio-shim/ |
+| `tools.jackson.core:jackson-databind` | 7 | Fixed: bundled via the MCP SDK; pinned to 3.1.7 | Constraint in core/ and stdio-shim/ |
+
+**Fixed.** The MCP SDK 2.1.0 resolves Jackson 3.1.4. `core/` (as an `api` constraint, so the mods and the
+universal jar inherit it) and `stdio-shim/` pin `jackson-core` and `jackson-databind` to 3.1.7, the version that
+fixes all nine Jackson advisories (GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89, GHSA-cxp5-3px4-pw24,
+GHSA-wv8q-qhhj-9h54, GHSA-gx83-3vf8-gh7j, GHSA-q4xh-88c3-wmh7, GHSA-wjgm-6hv5-3cvf, GHSA-vvgp-rfg2-7rr6,
+GHSA-5gvw-p9qm-jgwh). Drop the constraints once the SDK itself depends on 3.1.7 or later.
+
+**Not fixable here, and why.** Netty, log4j, lz4, guava, commons and jline are on the compile classpath only so the
+adapters can compile against what Minecraft ships (traced for the 1.21.1 node; the same libraries appear on the 26.x
+nodes at the versions those Minecraft releases use). Their versions are set by the Minecraft version, not by this project,
+and a mod cannot replace the game's own copy at runtime. Forcing newer ones in the dev classpath would test something
+no server runs. The fix for those is a newer Minecraft version, which the version matrix tracks. Such alerts are
+dismissed as "vulnerable code not used" with a pointer to this section, and can be reopened.
