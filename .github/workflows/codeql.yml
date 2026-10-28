@@ -1,0 +1,62 @@
+name: CodeQL
+
+# Advanced setup, replacing GitHub's default setup. The default setup analyses Java without building it, and
+# in that mode CodeQL cannot read the Kotlin build scripts (*.gradle.kts): every run warned that it
+# "could not process" them. Here Java and Kotlin are built, so the scripts and the code are both analysed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: python
+            build-mode: none
+          - language: java-kotlin
+            build-mode: manual
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up the build
+        if: matrix.build-mode == 'manual'
+        uses: ./.github/actions/setup-build
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # Compiles every module and loader node (and so evaluates every build script), without tests. A fresh,
+      # daemon-less Gradle so that CodeQL's tracer sees the compiler runs.
+      - name: Build
+        if: matrix.build-mode == 'manual'
+        run: ./gradlew --no-daemon --no-build-cache clean assemble
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: "/language:${{ matrix.language }}"
