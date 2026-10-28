@@ -209,11 +209,11 @@ fixes all nine Jackson advisories (GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89, GHS
 GHSA-wv8q-qhhj-9h54, GHSA-gx83-3vf8-gh7j, GHSA-q4xh-88c3-wmh7, GHSA-wjgm-6hv5-3cvf, GHSA-vvgp-rfg2-7rr6,
 GHSA-5gvw-p9qm-jgwh). Drop the constraints once the SDK itself depends on 3.1.7 or later.
 
-**Fabric nodes: patched versions on the dev and test classpath.** The root `build.gradle.kts` resolves netty
-(4.1.137 / 4.2.17), log4j (2.25.4 / 2.26.1), guava 33.7.2, commons-lang3 3.18.0, commons-compress 1.28.0, jline-reader
+**Fabric nodes: patched versions on the dev and test classpath.** The root `build.gradle.kts` resolves netty 4.2.17 (the 26.x line), log4j (2.25.4 / 2.26.1), guava 33.7.2, commons-lang3 3.18.0, commons-compress 1.28.0, jline-reader
 3.30.15 and the maintained `at.yawk.lz4` fork (1.11.4, replacing `org.lz4`) for every non-NeoForge node, so
 the Fabric game tests and client smoke tests run against fixed libraries. This changes nothing in a release jar, and
-a real server still uses whichever copy its Minecraft version ships. The NeoForge nodes cannot do this: NeoForge declares
+a real server still uses whichever copy its Minecraft version ships. Netty 4.1 (Minecraft 1.21.1) is not overridden: 4.1.137 made the
+real client's single-player login fail in the smoke test (`Packet ... was larger than I expected`), so those alerts stay dismissed. The NeoForge nodes cannot do this: NeoForge declares
 the game's library versions as strict pins (`{strictly 2.26.0}`), and Gradle cannot resolve an override of them.
 
 **Not fixable here, and why.** On NeoForge, netty, log4j, lz4, guava, commons and jline are on the compile classpath only so the

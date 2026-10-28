@@ -52,13 +52,13 @@ subprojects.filter { !it.file("stonecutter.gradle.kts").exists() }.forEach { sub
     // Minecraft brings its own copies of these libraries onto the compile and test classpath, at the versions its
     // release was built with, and Dependabot flags those. None of them is in a release jar (the game supplies them
     // at runtime), so this only changes what we compile and run game tests against. The floors are the first versions
-    // that fix the advisories listed in docs/security.md ("Dependency advisories"). The NeoForge nodes are left alone:
+    // that fix the advisories listed in docs/security.md ("Dependency advisories"). Netty 4.1 is left at the game's version: 4.1.137 breaks the 1.21.1 client's single-player login in the smoke test.
+    // The NeoForge nodes are left alone:
     // NeoForge declares the game's library versions as strict pins, and Gradle cannot resolve an override of those.
     if (!path.startsWith(":adapters:neoforge")) configurations.configureEach {
         resolutionStrategy.eachDependency {
             val v = requested.version.orEmpty()
             when {
-                requested.group == "io.netty" && v.startsWith("4.1.") -> useVersion("4.1.137.Final")
                 requested.group == "io.netty" && v.startsWith("4.2.") -> useVersion("4.2.17.Final")
                 requested.group == "org.apache.logging.log4j" && v.startsWith("2.2") && v < "2.25.4" -> useVersion("2.25.4")
                 requested.group == "org.apache.logging.log4j" && v.startsWith("2.26") -> useVersion("2.26.1")
