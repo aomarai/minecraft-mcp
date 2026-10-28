@@ -1,0 +1,29 @@
+site_name: minecraft-mcp
+site_description: An MCP server for Minecraft - drop-in, mod-friendly, security-first
+site_url: https://aomarai.github.io/minecraft-mcp/
+repo_url: https://github.com/aomarai/minecraft-mcp
+edit_uri: edit/main/docs/
+docs_dir: docs
+strict: true
+theme:
+  name: material
+  features: [navigation.sections, content.code.copy, search.suggest]
+nav:
+  - Home: README.md
+  - Using it:
+      - Install and connect: install.md
+      - Configuration: configuration.md
+      - Tools: tools.md
+      - Fabric: fabric.md
+      - NeoForge: neoforge.md
+      - Universal (no mod): universal.md
+      - stdio shim: stdio-shim.md
+      - Remote access: remote-access.md
+      - Security: security.md
+      - Version matrix: version-matrix.md
+  - Developing it:
+      - Architecture: architecture.md
+      - CI: ci.md
+      - Releasing: release.md
+      - Release checklist: release-checklist.md
+      - Roadmap: roadmap.md
