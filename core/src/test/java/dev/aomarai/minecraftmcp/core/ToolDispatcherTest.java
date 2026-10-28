@@ -465,6 +465,25 @@ class ToolDispatcherTest {
     }
 
     @Test
+    void readEventsPassesTheRunIdAndAnswersACursorFromAnotherRunAsAReset() {
+        for (int i = 0; i < 5; i++) {
+            game.events.publish(EventType.CHAT, "Steve", "m" + i);
+        }
+        String same = text(dispatcher(false, false).call(tool("read_events"), args("after", 4)));
+        String run = same.substring(same.indexOf("\"run\":\"") + 7, same.indexOf("\",\"latest\""));
+        assertTrue(same.endsWith("\"latest\":5,\"dropped\":0,\"reset\":false}"), same);
+
+        String foreign = text(dispatcher(false, false).call(tool("read_events"), args("after", 4, "run", "other")));
+
+        assertTrue(foreign.endsWith("\"latest\":5,\"dropped\":0,\"reset\":true}"), foreign);
+        assertTrue(foreign.contains("\"text\":\"m0\"") && foreign.contains("\"text\":\"m4\""), foreign);
+        String mine = text(dispatcher(false, false).call(tool("read_events"), args("after", 4, "run", run)));
+        assertTrue(mine.endsWith("\"reset\":false}"), mine);
+        assertEquals(List.of("4,50", "4,50,other", "4,50," + run), game.eventReads);
+        assertEquals("run must be a string", text(dispatcher(false, false).call(tool("read_events"), args("run", 5))));
+    }
+
+    @Test
     void readEventsResumesFromACursorAndHonoursTheLimit() {
         for (int i = 0; i < 5; i++) {
             game.events.publish(EventType.CHAT, "Steve", "m" + i);

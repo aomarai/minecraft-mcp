@@ -360,7 +360,7 @@ final class ToolHandlers {
     private String readEvents(ToolArgs args) throws Exception {
         // An in-memory read of a bounded buffer: no game state, nothing to wait for.
         EventPage page = port(EventFeed.class, "event feed")
-                .read(args.optionalLong("after", -1), args.optionalInteger("limit", 50));
+                .read(args.optionalLong("after", -1), args.optionalInteger("limit", 50), args.optionalString("run", null));
         return EventJson.of(page, McpJsonDefaults.getMapper());
     }
 

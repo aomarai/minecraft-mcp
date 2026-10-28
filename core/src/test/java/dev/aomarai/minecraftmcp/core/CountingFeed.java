@@ -17,8 +17,8 @@ final class CountingFeed implements EventFeed {
     }
 
     @Override
-    public EventPage read(long after, int limit) {
-        return delegate.read(after, limit);
+    public EventPage read(long after, int limit, String run) {
+        return delegate.read(after, limit, run);
     }
 
     @Override

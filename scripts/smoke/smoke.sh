@@ -195,7 +195,8 @@ expect "the line count is bounded" "$(call 53 read_log '{"lines":201}')" 'must h
 expect "read_log defaults to a short tail" "$(call 54 read_log '{}')" '\"lines\":['
 
 EVENTS="$(call 55 read_events '{}')"
-expect "read_events reports the feed, which is empty before anyone joins" "$EVENTS" '\"events\":[],\"latest\":0,\"dropped\":0'
+expect "read_events reports the feed, which is empty before anyone joins" "$EVENTS" '\"events\":[],\"run\":\"'
+expect "read_events counts nothing yet" "$EVENTS" '\",\"latest\":0,\"dropped\":0,\"reset\":false}'
 expect "read_events takes a cursor" "$(call 56 read_events '{"after":0,"limit":5}')" '\"latest\":0'
 expect "the event page size is bounded" "$(call 57 read_events '{"limit":201}')" 'must have a maximum value of 200'
 RESOURCES="$(mcp '{"jsonrpc":"2.0","id":58,"method":"resources/list"}')"

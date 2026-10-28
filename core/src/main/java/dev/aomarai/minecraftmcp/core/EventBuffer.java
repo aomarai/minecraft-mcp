@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -26,6 +27,7 @@ public final class EventBuffer implements EventFeed {
     private final Clock clock;
     private final ArrayDeque<GameEvent> events = new ArrayDeque<>();
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    private final String run = UUID.randomUUID().toString();
     private long latest;
 
     public EventBuffer(int capacity) {
@@ -58,19 +60,20 @@ public final class EventBuffer implements EventFeed {
     }
 
     @Override
-    public synchronized EventPage read(long after, int limit) {
+    public synchronized EventPage read(long after, int limit, String sentRun) {
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new IllegalArgumentException("limit must be between 1 and " + MAX_LIMIT);
         }
         List<GameEvent> all = List.copyOf(events);
-        boolean reset = after > latest;
+        // Sequences start at 1 in every run, so a cursor from another run can be behind the feed and look fine.
+        boolean reset = after > latest || sentRun != null && !sentRun.equals(run);
         if (after < 0 || reset) {
-            return new EventPage(all.subList(Math.max(0, all.size() - limit), all.size()), latest, 0, reset);
+            return new EventPage(all.subList(Math.max(0, all.size() - limit), all.size()), latest, 0, reset, run);
         }
         // Whatever lies between the cursor and the oldest kept event was thrown away before it was read.
         long dropped = all.isEmpty() ? 0 : Math.max(0, all.get(0).sequence() - (after + 1));
         List<GameEvent> newer = all.stream().filter(event -> event.sequence() > after).limit(limit).toList();
-        return new EventPage(newer, latest, dropped, false);
+        return new EventPage(newer, latest, dropped, false, run);
     }
 
     @Override

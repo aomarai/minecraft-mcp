@@ -247,4 +247,61 @@ class EventBufferTest {
         buffer.publish(EventType.JOIN, "Alex", "");
         assertEquals(1, page.events().size());
     }
+
+    private void publish(int count) {
+        for (int i = 1; i <= count; i++) {
+            buffer.publish(EventType.CHAT, "Steve", "m" + i);
+        }
+    }
+
+    @Test
+    void everyPageCarriesTheRunIdOfTheFeedAndTwoFeedsDiffer() {
+        publish(3);
+        String run = buffer.read(-1, 10).run();
+
+        assertFalse(run.isBlank());
+        assertEquals(run, buffer.read(1, 10).run());
+        assertEquals(run, buffer.read(99, 10).run(), "a reset page carries it too");
+        assertNotEquals(run, new EventBuffer(3, Clock.fixed(NOW, ZoneOffset.UTC)).read(-1, 10).run());
+    }
+
+    @Test
+    void aCursorFromAnotherRunIsResetEvenWhenTheNewRunHasPassedIt() {
+        publish(3); // latest = 3, and the buffer keeps 3
+
+        for (long after : new long[]{2, 3, 4}) { // latest - 1, latest, latest + 1
+            EventPage page = buffer.read(after, 10, "an-earlier-run");
+            assertTrue(page.reset(), "after=" + after);
+            assertEquals(List.of(1L, 2L, 3L), sequences(page), "after=" + after);
+            assertEquals(0, page.dropped(), "after=" + after);
+            assertEquals(3, page.latest());
+        }
+        EventPage limited = buffer.read(0, 2, "an-earlier-run");
+        assertTrue(limited.reset());
+        assertEquals(List.of(2L, 3L), sequences(limited), "the newest events, as for a reader with no cursor");
+    }
+
+    @Test
+    void aCursorFromThisRunBehavesAsBefore() {
+        publish(5); // keeps 3..5, so sequences 1 and 2 were dropped
+        String run = buffer.read(-1, 10).run();
+
+        EventPage behind = buffer.read(4, 10, run);
+        assertFalse(behind.reset());
+        assertEquals(List.of(5L), sequences(behind));
+        assertFalse(buffer.read(5, 10, run).reset());
+        assertTrue(buffer.read(6, 10, run).reset(), "ahead of the feed is still a reset");
+        EventPage old = buffer.read(0, 10, run);
+        assertFalse(old.reset());
+        assertEquals(2, old.dropped());
+    }
+
+    @Test
+    void aClientWithNoRunIdKeepsTheOldRule() {
+        publish(3);
+
+        assertFalse(buffer.read(2, 10, null).reset());
+        assertFalse(buffer.read(3, 10, null).reset());
+        assertTrue(buffer.read(4, 10, null).reset());
+    }
 }
