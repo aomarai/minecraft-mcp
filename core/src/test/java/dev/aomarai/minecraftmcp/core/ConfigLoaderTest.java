@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -84,6 +85,19 @@ class ConfigLoaderTest {
         assertTrue(loaded.config().allowWrites());
         assertEquals(100, loaded.config().maxBlockVolume());
         assertFalse(Files.readString(file()).contains(TOKEN), "the old token is gone from the file");
+    }
+
+    @Test
+    void rotatingKeepsEveryOtherKeyIncludingTheUniversalSection() throws IOException {
+        writeConfig("{\"token\": \"" + TOKEN + "\", \"universal\": {\"rconPassword\": \"hunter2\", \"rconPort\": 25575}}");
+
+        ConfigLoader.rotateToken(file());
+
+        String after = Files.readString(file());
+        assertTrue(after.contains("\"rconPassword\":\"hunter2\""), after);
+        assertTrue(after.contains("\"rconPort\":25575"), after);
+        assertFalse(after.contains(TOKEN));
+        assertEquals(List.of(file()), Files.list(file().getParent()).toList(), "no temporary file is left behind");
     }
 
     @Test
