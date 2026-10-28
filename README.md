@@ -4,28 +4,46 @@
 [![license: MIT](https://img.shields.io/github/license/aomarai/minecraft-mcp)](LICENSE)
 [![Java: 21+](https://img.shields.io/badge/Java-21%2B-orange)](docs/architecture.md)
 [![Minecraft: 1.21.1 | 26.x](https://img.shields.io/badge/Minecraft-1.21.1%20%7C%2026.x-green)](docs/version-matrix.md)
-[![status: pre-release](https://img.shields.io/badge/status-pre--release-yellow)](docs/roadmap.md)
+[![release](https://img.shields.io/github/v/release/aomarai/minecraft-mcp)](https://github.com/aomarai/minecraft-mcp/releases)
 
 An MCP (Model Context Protocol) server for Minecraft: Java Edition that is designed to be
 **drop-in**, **mod-friendly**, and **as loader/version agnostic as possible**.
 
-> Status: **pre-release**. Fabric and NeoForge mods (1.21.1, 26.2, 26.3) and the universal jar all run and
-> are tested against real servers in CI; no release has been published yet.
+> Status: **v0.1.0 is out** on [GitHub Releases](https://github.com/aomarai/minecraft-mcp/releases) (Fabric and
+> NeoForge mods for 1.21.1, 26.2 and 26.3, the universal jar, the stdio shim and `SHA256SUMS`), all tested
+> against real servers in CI. Modrinth and CurseForge listings are not live yet.
 
 **Install and connect a client: [docs/install.md](docs/install.md).**
 
-## Why this exists
+## Quick start
 
-Existing Minecraft MCP servers each leave a gap:
+1. Download the jar for your loader and Minecraft version from the [latest release](https://github.com/aomarai/minecraft-mcp/releases/latest),
+   check it with `sha256sum -c SHA256SUMS`, and drop it in `mods/` (no mod possible? use the universal jar, see [docs/universal.md](docs/universal.md)).
+2. Start the game. Copy the generated `token` from `config/minecraft-mcp.json` (never printed to logs).
+3. Connect a client, for example Claude Code:
 
-- Some embed a bridge in a mod but require a separate Node/TypeScript MCP process.
-- Some are pure Java but target a single Minecraft version and a single loader.
-- Some are Paper/Spigot plugins (they belong in `plugins/`, not `mods/`).
-- Some are external bots that can play but cannot administer a server.
+   ```bash
+   claude mcp add --transport http minecraft http://127.0.0.1:25599/mcp \
+     --header "Authorization: Bearer <TOKEN>"
+   ```
 
-This project's goal is the open niche: **one Java artifact you drop into `mods/`**, with no
-sidecar, covering Fabric and NeoForge from one codebase, shipping a multi-version matrix, with
-security-first defaults and a no-mod fallback for servers that cannot install a mod.
+   Other clients (Claude Desktop, VS Code, Cursor): [docs/install.md](docs/install.md).
+
+Then ask in plain words: *"Who is online and where?"* (`list_players`), *"What was said in chat in
+the last few minutes?"* (`read_events`), *"Give Steve 16 diamonds"* (`give_item`, needs write access, which is
+off by default: [docs/configuration.md](docs/configuration.md)).
+
+## Tools
+
+32 tools; the full arguments are in [docs/tools.md](docs/tools.md). A tool is only offered when the game
+and the policy allow it.
+
+| Group | Tools |
+|---|---|
+| Read (default on) | `server_info`, `list_players`, `query_blocks`, `list_registry`, `list_entities`, `get_world_state`, `list_permissions`, `get_inventory`, `read_log`, `read_events` |
+| Write (opt in) | `run_command`, `give_item`, `teleport`, `fill_blocks`, `send_message` |
+| Admin (opt in, `confirm=true`) | `run_admin_command`, `kick_player`, `ban_player`, `save_world`, `stop_server` |
+| Client (in-game, opt in) | `take_screenshot`, `get_screen`, `click_screen_element`, `type_in_screen`, `scroll_screen`, `open_inventory`, `move_to`, `look_at`, `jump`, `break_block`, `place_block`, `interact` |
 
 ## Architecture at a glance
 
@@ -60,8 +78,9 @@ see [docs/version-matrix.md](docs/version-matrix.md) for the state and the known
 ## Server and client tools
 
 Tools are tied to a side. A dedicated server offers server tools (reading the world, running
-commands, administration) and never client-only ones; a game client would offer only its own (client tools
-are the post-v1 epic). See [docs/tools.md](docs/tools.md) and [docs/architecture.md](docs/architecture.md).
+commands, administration) and never client-only ones; a game client offers only its own (screenshots,
+screens, the local player). Client tools ship with the Fabric mod; single-player works on Fabric and NeoForge.
+See [docs/tools.md](docs/tools.md) and [docs/architecture.md](docs/architecture.md).
 
 ## Security defaults
 
@@ -75,6 +94,19 @@ are the post-v1 epic). See [docs/tools.md](docs/tools.md) and [docs/architecture
 Do not expose the HTTP endpoint to the internet. To reach it from another machine, put a TLS reverse
 proxy in front of it, or let the server serve HTTPS itself: [docs/remote-access.md](docs/remote-access.md). See also
 [docs/security.md](docs/security.md).
+
+## Why this exists
+
+Existing Minecraft MCP servers each leave a gap:
+
+- Some embed a bridge in a mod but require a separate Node/TypeScript MCP process.
+- Some are pure Java but target a single Minecraft version and a single loader.
+- Some are Paper/Spigot plugins (they belong in `plugins/`, not `mods/`).
+- Some are external bots that can play but cannot administer a server.
+
+This project's goal is the open niche: **one Java artifact you drop into `mods/`**, with no
+sidecar, covering Fabric and NeoForge from one codebase, shipping a multi-version matrix, with
+security-first defaults and a no-mod fallback for servers that cannot install a mod.
 
 ## Repository layout
 
@@ -114,6 +146,7 @@ tracked in GitHub Milestones and the epic issues.
 | Reach it from another machine | [docs/remote-access.md](docs/remote-access.md) |
 | No-mod servers | [docs/universal.md](docs/universal.md) |
 | Threat model | [docs/security.md](docs/security.md) |
+| All docs | [docs/README.md](docs/README.md) |
 | Releasing | [docs/release.md](docs/release.md), [docs/release-checklist.md](docs/release-checklist.md) |
 
 ## Contributing
