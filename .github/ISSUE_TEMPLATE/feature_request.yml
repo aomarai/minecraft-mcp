@@ -1,0 +1,19 @@
+name: Feature request
+description: A tool, loader, version or improvement you would like
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do that you cannot today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see?
+  - type: textarea
+    id: security
+    attributes:
+      label: Security considerations
+      description: Does it read or change anything a player controls? See docs/security.md.

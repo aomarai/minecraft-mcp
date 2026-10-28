@@ -1,0 +1,33 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: minecraft-mcp version and jar
+      placeholder: "0.1.0, minecraft-mcp-0.1.0+1.21.1-fabric.jar"
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Minecraft version and loader (or server software)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce, with the tool call if there is one
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines
+      description: Remove tokens first. The token is never in the log, but check your paste.
+      render: text
