@@ -31,11 +31,9 @@ trap cleanup EXIT
 
 echo "== a flat world, made by Mojang's server"
 MINECRAFT_VERSION="$(sed -n 's/^minecraft_version=//p' "$ROOT/adapters/neoforge/versions/$NODE/gradle.properties" | tr -d '\r')"
+(cd "$WORK" && download_minecraft_server "$MINECRAFT_VERSION" server.jar) || exit 2
 (
   cd "$WORK" || exit 1
-  url="$(curl -s https://piston-meta.mojang.com/mc/game/version_manifest_v2.json \
-    | python3 -c "import json,sys; m=json.load(sys.stdin); print([v['url'] for v in m['versions'] if v['id']=='$MINECRAFT_VERSION'][0])")"
-  curl -s -o server.jar "$(curl -s "$url" | python3 -c "import json,sys; print(json.load(sys.stdin)['downloads']['server']['url'])")"
   echo eula=true > eula.txt
   printf 'level-name=smoke\nonline-mode=false\nlevel-type=minecraft\\:flat\ngenerate-structures=false\n' > server.properties
   java -jar server.jar nogui < <(sleep 40; echo stop) > server.log 2>&1
