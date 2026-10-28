@@ -100,6 +100,50 @@ class ToolPolicyTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"say", "tell", "msg", "w", "me"})
+    void messageCommandsWithAnEntitySelectorNeedAdminAndConfirmation(String root) {
+        for (String selector : new String[]{"@a", "@e", "@p", "@r", "@s", "@n"}) {
+            String inMessage = root + " Steve hi " + selector;
+            String asTarget = root + " " + selector + " hi";
+            ToolPolicy writes = new ToolPolicy(true, false);
+            String denied = "'" + root + "' with an entity selector (@a, @e, ...) needs admin access; "
+                    + "name the player or use send_message";
+            assertDenied(writes.checkCommand(inMessage, true), denied);
+            assertDenied(writes.checkCommand(asTarget, true), denied);
+
+            ToolPolicy admin = new ToolPolicy(true, true);
+            ToolPolicy.Decision ask = admin.checkCommand(asTarget, false);
+            assertTrue(ask.allowed());
+            assertTrue(ask.requiresConfirmation());
+            assertEquals("'" + root + "' with an entity selector requires confirmation", ask.reason());
+            assertAllowed(admin.checkCommand(asTarget, true));
+        }
+    }
+
+    @Test
+    void theSelectorCheckSeesThroughASlashAndTheVanillaNamespace() {
+        ToolPolicy writes = new ToolPolicy(true, false);
+        assertFalse(writes.checkCommand("/say @e @e @e", false).allowed());
+        assertFalse(writes.checkCommand("minecraft:msg @a hi", false).allowed());
+        assertEquals("'say' with an entity selector (@a, @e, ...) needs admin access; name the player or use send_message",
+                writes.checkCommand("MINECRAFT:SAY hi @e", false).reason());
+    }
+
+    @Test
+    void messagesWithoutASelectorStayPlainWrites() {
+        ToolPolicy writes = new ToolPolicy(true, false);
+        assertAllowed(writes.checkCommand("say hello", false));
+        assertAllowed(writes.checkCommand("tell Steve hi", false));
+        assertAllowed(writes.checkCommand("msg Steve write to a@b.c or @ home", false));
+        assertDenied(new ToolPolicy(false, false).checkCommand("tell Steve hi", false), "write commands are disabled");
+    }
+
+    @Test
+    void onlyTheMessageCommandsAreCheckedForSelectors() {
+        assertAllowed(new ToolPolicy(true, false).checkCommand("list @a", false));
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"effect give @a minecraft:instant_damage 1 255", "xp add @a -1000 levels",
             "experience set @a 0", "give @a minecraft:stone 2147483647", "particle minecraft:flame ~ ~ ~ 1 1 1 1 99999",
             "playsound minecraft:entity.generic.explode master @a", "title @a title {\"text\":\"x\"}",
