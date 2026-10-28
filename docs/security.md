@@ -171,4 +171,4 @@ pair of `System.nanoTime` calls per stretch of main-thread work.
 
 ## Reporting
 
-See [SECURITY.md](../SECURITY.md). Do not open a public issue for an exploitable problem.
+See [SECURITY.md](https://github.com/aomarai/minecraft-mcp/blob/main/SECURITY.md). Do not open a public issue for an exploitable problem.
