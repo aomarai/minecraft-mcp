@@ -39,6 +39,17 @@ allprojects {
     version = buildVersion
 }
 
+// Dotted versions compare part by part on their digits, so "4.2.17.Final" is above "4.2.9.Final".
+fun versionParts(version: String): List<Int> = Regex("\\d+").findAll(version).map { it.value.toInt() }.toList()
+
+operator fun List<Int>.compareTo(other: List<Int>): Int {
+    for (i in 0 until maxOf(size, other.size)) {
+        val c = getOrElse(i) { 0 }.compareTo(other.getOrElse(i) { 0 })
+        if (c != 0) return c
+    }
+    return 0
+}
+
 // A Stonecutter controller (it has a stonecutter.gradle.kts) only holds the shared sources and build
 // script; its version nodes below it do the building, so it gets no Java plugins of its own.
 subprojects.filter { !it.file("stonecutter.gradle.kts").exists() }.forEach { subproject -> subproject.run {
@@ -57,17 +68,19 @@ subprojects.filter { !it.file("stonecutter.gradle.kts").exists() }.forEach { sub
     // NeoForge declares the game's library versions as strict pins, and Gradle cannot resolve an override of those.
     if (!path.startsWith(":adapters:neoforge")) configurations.configureEach {
         resolutionStrategy.eachDependency {
-            val v = requested.version.orEmpty()
-            when {
-                requested.group == "io.netty" && v.startsWith("4.2.") -> useVersion("4.2.17.Final")
-                requested.group == "org.apache.logging.log4j" && v.startsWith("2.2") && v < "2.25.4" -> useVersion("2.25.4")
-                requested.group == "org.apache.logging.log4j" && v.startsWith("2.26") -> useVersion("2.26.1")
-                requested.group == "com.google.guava" && requested.name == "guava" -> useVersion("33.7.2-jre")
-                requested.group == "org.apache.commons" && requested.name == "commons-lang3" -> useVersion("3.18.0")
-                requested.group == "org.apache.commons" && requested.name == "commons-compress" -> useVersion("1.28.0")
-                requested.group == "org.jline" && requested.name == "jline-reader" -> useVersion("3.30.15")
-                requested.group == "at.yawk.lz4" -> useVersion("1.11.4")
+            // Only ever raise a version to its floor; a game that already ships a newer one keeps it.
+            val floor = when {
+                requested.group == "io.netty" && requested.version.orEmpty().startsWith("4.2.") -> "4.2.17.Final"
+                requested.group == "org.apache.logging.log4j" && requested.version.orEmpty().startsWith("2.26") -> "2.26.1"
+                requested.group == "org.apache.logging.log4j" -> "2.25.4"
+                requested.group == "com.google.guava" && requested.name == "guava" -> "33.7.2-jre"
+                requested.group == "org.apache.commons" && requested.name == "commons-lang3" -> "3.18.0"
+                requested.group == "org.apache.commons" && requested.name == "commons-compress" -> "1.28.0"
+                requested.group == "org.jline" && requested.name == "jline-reader" -> "3.30.15"
+                requested.group == "at.yawk.lz4" -> "1.11.4"
+                else -> null
             }
+            if (floor != null && versionParts(requested.version.orEmpty()) < versionParts(floor)) useVersion(floor)
         }
         resolutionStrategy.dependencySubstitution {
             substitute(module("org.lz4:lz4-java")).using(module("at.yawk.lz4:lz4-java:1.11.4"))
