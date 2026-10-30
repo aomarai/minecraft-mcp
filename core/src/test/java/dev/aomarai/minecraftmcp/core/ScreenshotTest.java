@@ -76,6 +76,8 @@ class ScreenshotTest {
         assertEquals(first, second);
         assertEquals(second, first);
         assertEquals(first.hashCode(), second.hashCode());
+        assertEquals(31 * (31 * java.util.Arrays.hashCode(FakeGame.png()) + 640) + 360, first.hashCode(),
+                "the hash is of the bytes, then the width, then the height");
         assertEquals(first, first);
     }
 
