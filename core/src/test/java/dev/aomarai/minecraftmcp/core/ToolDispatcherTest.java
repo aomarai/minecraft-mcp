@@ -975,7 +975,7 @@ class ToolDispatcherTest {
         List<AuditEntry> seen = new ArrayList<>();
         AuditLog failsOnResult = entry -> {
             seen.add(entry);
-            if (entry.phase().equals(AuditEntry.RESULT)) {
+            if (entry.phase().equals(AuditEntry.PHASE_RESULT)) {
                 throw new IllegalStateException("disk full");
             }
         };
