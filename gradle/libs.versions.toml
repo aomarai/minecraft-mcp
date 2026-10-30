@@ -1,0 +1,32 @@
+# Every dependency and plugin version the build scripts use, in one place, so a bump in one module cannot leave
+# another one behind. Scripts refer to them as libs.<alias>; dependency verification metadata is unaffected.
+
+[versions]
+mcp-sdk = "2.1.0"
+# The MCP SDK pulls an older Jackson with open advisories (docs/security.md, "Dependency advisories").
+jackson = "3.1.7"
+jetty = "12.1.14"
+junit = "5.11.4"
+slf4j = "2.0.20"
+pitest-plugin = "1.19.0"
+pitest-engine = "1.30.1"
+pitest-junit5-plugin = "1.2.3"
+shadow = "9.6.1"
+loom = "1.17.21"
+moddev = "2.0.148"
+sonarqube = "7.5.0.8588"
+
+[libraries]
+mcp-sdk = { module = "io.modelcontextprotocol.sdk:mcp", version.ref = "mcp-sdk" }
+jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
+jetty-servlet = { module = "org.eclipse.jetty.ee11:jetty-ee11-servlet", version.ref = "jetty" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
+
+[plugins]
+pitest = { id = "info.solidsoft.pitest", version.ref = "pitest-plugin" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+loom = { id = "net.fabricmc.fabric-loom", version.ref = "loom" }
+moddev = { id = "net.neoforged.moddev", version.ref = "moddev" }
+sonarqube = { id = "org.sonarqube", version.ref = "sonarqube" }

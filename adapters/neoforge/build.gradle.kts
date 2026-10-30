@@ -1,8 +1,8 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    id("net.neoforged.moddev") version "2.0.148"
-    id("com.gradleup.shadow") version "9.6.1"
+    alias(libs.plugins.moddev)
+    alias(libs.plugins.shadow)
 }
 
 // This script is shared by every version node of the NeoForge adapter; versions/<node>/gradle.properties
