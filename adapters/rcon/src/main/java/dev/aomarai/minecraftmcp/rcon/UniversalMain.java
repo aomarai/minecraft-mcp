@@ -42,6 +42,8 @@ public final class UniversalMain {
             }
         }
         running.close();
+        // Closing came first, so it ran without the flag; set again, the caller still sees that it was interrupted.
+        Thread.currentThread().interrupt();
     }
 
     /** Everything that has been started, so that it can be stopped again. */
