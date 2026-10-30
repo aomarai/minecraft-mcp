@@ -46,6 +46,9 @@ public final class ConfigLoader {
 
     static final int MIN_TOKEN_LENGTH = 16;
     private static final int GENERATED_TOKEN_BYTES = 32;
+
+    /** One generator for the process: creating a SecureRandom is comparatively costly and can block while seeding. */
+    private static final SecureRandom RANDOM = new SecureRandom();
     private static final String ENV_PREFIX = "MINECRAFT_MCP_";
     /** The variable that, when set, supplies the token instead of the file. */
     static final String TOKEN_ENV = ENV_PREFIX + "TOKEN";
@@ -175,7 +178,7 @@ public final class ConfigLoader {
 
     static String generateToken() {
         byte[] bytes = new byte[GENERATED_TOKEN_BYTES];
-        new SecureRandom().nextBytes(bytes);
+        RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
