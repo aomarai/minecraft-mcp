@@ -42,12 +42,13 @@ public final class LogTailer implements AutoCloseable {
         void accept(EventType type, String player, String text);
     }
 
-    /** Everything before the message: bracketed time, thread and, on modded servers, logger, then a colon. */
-    private static final String PREFIX = "^(?:\\[[^\\]]*\\]\\s*)+:\\s";
     private static final String NAME = "([A-Za-z0-9_]{1,16})";
-    /** Chat is {@code <name> text}; presence is {@code name joined the game} or {@code name left the game}. */
-    private static final Pattern LINE = Pattern.compile(PREFIX + "(?:(?:\\[Not Secure\\]\\s)?<" + NAME + ">\\s(.*)|"
-            + NAME + " (joined|left) the game)$");
+    /**
+     * What follows the prefix: chat is {@code <name> text}; presence is {@code name joined the game} or
+     * {@code name left the game}. The prefix itself is cut off by {@link #prefixEnd}, not matched here.
+     */
+    private static final Pattern MESSAGE = Pattern.compile("(?:(?:\\[Not Secure\\]\\s)?<" + NAME + ">\\s(.*)|"
+            + NAME + " (joined|left) the game)");
 
     /** Cap on what one poll reads, so a log that suddenly grows by gigabytes cannot stall or exhaust memory. */
     private static final int MAX_READ = 1 << 20;
@@ -169,8 +170,42 @@ public final class LogTailer implements AutoCloseable {
         }
     }
 
+    /**
+     * Where the message starts: after the bracketed time, thread and, on modded servers, logger, then a colon and
+     * a whitespace character, or -1 if the line has no such prefix. Done by hand because a regex repetition around
+     * the brackets recurses once per bracket, and a long hostile line turns that into a StackOverflowError that
+     * would end the tailer.
+     */
+    static int prefixEnd(String line) {
+        int length = line.length();
+        int i = 0;
+        while (i < length && line.charAt(i) == '[') {
+            int close = line.indexOf(']', i + 1);
+            if (close < 0) {
+                return -1;
+            }
+            i = close + 1;
+            while (i < length && isSpace(line.charAt(i))) {
+                i++;
+            }
+        }
+        if (i == 0 || i >= length - 1 || line.charAt(i) != ':' || !isSpace(line.charAt(i + 1))) {
+            return -1;
+        }
+        return i + 2;
+    }
+
+    /** The characters of the regex class {@code \s}. */
+    private static boolean isSpace(char c) {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\u000B' || c == '\f' || c == '\r';
+    }
+
     private void publish(String line) {
-        Matcher matcher = LINE.matcher(line);
+        int start = prefixEnd(line);
+        if (start < 0) {
+            return;
+        }
+        Matcher matcher = MESSAGE.matcher(line).region(start, line.length());
         if (!matcher.matches()) {
             return;
         }
