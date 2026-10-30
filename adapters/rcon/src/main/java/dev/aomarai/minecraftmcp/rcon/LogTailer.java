@@ -181,7 +181,7 @@ public final class LogTailer implements AutoCloseable {
         int i = 0;
         while (i < length && line.charAt(i) == '[') {
             int close = line.indexOf(']', i + 1);
-            if (close < 0) {
+            if (close == -1) {
                 return -1;
             }
             i = close + 1;
@@ -196,13 +196,13 @@ public final class LogTailer implements AutoCloseable {
     }
 
     /** The characters of the regex class {@code \s}. */
-    private static boolean isSpace(char c) {
+    static boolean isSpace(char c) {
         return c == ' ' || c == '\t' || c == '\n' || c == '\u000B' || c == '\f' || c == '\r';
     }
 
     private void publish(String line) {
         int start = prefixEnd(line);
-        if (start < 0) {
+        if (start == -1) {
             return;
         }
         Matcher matcher = MESSAGE.matcher(line).region(start, line.length());

@@ -88,6 +88,35 @@ class LogTailerTest {
     }
 
     @Test
+    void isSpaceIsExactlyTheRegexClass() {
+        java.util.regex.Pattern space = java.util.regex.Pattern.compile("\\s");
+        for (int c = 0; c <= Character.MAX_VALUE; c++) {
+            assertEquals(space.matcher(String.valueOf((char) c)).matches(), LogTailer.isSpace((char) c), "char " + c);
+        }
+    }
+
+    @Test
+    void prefixEndAgreesWithTheOriginalRegexOnEveryShortLine() {
+        java.util.regex.Pattern original = java.util.regex.Pattern.compile("^(?:\\[[^\\]]*\\]\\s*)+:\\s");
+        String alphabet = "[]: \tx";
+        int checked = 0;
+        for (int length = 0; length <= 7; length++) {
+            int total = (int) Math.pow(alphabet.length(), length);
+            for (int n = 0; n < total; n++) {
+                StringBuilder line = new StringBuilder();
+                for (int k = 0, rest = n; k < length; k++, rest /= alphabet.length()) {
+                    line.append(alphabet.charAt(rest % alphabet.length()));
+                }
+                java.util.regex.Matcher matcher = original.matcher(line);
+                int expected = matcher.find() ? matcher.end() : -1;
+                assertEquals(expected, LogTailer.prefixEnd(line.toString()), "[" + line + "]");
+                checked++;
+            }
+        }
+        assertTrue(checked > 100_000);
+    }
+
+    @Test
     void chatJoinAndLeaveBecomeEvents() throws IOException {
         tailer.poll();
         append("[10:00:01] [Server thread/INFO]: Steve joined the game\n"
