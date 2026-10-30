@@ -271,7 +271,8 @@ class RconClientTest {
 
         assertFalse(dripped.success());
         assertEquals("RCON did not answer within 300 ms; the command may still have taken effect", dripped.feedback().get(0));
-        assertTrue(elapsed >= 300 && elapsed < 2_000, "elapsed " + elapsed);
+        // The client stops when under a whole millisecond is left, so it can end up to 1 ms before the timeout.
+        assertTrue(elapsed >= 299 && elapsed < 2_000, "elapsed " + elapsed);
         assertTrue(server.awaitDisconnections(1));
 
         server.floodPauseMillis = -1;
