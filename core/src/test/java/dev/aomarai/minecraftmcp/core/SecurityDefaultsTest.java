@@ -134,7 +134,7 @@ class SecurityDefaultsTest {
         }
         assertEquals(0, game.totalCalls(), "the game was never touched: " + game.commands);
         assertEquals(tools(ToolPolicy.Scope.ACT, ToolPolicy.Scope.ADMIN).size(), audit.size(), "one entry per denied call");
-        assertTrue(audit.stream().allMatch(entry -> entry.decision().equals("deny") && entry.phase().equals(AuditEntry.DECISION)),
+        assertTrue(audit.stream().allMatch(entry -> entry.decision().equals("deny") && entry.phase().equals(AuditEntry.PHASE_DECISION)),
                 audit.toString());
     }
 

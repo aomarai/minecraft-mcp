@@ -25,7 +25,7 @@ class JsonlAuditLogTest {
     Path dir;
 
     private static AuditEntry entry(Map<String, Object> args, String detail) {
-        return new AuditEntry(NOW, AuditEntry.DECISION, "run_command", args, "allow", detail);
+        return new AuditEntry(NOW, AuditEntry.PHASE_DECISION, "run_command", args, "allow", detail);
     }
 
     private List<Map<String, Object>> lines(Path file) throws IOException {
@@ -100,7 +100,7 @@ class JsonlAuditLogTest {
         JsonlAuditLog log = new JsonlAuditLog(file, List.of(TOKEN));
 
         log.record(entry(Map.of("command", "say hi"), "ok"));
-        log.record(new AuditEntry(NOW, AuditEntry.RESULT, "server_info", Map.of(), "deny", "nope"));
+        log.record(new AuditEntry(NOW, AuditEntry.PHASE_RESULT, "server_info", Map.of(), "deny", "nope"));
 
         List<Map<String, Object>> lines = lines(file);
         assertEquals(2, lines.size());

@@ -10,7 +10,7 @@ import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
     base
-    id("org.sonarqube") version "7.5.0.8588"
+    alias(libs.plugins.sonarqube)
 }
 
 sonar {
