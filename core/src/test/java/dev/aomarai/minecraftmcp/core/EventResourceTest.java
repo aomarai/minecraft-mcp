@@ -128,8 +128,9 @@ class EventResourceTest {
 
         var spec = EventResource.specification(new FakeGame(), broken);
 
-        java.io.UncheckedIOException thrown = assertThrows(java.io.UncheckedIOException.class,
-                () -> spec.readHandler().apply(null, new McpSchema.ReadResourceRequest("minecraft://events")));
+        var readHandler2 = spec.readHandler();
+        var arg = new McpSchema.ReadResourceRequest("minecraft://events");
+        java.io.UncheckedIOException thrown = assertThrows(java.io.UncheckedIOException.class, () -> readHandler2.apply(null, arg));
         assertSame(cause, thrown.getCause());
     }
 

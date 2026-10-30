@@ -30,6 +30,7 @@ class WorldSnapshotTest {
         assertEquals(3, block.z());
         assertEquals("minecraft:stone", block.id());
         assertFalse(snapshot.truncated());
-        assertThrows(UnsupportedOperationException.class, () -> snapshot.blocks().add(block));
+        var blocks2 = snapshot.blocks();
+        assertThrows(UnsupportedOperationException.class, () -> blocks2.add(block));
     }
 }

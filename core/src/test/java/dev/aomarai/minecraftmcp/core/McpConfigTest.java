@@ -45,11 +45,11 @@ class McpConfigTest {
     @Test
     void commandNamesMustBeSingleWords() {
         for (String bad : new String[]{"", "  ", "two words", "/slash", "tab\there", "minecraft:"}) {
-            IllegalArgumentException a = assertThrows(IllegalArgumentException.class, () ->
-                    new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND, java.util.Set.of(bad), java.util.Set.of()));
+            var arg = java.util.Set.of(bad);
+            IllegalArgumentException a = assertThrows(IllegalArgumentException.class, () -> new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND, arg, java.util.Set.of()));
             assertTrue(a.getMessage().startsWith("allowedCommands must be single command names"), a.getMessage());
-            IllegalArgumentException d = assertThrows(IllegalArgumentException.class, () ->
-                    new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND, java.util.Set.of(), java.util.Set.of(bad)));
+            var arg2 = java.util.Set.of(bad);
+            IllegalArgumentException d = assertThrows(IllegalArgumentException.class, () -> new McpConfig("127.0.0.1", 1, false, false, 1, ONE_SECOND, java.util.Set.of(), arg2));
             assertTrue(d.getMessage().startsWith("destructiveCommands must be single command names"), d.getMessage());
         }
     }
@@ -140,7 +140,8 @@ class McpConfigTest {
     @Test
     void timeoutMustBePositive() {
         assertThrows(IllegalArgumentException.class, () -> config(1, 1, Duration.ZERO));
-        assertThrows(IllegalArgumentException.class, () -> config(1, 1, Duration.ofMillis(-1)));
+        var arg3 = Duration.ofMillis(-1);
+        assertThrows(IllegalArgumentException.class, () -> config(1, 1, arg3));
         assertEquals(Duration.ofNanos(1), config(1, 1, Duration.ofNanos(1)).callTimeout());
     }
 }

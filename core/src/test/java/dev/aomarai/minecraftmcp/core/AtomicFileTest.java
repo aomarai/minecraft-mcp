@@ -53,11 +53,12 @@ class AtomicFileTest {
         Path file = dir.resolve("a.json");
         Files.writeString(file, "old");
 
-        IOException failure = assertThrows(IOException.class, () -> AtomicFile.write(file, "new",
-                (from, to, options) -> {
-                    assertTrue(Files.exists(from), "the temporary file exists when the move fails");
-                    throw new IOException("disk full");
-                }));
+        AtomicFile.Mover failingMove = (from, to, options) -> {
+            assertTrue(Files.exists(from), "the temporary file exists when the move fails");
+            throw new IOException("disk full");
+        };
+
+        IOException failure = assertThrows(IOException.class, () -> AtomicFile.write(file, "new", failingMove));
 
         assertEquals("disk full", failure.getMessage());
         assertEquals("old", Files.readString(file));

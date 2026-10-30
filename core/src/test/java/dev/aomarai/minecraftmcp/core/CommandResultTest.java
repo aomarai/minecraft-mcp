@@ -43,7 +43,8 @@ class CommandResultTest {
         CommandResult result = new CommandResult(true, "x", source);
         source.add("b");
         assertEquals(List.of("a"), result.feedback());
-        assertThrows(UnsupportedOperationException.class, () -> result.feedback().add("c"));
+        var feedback2 = result.feedback();
+        assertThrows(UnsupportedOperationException.class, () -> feedback2.add("c"));
     }
 
     @Test

@@ -81,7 +81,7 @@ class McpCoreTest {
         core.start();
         int port = core.port();
         core.close();
-        assertThrows(ConnectException.class, () -> new Socket("127.0.0.1", port).close());
+        assertThrows(ConnectException.class, () -> connect(port));
     }
 
     @Test
@@ -109,5 +109,12 @@ class McpCoreTest {
 
         core.transport().service(req, resp);
         assertEquals(503, status[0], "a closed core must refuse new MCP requests");
+    }
+
+    /** Opens and closes a connection to the local port: it only succeeds while something is listening. */
+    private static void connect(int port) throws java.io.IOException {
+        try (Socket ignored = new Socket("127.0.0.1", port)) {
+            ignored.isConnected();
+        }
     }
 }

@@ -243,7 +243,8 @@ class EventBufferTest {
         buffer.publish(EventType.JOIN, "Steve", "");
         EventPage page = buffer.read(-1, 5);
 
-        assertThrows(UnsupportedOperationException.class, () -> page.events().clear());
+        var events2 = page.events();
+        assertThrows(UnsupportedOperationException.class, () -> events2.clear());
         buffer.publish(EventType.JOIN, "Alex", "");
         assertEquals(1, page.events().size());
     }
