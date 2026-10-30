@@ -79,8 +79,8 @@ final class ToolHandlers {
                 entry("send_message", this::sendMessage),
                 entry("kick_player", this::kickPlayer),
                 entry("ban_player", this::banPlayer),
-                entry("save_world", args -> run(CommandBuilder.saveWorld())),
-                entry("stop_server", args -> run(CommandBuilder.stopServer())),
+                entry("save_world", args -> run(CommandBuilder.SAVE_WORLD)),
+                entry("stop_server", args -> run(CommandBuilder.STOP_SERVER)),
                 entry("run_command", this::runCommand),
                 entry("run_admin_command", this::runCommand));
     }

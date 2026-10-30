@@ -23,6 +23,10 @@ final class CommandBuilder {
     static final int MAX_TEXT = 256;
     static final int MAX_ITEM_COUNT = 6400;
 
+    /** The two typed admin tools that take no arguments run exactly these commands. */
+    static final String SAVE_WORLD = "save-all flush";
+    static final String STOP_SERVER = "stop";
+
     private static final Pattern SELECTOR = Pattern.compile("@[aeprsn]");
     private static final Pattern PLAYER = Pattern.compile("[A-Za-z0-9_.]{1,32}");
 
@@ -70,14 +74,6 @@ final class CommandBuilder {
 
     static String ban(String player, String reason) {
         return "ban " + player(player) + optionalReason(reason);
-    }
-
-    static String saveWorld() {
-        return "save-all flush";
-    }
-
-    static String stopServer() {
-        return "stop";
     }
 
     static String player(String name) {

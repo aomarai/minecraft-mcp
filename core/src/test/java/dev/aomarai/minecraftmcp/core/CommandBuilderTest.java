@@ -62,8 +62,8 @@ class CommandBuilderTest {
 
     @Test
     void saveAndStopAreFixedCommands() {
-        assertEquals("save-all flush", CommandBuilder.saveWorld());
-        assertEquals("stop", CommandBuilder.stopServer());
+        assertEquals("save-all flush", CommandBuilder.SAVE_WORLD);
+        assertEquals("stop", CommandBuilder.STOP_SERVER);
     }
 
     // ---- players: nothing but a plain name gets through ----

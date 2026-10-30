@@ -379,16 +379,18 @@ class StdioShimTest {
 
     @Test
     void serverSentEventsAreRelayedOneMessagePerEvent() throws Exception {
-        String sse = ": keep-alive\n"
-                + "id: 1\n"
-                + "event: message\n"
-                + "data: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\n"
-                + "\n"
-                + "\n"
-                + "data: {\"jsonrpc\":\"2.0\",\n"
-                + "data: \"id\":2,\"result\":{}}\n"
-                + "\n"
-                + "data:{\"jsonrpc\":\"2.0\",\"id\":9,\"result\":{}}\n";
+        String sse = """
+                : keep-alive
+                id: 1
+                event: message
+                data: {"jsonrpc":"2.0","method":"notifications/progress"}
+
+
+                data: {"jsonrpc":"2.0",
+                data: "id":2,"result":{}}
+
+                data:{"jsonrpc":"2.0","id":9,"result":{}}
+                """;
         HttpServer server = stub(new CopyOnWriteArrayList<>(), answer(200, "Text/Event-Stream; charset=utf-8", sse));
 
         List<String> out = run(shim(url(server), Duration.ofSeconds(5)), LIST);

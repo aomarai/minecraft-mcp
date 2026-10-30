@@ -14,9 +14,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -448,11 +446,9 @@ class RconClientTest {
              RconClient nobody = new RconClient(config(reserved.getLocalPort(), FakeRconServer.PASSWORD))) {
             CompletableFuture<CommandResult> future = nobody.runCommand("list", PATIENT);
 
-            try {
-                assertFalse(future.get(20, TimeUnit.SECONDS).success());
-            } catch (ExecutionException | TimeoutException e) {
-                fail("the future must complete normally: " + e);
-            }
+            CommandResult result = assertDoesNotThrow(() -> future.get(20, TimeUnit.SECONDS),
+                    "the future must complete normally");
+            assertFalse(result.success());
         }
     }
 

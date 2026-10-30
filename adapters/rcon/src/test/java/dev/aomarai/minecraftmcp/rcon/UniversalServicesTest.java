@@ -210,7 +210,7 @@ class UniversalServicesTest {
     }
 
     @Test
-    void thePublicStartUsesTheSameConfigAndCloses() throws IOException {
+    void thePublicStartUsesTheSameConfigAndCloses() {
         UniversalServices universal = UniversalServices.start(
                 new UniversalConfig(rcon(), OptionalInt.empty(), Optional.empty()), TIMEOUT);
 

@@ -106,7 +106,7 @@ class EventNotifierTest {
     }
 
     @Test
-    void closingStopsListeningAndShutsTheExecutorDown() throws Exception {
+    void closingStopsListeningAndShutsTheExecutorDown() {
         CountingFeed counting = new CountingFeed(feed);
         AtomicInteger sent = new AtomicInteger();
         EventNotifier notifier = new EventNotifier(counting, executor, sent::incrementAndGet);

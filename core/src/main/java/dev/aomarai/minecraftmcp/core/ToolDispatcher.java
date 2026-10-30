@@ -82,7 +82,7 @@ public final class ToolDispatcher implements ToolInvoker {
     /** Refused without waiting or touching the game; the refusal is audited, and is refused all the same if it cannot be. */
     private McpSchema.CallToolResult refuseBusy(ToolDescriptor tool, Map<String, Object> arguments) {
         try {
-            record(AuditEntry.PHASE_DECISION, tool, arguments, "deny", BUSY);
+            append(AuditEntry.PHASE_DECISION, tool, arguments, "deny", BUSY);
         } catch (RuntimeException e) {
             LOG.log(System.Logger.Level.WARNING, "cannot audit a call refused as busy: {0}", e.toString());
         }
@@ -94,7 +94,7 @@ public final class ToolDispatcher implements ToolInvoker {
         String verdict = verdict(decision);
 
         try {
-            record(AuditEntry.PHASE_DECISION, tool, args, verdict, decision.reason());
+            append(AuditEntry.PHASE_DECISION, tool, args, verdict, decision.reason());
         } catch (RuntimeException e) {
             return error("audit log unavailable; call refused");
         }
@@ -166,7 +166,7 @@ public final class ToolDispatcher implements ToolInvoker {
         return args.get(COMMAND) instanceof String text ? text : null;
     }
 
-    private void record(String phase, ToolDescriptor tool, Map<String, Object> args, String decision,
+    private void append(String phase, ToolDescriptor tool, Map<String, Object> args, String decision,
                         String detail) {
         audit.record(new AuditEntry(clock.instant(), phase, tool.name(), args, decision, detail));
     }
