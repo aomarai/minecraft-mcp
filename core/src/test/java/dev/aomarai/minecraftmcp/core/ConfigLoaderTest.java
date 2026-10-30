@@ -200,6 +200,15 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void generatedTokensKeepTheirStrengthAndAlphabet() {
+        for (int i = 0; i < 20; i++) {
+            String token = ConfigLoader.generateToken();
+            assertEquals(43, token.length(), "32 random bytes, URL-safe Base64 without padding");
+            assertTrue(token.matches("[A-Za-z0-9_-]{43}"), token);
+        }
+    }
+
+    @Test
     void newFileIsOwnerOnlyOnPosix() throws IOException {
         assumeTrue(posix());
         ConfigLoader.load(file(), Map.of());
