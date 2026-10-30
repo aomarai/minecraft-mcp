@@ -50,10 +50,7 @@ final class FakeRconServer implements AutoCloseable {
 
     /** Waits until this many connections have ended. */
     boolean awaitDisconnections(int count) throws InterruptedException {
-        for (int i = 0; i < 200 && disconnections.get() < count; i++) {
-            Thread.sleep(50);
-        }
-        return disconnections.get() >= count;
+        return Await.until(() -> disconnections.get() >= count, java.time.Duration.ofSeconds(10));
     }
 
     int port() {
@@ -127,7 +124,8 @@ final class FakeRconServer implements AutoCloseable {
         }
         while (floodPauseMillis >= 0) {
             out.write(new RconPacket(request.id(), RconPacket.RESPONSE, "x".repeat(1000)).encode());
-            Thread.sleep(floodPauseMillis);
+            // The pause is the point: a server that keeps sending, one packet every so often.
+            Thread.sleep(floodPauseMillis); // NOSONAR java:S2925
         }
         for (String chunk : replies.apply(request.payload())) {
             out.write(new RconPacket(request.id(), RconPacket.RESPONSE, chunk).encode());

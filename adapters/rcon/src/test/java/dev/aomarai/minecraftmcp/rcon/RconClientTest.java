@@ -291,7 +291,7 @@ class RconClientTest {
             long value = now[0];
             if (value != 0) {
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(200); // NOSONAR java:S2925 - real time must pass so the fake server has answered
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }

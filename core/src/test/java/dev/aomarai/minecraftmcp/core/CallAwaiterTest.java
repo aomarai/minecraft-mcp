@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -89,7 +90,9 @@ class CallAwaiterTest {
         assertEquals("timed out after 100 ms; it was already running on the game thread, so it may still have taken effect",
                 write.getMessage());
 
+        CountDownLatch started = new CountDownLatch(1);
         MainThread.Call<String> slowRead = MainThread.call(gameThread, () -> {
+            started.countDown();
             try {
                 release.await();
             } catch (InterruptedException e) {
@@ -97,7 +100,7 @@ class CallAwaiterTest {
             }
             return "late";
         });
-        Thread.sleep(50);
+        assertTrue(started.await(5, TimeUnit.SECONDS), "the read is running on the game thread");
         TimeoutException read = assertThrows(TimeoutException.class, () -> CallAwaiter.await(slowRead, BUDGET, false));
         assertEquals("timed out after 100 ms; it was already running on the game thread and will finish", read.getMessage());
         release.countDown();
@@ -159,7 +162,8 @@ class CallAwaiterTest {
             flag.set(Thread.currentThread().isInterrupted());
         });
         worker.start();
-        Thread.sleep(50);
+        assertTrue(Await.until(() -> worker.getState() == Thread.State.TIMED_WAITING
+                || worker.getState() == Thread.State.WAITING, Duration.ofSeconds(5)), "the worker is waiting");
         worker.interrupt();
         worker.join(5_000);
 
