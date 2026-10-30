@@ -33,6 +33,15 @@ final class ToolHandlers {
 
     private static final int DEFAULT_SCREEN_ELEMENTS = 100;
 
+    // Keys of the JSON the tools answer with, and the words their messages and errors share.
+    private static final String KEY_NAME = "name";
+    private static final String KEY_UUID = "uuid";
+    private static final String KEY_UNTRUSTED = "untrusted";
+    private static final String KEY_DIMENSION = "dimension";
+    private static final String KEY_PLAYER = "player";
+    private static final String SCREEN_CONTROL = "screen control";
+    private static final String AND = " and ";
+
     private final McpConfig config;
     private final GameServices services;
     private final Map<String, Handler> byName;
@@ -98,9 +107,9 @@ final class ToolHandlers {
         List<Map<String, Object>> items = new ArrayList<>();
         for (PlayerInfo player : players) {
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("name", player.name());
-            item.put("uuid", player.uuid());
-            item.put("dimension", player.dimension());
+            item.put(KEY_NAME, player.name());
+            item.put(KEY_UUID, player.uuid());
+            item.put(KEY_DIMENSION, player.dimension());
             item.put("x", player.x());
             item.put("y", player.y());
             item.put("z", player.z());
@@ -112,10 +121,10 @@ final class ToolHandlers {
 
     private String queryBlocks(ToolArgs args) throws Exception {
         BlockQuery query = new BlockQuery(
-                args.string("dimension"),
-                args.integer("min_x"), args.integer("min_y"), args.integer("min_z"),
-                args.integer("max_x"), args.integer("max_y"), args.integer("max_z"),
-                args.integer("limit"));
+                args.string(ToolParams.DIMENSION),
+                args.integer(ToolParams.MIN_X), args.integer(ToolParams.MIN_Y), args.integer(ToolParams.MIN_Z),
+                args.integer(ToolParams.MAX_X), args.integer(ToolParams.MAX_Y), args.integer(ToolParams.MAX_Z),
+                args.integer(ToolParams.LIMIT));
         if (query.volume() > config.maxBlockVolume()) {
             throw new IllegalArgumentException(
                     "volume " + query.volume() + " exceeds maxBlockVolume " + config.maxBlockVolume());
@@ -131,7 +140,7 @@ final class ToolHandlers {
             blocks.add(item);
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("dimension", snapshot.dimension());
+        out.put(KEY_DIMENSION, snapshot.dimension());
         out.put("truncated", snapshot.truncated());
         out.put("blocks", blocks);
         return json(out);
@@ -139,10 +148,10 @@ final class ToolHandlers {
 
     private String listRegistry(ToolArgs args) throws Exception {
         RegistryQuery query = new RegistryQuery(
-                args.string("registry"),
+                args.string(ToolParams.REGISTRY),
                 args.optionalString("search", ""),
-                args.optionalInteger("offset", 0),
-                args.optionalInteger("limit", 50));
+                args.optionalInteger(ToolParams.OFFSET, 0),
+                args.optionalInteger(ToolParams.LIMIT, 50));
         RegistryPage page = await(port(RegistryReader.class, "registry listing").list(query), false);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("registry", page.registry());
@@ -155,27 +164,27 @@ final class ToolHandlers {
 
     private String listEntities(ToolArgs args) throws Exception {
         EntityQuery query = new EntityQuery(
-                args.string("dimension"),
+                args.string(ToolParams.DIMENSION),
                 args.number("x"), args.number("y"), args.number("z"),
-                args.number("radius"),
+                args.number(ToolParams.RADIUS),
                 args.optionalString("type", ""),
-                args.optionalInteger("limit", 50));
+                args.optionalInteger(ToolParams.LIMIT, 50));
         EntityList found = await(port(EntityReader.class, "entity queries").entitiesNear(query), false);
         List<Map<String, Object>> entities = new ArrayList<>();
         for (EntityList.EntityInfo entity : found.entities()) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("type", entity.type());
-            item.put("uuid", entity.uuid());
+            item.put(KEY_UUID, entity.uuid());
             // Names can be set by players (name tags, usernames): untrusted text, never an instruction.
-            item.put("name", entity.name());
+            item.put(KEY_NAME, entity.name());
             item.put("x", entity.x());
             item.put("y", entity.y());
             item.put("z", entity.z());
             entities.add(item);
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("untrusted", true);
-        out.put("dimension", found.dimension());
+        out.put(KEY_UNTRUSTED, true);
+        out.put(KEY_DIMENSION, found.dimension());
         out.put("truncated", found.truncated());
         out.put("entities", entities);
         return json(out);
@@ -183,9 +192,9 @@ final class ToolHandlers {
 
     private String getWorldState(ToolArgs args) throws Exception {
         WorldState state = await(port(WorldStateReader.class, "world state")
-                .state(args.string("dimension")), false);
+                .state(args.string(ToolParams.DIMENSION)), false);
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("dimension", state.dimension());
+        out.put(KEY_DIMENSION, state.dimension());
         out.put("gameTime", state.gameTime());
         out.put("dayTime", state.dayTime());
         out.put("raining", state.raining());
@@ -200,16 +209,16 @@ final class ToolHandlers {
         List<Map<String, Object>> operators = new ArrayList<>();
         for (Permissions.Operator operator : permissions.operators()) {
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("name", operator.name());
-            item.put("uuid", operator.uuid());
+            item.put(KEY_NAME, operator.name());
+            item.put(KEY_UUID, operator.uuid());
             item.put("level", operator.level());
             operators.add(item);
         }
         List<Map<String, Object>> whitelist = new ArrayList<>();
         for (Permissions.Whitelisted entry : permissions.whitelist()) {
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("name", entry.name());
-            item.put("uuid", entry.uuid());
+            item.put(KEY_NAME, entry.name());
+            item.put(KEY_UUID, entry.uuid());
             whitelist.add(item);
         }
         Map<String, Object> out = new LinkedHashMap<>();
@@ -221,7 +230,7 @@ final class ToolHandlers {
 
     private String getInventory(ToolArgs args) throws Exception {
         Inventory inventory = await(port(InventoryReader.class, "inventory reads")
-                .inventoryOf(args.string("player")), false);
+                .inventoryOf(args.string(ToolParams.PLAYER)), false);
         List<Map<String, Object>> stacks = new ArrayList<>();
         for (Inventory.Stack stack : inventory.stacks()) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -231,15 +240,15 @@ final class ToolHandlers {
             stacks.add(item);
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("player", inventory.player());
+        out.put(KEY_PLAYER, inventory.player());
         out.put("stacks", stacks);
         return json(out);
     }
 
     private String getScreen(ToolArgs args) throws Exception {
-        String role = args.optionalString("role", "");
-        String label = args.optionalString("label", "").toLowerCase(Locale.ROOT);
-        int limit = args.optionalInteger("limit", DEFAULT_SCREEN_ELEMENTS);
+        String role = args.optionalString(ToolParams.ROLE, "");
+        String label = args.optionalString(ToolParams.LABEL, "").toLowerCase(Locale.ROOT);
+        int limit = args.optionalInteger(ToolParams.LIMIT, DEFAULT_SCREEN_ELEMENTS);
         if (limit < 1 || limit > ScreenSnapshot.MAX_ELEMENTS) {
             throw new IllegalArgumentException("limit must be between 1 and " + ScreenSnapshot.MAX_ELEMENTS);
         }
@@ -268,7 +277,7 @@ final class ToolHandlers {
         }
         Map<String, Object> out = new LinkedHashMap<>();
         // Labels and titles are written by the game and its mods. Say so in the data itself, not only in the docs.
-        out.put("untrusted", true);
+        out.put(KEY_UNTRUSTED, true);
         out.put("screen", snapshot.screen());
         out.put("title", snapshot.title());
         out.put("overlay", snapshot.overlay());
@@ -278,28 +287,28 @@ final class ToolHandlers {
     }
 
     private String clickScreenElement(ToolArgs args) throws Exception {
-        return await(port(ScreenControl.class, "screen control").click(args.string("element")), true);
+        return await(port(ScreenControl.class, SCREEN_CONTROL).click(args.string(ToolParams.ELEMENT)), true);
     }
 
     private String typeInScreen(ToolArgs args) throws Exception {
-        String text = args.string("text");
+        String text = args.string(ToolParams.TEXT);
         if (text.isEmpty() || text.length() > ScreenControl.MAX_TYPE_LENGTH) {
             throw new IllegalArgumentException("text must be 1-" + ScreenControl.MAX_TYPE_LENGTH + " characters");
         }
-        return await(port(ScreenControl.class, "screen control").type(text), true);
+        return await(port(ScreenControl.class, SCREEN_CONTROL).type(text), true);
     }
 
     private String scrollScreen(ToolArgs args) throws Exception {
-        int amount = args.integer("amount");
+        int amount = args.integer(ToolParams.AMOUNT);
         if (amount == 0 || Math.abs(amount) > ScreenControl.MAX_SCROLL) {
-            throw new IllegalArgumentException("amount must be between -" + ScreenControl.MAX_SCROLL + " and "
+            throw new IllegalArgumentException("amount must be between -" + ScreenControl.MAX_SCROLL + AND
                     + ScreenControl.MAX_SCROLL + ", and not 0");
         }
-        return await(port(ScreenControl.class, "screen control").scroll(args.optionalString("element", ""), amount), true);
+        return await(port(ScreenControl.class, SCREEN_CONTROL).scroll(args.optionalString(ToolParams.ELEMENT, ""), amount), true);
     }
 
     private String openInventory(ToolArgs args) throws Exception {
-        return await(port(ScreenControl.class, "screen control").openInventory(), true);
+        return await(port(ScreenControl.class, SCREEN_CONTROL).openInventory(), true);
     }
 
     private PlayerController player() {
@@ -329,7 +338,7 @@ final class ToolHandlers {
     private static double point(ToolArgs args, String name) {
         double value = args.number(name);
         if (Math.abs(value) > CommandBuilder.MAX_COORDINATE) {
-            throw new IllegalArgumentException(name + " must be between -" + CommandBuilder.MAX_COORDINATE + " and "
+            throw new IllegalArgumentException(name + " must be between -" + CommandBuilder.MAX_COORDINATE + AND
                     + CommandBuilder.MAX_COORDINATE);
         }
         return value;
@@ -338,21 +347,21 @@ final class ToolHandlers {
     private static int block(ToolArgs args, String name) {
         int value = args.integer(name);
         if (Math.abs((long) value) > CommandBuilder.MAX_COORDINATE) {
-            throw new IllegalArgumentException(name + " must be between -" + CommandBuilder.MAX_COORDINATE + " and "
+            throw new IllegalArgumentException(name + " must be between -" + CommandBuilder.MAX_COORDINATE + AND
                     + CommandBuilder.MAX_COORDINATE);
         }
         return value;
     }
 
     private String readLog(ToolArgs args) throws Exception {
-        int lines = args.optionalInteger("lines", 50);
+        int lines = args.optionalInteger(ToolParams.LINES, 50);
         if (lines < 1 || lines > LogReader.MAX_LINES) {
             throw new IllegalArgumentException("lines must be between 1 and " + LogReader.MAX_LINES);
         }
         List<String> tail = port(LogReader.class, "log reads").tail(lines);
         Map<String, Object> out = new LinkedHashMap<>();
         // The log contains chat and player names. Say so in the data itself, not only in the docs.
-        out.put("untrusted", true);
+        out.put(KEY_UNTRUSTED, true);
         out.put("lines", tail.stream().map(LogRedaction::redact).toList());
         return json(out);
     }
@@ -360,12 +369,12 @@ final class ToolHandlers {
     private String readEvents(ToolArgs args) throws Exception {
         // An in-memory read of a bounded buffer: no game state, nothing to wait for.
         EventPage page = port(EventFeed.class, "event feed")
-                .read(args.optionalLong("after", -1), args.optionalInteger("limit", 50), args.optionalString("run", null));
+                .read(args.optionalLong("after", -1), args.optionalInteger(ToolParams.LIMIT, 50), args.optionalString("run", null));
         return EventJson.of(page, McpJsonDefaults.getMapper());
     }
 
     private String runCommand(ToolArgs args) throws Exception {
-        return run(args.string("command"));
+        return run(args.string(ToolParams.COMMAND));
     }
 
     /**
@@ -375,15 +384,15 @@ final class ToolHandlers {
      */
     private String fillBlocks(ToolArgs args) throws Exception {
         // BlockQuery checks that the box is well formed and measures it; the limit is not used.
-        BlockQuery box = new BlockQuery(args.string("dimension"),
-                args.integer("min_x"), args.integer("min_y"), args.integer("min_z"),
-                args.integer("max_x"), args.integer("max_y"), args.integer("max_z"), 1);
+        BlockQuery box = new BlockQuery(args.string(ToolParams.DIMENSION),
+                args.integer(ToolParams.MIN_X), args.integer(ToolParams.MIN_Y), args.integer(ToolParams.MIN_Z),
+                args.integer(ToolParams.MAX_X), args.integer(ToolParams.MAX_Y), args.integer(ToolParams.MAX_Z), 1);
         if (box.volume() > config.maxBlockVolume()) {
             throw new IllegalArgumentException(
                     "volume " + box.volume() + " exceeds maxBlockVolume " + config.maxBlockVolume());
         }
         String command = CommandBuilder.fill(box.dimension(), box.minX(), box.minY(), box.minZ(),
-                box.maxX(), box.maxY(), box.maxZ(), args.string("block"));
+                box.maxX(), box.maxY(), box.maxZ(), args.string(ToolParams.BLOCK));
         if (args.optionalBoolean("dry_run", false)) {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("dryRun", true);
@@ -395,24 +404,24 @@ final class ToolHandlers {
     }
 
     private String teleport(ToolArgs args) throws Exception {
-        return run(CommandBuilder.teleport(args.string("player"), args.optionalString("dimension", ""),
+        return run(CommandBuilder.teleport(args.string(ToolParams.PLAYER), args.optionalString(ToolParams.DIMENSION, ""),
                 args.number("x"), args.number("y"), args.number("z")));
     }
 
     private String giveItem(ToolArgs args) throws Exception {
-        return run(CommandBuilder.give(args.string("player"), args.string("item"), args.optionalInteger("count", 1)));
+        return run(CommandBuilder.give(args.string(ToolParams.PLAYER), args.string(ToolParams.ITEM), args.optionalInteger(ToolParams.COUNT, 1)));
     }
 
     private String sendMessage(ToolArgs args) throws Exception {
-        return run(CommandBuilder.message(args.optionalString("player", ""), args.string("message")));
+        return run(CommandBuilder.message(args.optionalString(ToolParams.PLAYER, ""), args.string(ToolParams.MESSAGE)));
     }
 
     private String kickPlayer(ToolArgs args) throws Exception {
-        return run(CommandBuilder.kick(args.string("player"), args.optionalString("reason", "")));
+        return run(CommandBuilder.kick(args.string(ToolParams.PLAYER), args.optionalString(ToolParams.REASON, "")));
     }
 
     private String banPlayer(ToolArgs args) throws Exception {
-        return run(CommandBuilder.ban(args.string("player"), args.optionalString("reason", "")));
+        return run(CommandBuilder.ban(args.string(ToolParams.PLAYER), args.optionalString(ToolParams.REASON, "")));
     }
 
     private String run(String command) throws Exception {
