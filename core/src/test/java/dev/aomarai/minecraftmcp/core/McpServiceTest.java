@@ -101,14 +101,14 @@ class McpServiceTest {
         int port = freePort();
         McpService service = McpService.start(config(port), dir.resolve("audit.jsonl"), config -> GameServices.none());
         service.close();
-        assertThrows(java.net.ConnectException.class, () -> new Socket("127.0.0.1", port).close());
+        assertThrows(java.net.ConnectException.class, () -> connect(port));
     }
 
     @Test
     void anInvalidConfigFailsWithAClearMessageAndStartsNothing() throws Exception {
         Path file = config(70000);
-        ConfigException e = assertThrows(ConfigException.class,
-                () -> McpService.start(file, dir.resolve("audit.jsonl"), config -> GameServices.none()));
+        var arg = dir.resolve("audit.jsonl");
+        ConfigException e = assertThrows(ConfigException.class, () -> McpService.start(file, arg, config -> GameServices.none()));
         assertTrue(e.getMessage().contains("port must be between 1 and 65535"), e.getMessage());
     }
 
@@ -119,8 +119,8 @@ class McpServiceTest {
         try (ServerSocket taken = new ServerSocket(0)) {
             Path file = config(taken.getLocalPort());
 
-            assertThrows(Exception.class, () -> McpService.start(file, dir.resolve("audit.jsonl"),
-                    config -> new GameServices(Side.SERVER, feed)));
+            var arg2 = dir.resolve("audit.jsonl");
+            assertThrows(Exception.class, () -> McpService.start(file, arg2, config -> new GameServices(Side.SERVER, feed)));
         }
 
         assertEquals(0, feed.listeners());
@@ -135,7 +135,15 @@ class McpServiceTest {
             int port = taken.getLocalPort();
             Path file = config(port);
 
-            assertThrows(Exception.class, () -> McpService.start(file, dir.resolve("audit.jsonl"), config -> GameServices.none()));
+            var arg3 = dir.resolve("audit.jsonl");
+            assertThrows(Exception.class, () -> McpService.start(file, arg3, config -> GameServices.none()));
+        }
+    }
+
+    /** Opens and closes a connection to the local port: it only succeeds while something is listening. */
+    private static void connect(int port) throws java.io.IOException {
+        try (Socket ignored = new Socket("127.0.0.1", port)) {
+            ignored.isConnected();
         }
     }
 }

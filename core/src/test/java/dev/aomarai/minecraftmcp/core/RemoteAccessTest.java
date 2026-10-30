@@ -63,8 +63,9 @@ class RemoteAccessTest {
             assertEquals(401, client.send(post(https, "wrong-token-wrong-token-wrong").build(),
                     HttpResponse.BodyHandlers.ofString()).statusCode());
 
-            assertThrows(IOException.class, () -> HttpClient.newHttpClient().send(
-                    post("http://localhost:" + core.port() + "/mcp", TOKEN).build(), HttpResponse.BodyHandlers.ofString()),
+            HttpClient plain = HttpClient.newHttpClient();
+            HttpRequest plainRequest = post("http://localhost:" + core.port() + "/mcp", TOKEN).build();
+            assertThrows(IOException.class, () -> plain.send(plainRequest, HttpResponse.BodyHandlers.ofString()),
                     "a plain HTTP request to the TLS port gets no answer");
         }
     }
@@ -75,8 +76,10 @@ class RemoteAccessTest {
         try (McpCore core = core(new Exposure(Optional.of(keystore.tls()), Set.of()))) {
             core.start();
 
-            assertThrows(IOException.class, () -> HttpClient.newHttpClient().send(
-                    post("https://localhost:" + core.port() + "/mcp", TOKEN).build(), HttpResponse.BodyHandlers.ofString()));
+            var newHttpClient2 = HttpClient.newHttpClient();
+            var arg = post("https://localhost:" + core.port() + "/mcp", TOKEN).build();
+            var arg2 = HttpResponse.BodyHandlers.ofString();
+            assertThrows(IOException.class, () -> newHttpClient2.send(arg, arg2));
         }
     }
 
@@ -215,10 +218,12 @@ class RemoteAccessTest {
 
         assertEquals("Tls[keystore=keystore.p12, password=<redacted>]", tls.toString());
         assertFalse(remote(Set.of(), Optional.of(tls)).toString().contains("s3cret-password"));
+        Path keystore = Path.of("k");
         assertEquals("tlsKeystorePassword must not be empty",
-                assertThrows(IllegalArgumentException.class, () -> new Tls(Path.of("k"), "")).getMessage());
+                assertThrows(IllegalArgumentException.class, () -> new Tls(keystore, "")).getMessage());
         assertThrows(NullPointerException.class, () -> new Tls(null, "pw"));
-        assertThrows(NullPointerException.class, () -> new Tls(Path.of("k"), null));
+        var arg3 = Path.of("k");
+        assertThrows(NullPointerException.class, () -> new Tls(arg3, null));
     }
 
     @Test

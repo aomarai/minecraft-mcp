@@ -92,24 +92,26 @@ class RconPacketTest {
 
     @Test
     void aLengthOutsideWhatTheProtocolAllowsIsRejected() {
-        IOException tooShort = assertThrows(IOException.class,
-                () -> RconPacket.read(new ByteArrayInputStream(frame(9, 1, 0, new byte[0]))));
+        var arg = new ByteArrayInputStream(frame(9, 1, 0, new byte[0]));
+        IOException tooShort = assertThrows(IOException.class, () -> RconPacket.read(arg));
         assertEquals("malformed RCON packet: length 9", tooShort.getMessage());
 
-        IOException tooLong = assertThrows(IOException.class,
-                () -> RconPacket.read(new ByteArrayInputStream(frame(10 + 4097, 1, 0, new byte[0]))));
+        var arg2 = new ByteArrayInputStream(frame(10 + 4097, 1, 0, new byte[0]));
+        IOException tooLong = assertThrows(IOException.class, () -> RconPacket.read(arg2));
         assertEquals("malformed RCON packet: length 4107", tooLong.getMessage());
 
-        assertThrows(IOException.class, () -> RconPacket.read(new ByteArrayInputStream(frame(-5, 1, 0, new byte[0]))));
+        var arg3 = new ByteArrayInputStream(frame(-5, 1, 0, new byte[0]));
+        assertThrows(IOException.class, () -> RconPacket.read(arg3));
     }
 
     @Test
     void aStreamThatEndsInsideAPacketIsAnError() {
         byte[] whole = new RconPacket(1, RconPacket.COMMAND, "hello").encode();
 
-        assertThrows(EOFException.class, () -> RconPacket.read(new ByteArrayInputStream(new byte[0])));
-        assertThrows(EOFException.class,
-                () -> RconPacket.read(new ByteArrayInputStream(java.util.Arrays.copyOf(whole, whole.length - 1))));
+        var arg4 = new ByteArrayInputStream(new byte[0]);
+        assertThrows(EOFException.class, () -> RconPacket.read(arg4));
+        var arg5 = new ByteArrayInputStream(java.util.Arrays.copyOf(whole, whole.length - 1));
+        assertThrows(EOFException.class, () -> RconPacket.read(arg5));
     }
 
     private static byte[] concat(byte[] a, byte[] b) {

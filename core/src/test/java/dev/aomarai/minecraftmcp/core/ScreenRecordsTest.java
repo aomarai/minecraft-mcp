@@ -52,8 +52,8 @@ class ScreenRecordsTest {
     void anIdFromAnOlderScreenGenerationIsRefused() {
         String id = screen(4, "Delete", "Cancel").get(1).id();
 
-        IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> ScreenElement.resolve(screen(5, "Delete", "Cancel"), id));
+        var arg = screen(5, "Delete", "Cancel");
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> ScreenElement.resolve(arg, id));
 
         assertEquals("no element " + id + " on this screen; it may have changed, call get_screen again", e.getMessage());
     }
@@ -62,7 +62,8 @@ class ScreenRecordsTest {
     void anIdWhoseLabelChangedIsRefused() {
         String id = screen(4, "Delete", "Cancel").get(1).id();
 
-        assertThrows(IllegalStateException.class, () -> ScreenElement.resolve(screen(4, "Delete", "Keep"), id));
+        var arg2 = screen(4, "Delete", "Keep");
+        assertThrows(IllegalStateException.class, () -> ScreenElement.resolve(arg2, id));
     }
 
     @Test
@@ -101,7 +102,9 @@ class ScreenRecordsTest {
         assertEquals("Ti tle", snapshot.title());
         assertEquals("O", snapshot.overlay());
         assertEquals(1, snapshot.elements().size());
-        assertThrows(UnsupportedOperationException.class, () -> snapshot.elements().add(element("b")));
+        var elements2 = snapshot.elements();
+        var arg3 = element("b");
+        assertThrows(UnsupportedOperationException.class, () -> elements2.add(arg3));
 
         assertEquals("x".repeat(128), new ScreenSnapshot("x".repeat(128), "", "", List.of()).screen());
         assertEquals("x".repeat(128) + "...", new ScreenSnapshot("x".repeat(129), "", "", List.of()).screen());

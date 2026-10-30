@@ -527,8 +527,9 @@ class StdioShimTest {
 
     @Test
     void runFailsFastWithoutAToken() {
-        assertEquals("MINECRAFT_MCP_TOKEN is not set", assertThrows(IllegalStateException.class,
-                () -> StdioShim.run(Map.of(), new ByteArrayInputStream(new byte[0]), new PrintStream(err), log))
+        var arg = new ByteArrayInputStream(new byte[0]);
+        var arg2 = new PrintStream(err);
+        assertEquals("MINECRAFT_MCP_TOKEN is not set", assertThrows(IllegalStateException.class, () -> StdioShim.run(Map.of(), arg, arg2, log))
                 .getMessage());
     }
 

@@ -31,21 +31,21 @@ class UniversalConfigTest {
 
     @Test
     void theQueryPortIsBounded() {
-        assertEquals("queryPort must be between 1 and 65535", assertThrows(IllegalArgumentException.class,
-                () -> new UniversalConfig(RCON, OptionalInt.of(0), Optional.empty())).getMessage());
-        assertEquals("queryPort must be between 1 and 65535", assertThrows(IllegalArgumentException.class,
-                () -> new UniversalConfig(RCON, OptionalInt.of(65536), Optional.empty())).getMessage());
+        var arg = OptionalInt.of(0);
+        assertEquals("queryPort must be between 1 and 65535", assertThrows(IllegalArgumentException.class, () -> new UniversalConfig(RCON, arg, Optional.empty())).getMessage());
+        var arg2 = OptionalInt.of(65536);
+        assertEquals("queryPort must be between 1 and 65535", assertThrows(IllegalArgumentException.class, () -> new UniversalConfig(RCON, arg2, Optional.empty())).getMessage());
         assertDoesNotThrow(() -> new UniversalConfig(RCON, OptionalInt.of(1), Optional.empty()));
         assertDoesNotThrow(() -> new UniversalConfig(RCON, OptionalInt.of(65535), Optional.empty()));
     }
 
     @Test
     void missingPartsAreNamed() {
-        assertEquals("rcon", assertThrows(NullPointerException.class,
-                () -> new UniversalConfig(null, OptionalInt.empty(), Optional.empty())).getMessage());
+        var arg3 = OptionalInt.empty();
+        assertEquals("rcon", assertThrows(NullPointerException.class, () -> new UniversalConfig(null, arg3, Optional.empty())).getMessage());
         assertEquals("queryPort", assertThrows(NullPointerException.class,
                 () -> new UniversalConfig(RCON, null, Optional.empty())).getMessage());
-        assertEquals("serverDirectory", assertThrows(NullPointerException.class,
-                () -> new UniversalConfig(RCON, OptionalInt.empty(), null)).getMessage());
+        var arg4 = OptionalInt.empty();
+        assertEquals("serverDirectory", assertThrows(NullPointerException.class, () -> new UniversalConfig(RCON, arg4, null)).getMessage());
     }
 }

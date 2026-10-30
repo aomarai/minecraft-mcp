@@ -92,9 +92,9 @@ class McpCoreAuthTest {
     @Test
     void aCoreCannotBeBuiltWithoutAUsableToken() {
         ToolInvoker invoker = (tool, arguments) -> null;
-        assertThrows(IllegalArgumentException.class,
-                () -> new McpCore("127.0.0.1", 0, ToolCatalog.defaults(), invoker, "short"));
-        assertThrows(NullPointerException.class,
-                () -> new McpCore("127.0.0.1", 0, ToolCatalog.defaults(), invoker, null));
+        var arg = ToolCatalog.defaults();
+        assertThrows(IllegalArgumentException.class, () -> new McpCore("127.0.0.1", 0, arg, invoker, "short"));
+        var arg2 = ToolCatalog.defaults();
+        assertThrows(NullPointerException.class, () -> new McpCore("127.0.0.1", 0, arg2, invoker, null));
     }
 }

@@ -433,7 +433,8 @@ class ConfigLoaderTest {
         assertEquals("universal must be an object", failure(file(), Map.of()).getMessage());
         writeConfig("{\"token\":\"" + TOKEN + "\",\"universal\":\"text\"}");
         assertEquals("universal must be an object", failure(file(), Map.of()).getMessage());
-        assertThrows(ConfigException.class, () -> ConfigLoader.universalSection(file()));
+        var arg = file();
+        assertThrows(ConfigException.class, () -> ConfigLoader.universalSection(arg));
     }
 
     @Test
