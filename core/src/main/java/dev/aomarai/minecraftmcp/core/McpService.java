@@ -72,8 +72,8 @@ public final class McpService implements AutoCloseable {
             core.start();
             started = true;
         } finally {
-            // start() already closes the core when it fails; close() is idempotent, so this only makes sure this
-            // method never throws with a core it created still open.
+            // A core that did not start is half-open (it already listens to the event feed): close it, and let the
+            // failure reach the caller unchanged.
             if (!started) {
                 core.close();
             }

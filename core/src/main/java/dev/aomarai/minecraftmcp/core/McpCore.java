@@ -133,19 +133,11 @@ public final class McpCore implements AutoCloseable {
 
     /**
      * Starts the HTTP listener. Call before connecting a client. If it cannot start (the port is in use, the keystore
-     * is bad) the core is closed again and the failure is thrown: the constructor already subscribed to
-     * the event feed, which outlives this core.
+     * is bad) the failure is thrown and the core is left half-open: the constructor already subscribed to the event
+     * feed, which outlives this core, so the caller must {@link #close()} it ({@link McpService#start} does).
      */
     public void start() throws Exception {
-        boolean started = false;
-        try {
-            jetty.start();
-            started = true;
-        } finally {
-            if (!started) {
-                close();
-            }
-        }
+        jetty.start();
     }
 
     /** The bearer token clients must present. A secret: for tests and the code that created the core. */
