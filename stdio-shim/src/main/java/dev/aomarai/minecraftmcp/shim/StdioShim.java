@@ -58,6 +58,9 @@ import java.util.function.Supplier;
  */
 public final class StdioShim {
 
+    private static final String SESSION_HEADER = "Mcp-Session-Id";
+    private static final String EVENT_STREAM = "text/event-stream";
+
     public static final String DEFAULT_URL = "http://127.0.0.1:25599/mcp";
     static final String ENV_URL = "MINECRAFT_MCP_URL";
     static final String ENV_TOKEN = "MINECRAFT_MCP_TOKEN";
@@ -192,11 +195,11 @@ public final class StdioShim {
                 .POST(HttpRequest.BodyPublishers.ofString(body));
         String carried = sessionId;
         if (carried != null) {
-            request.header("Mcp-Session-Id", carried);
+            request.header(SESSION_HEADER, carried);
         }
         HttpResponse<InputStream> response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
         try (InputStream stream = response.body()) {
-            response.headers().firstValue("Mcp-Session-Id").ifPresent(value -> sessionId = value);
+            response.headers().firstValue(SESSION_HEADER).ifPresent(value -> sessionId = value);
             int status = response.statusCode();
             if (status == 404 && carried != null) {
                 sessionId = null;
@@ -245,9 +248,9 @@ public final class StdioShim {
     /** One connection: false when there is no point in trying again (405: no stream offered; 404: session gone). */
     private boolean openStream(String session, Backoff backoff, PrintStream out) throws InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(endpoint)
-                .header("Accept", "text/event-stream")
+                .header("Accept", EVENT_STREAM)
                 .header("Authorization", "Bearer " + token)
-                .header("Mcp-Session-Id", session)
+                .header(SESSION_HEADER, session)
                 .GET()
                 .build();
         try {
@@ -256,7 +259,7 @@ public final class StdioShim {
             try (InputStream body = response.body()) {
                 if (status < 400) {
                     backoff.reset();
-                    relay("text/event-stream", body, null, out);
+                    relay(EVENT_STREAM, body, null, out);
                 }
             }
             if (status == 405 || status == 404) {
@@ -272,7 +275,7 @@ public final class StdioShim {
     }
 
     private void relay(String contentType, InputStream stream, Object id, PrintStream out) throws IOException {
-        if (contentType.toLowerCase(Locale.ROOT).startsWith("text/event-stream")) {
+        if (contentType.toLowerCase(Locale.ROOT).startsWith(EVENT_STREAM)) {
             BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
             List<String> data = new ArrayList<>();
             String line;

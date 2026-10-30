@@ -60,8 +60,8 @@ public final class UniversalServices implements AutoCloseable {
 
         LogTailer started = null;
         ExecutorService playerWorker = null;
-        if (config.serverDirectory().isPresent()) {
-            Path directory = config.serverDirectory().get();
+        Path directory = config.serverDirectory().orElse(null);
+        if (directory != null) {
             Path log = directory.resolve("logs").resolve("latest.log");
             EventBuffer events = new EventBuffer(EVENT_CAPACITY);
             started = new LogTailer(log, events::publish);
