@@ -2,8 +2,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     // Loom is applied below, because which of its two plugin ids a node needs depends on the node.
-    id("net.fabricmc.fabric-loom") version "1.17.21" apply false
-    id("com.gradleup.shadow") version "9.6.1"
+    alias(libs.plugins.loom) apply false
+    alias(libs.plugins.shadow)
 }
 
 // This script is shared by every version node of the Fabric adapter; versions/<node>/gradle.properties

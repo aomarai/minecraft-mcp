@@ -1,6 +1,6 @@
 plugins {
-    id("info.solidsoft.pitest") version "1.19.0"
-    id("com.gradleup.shadow") version "9.6.1"
+    alias(libs.plugins.pitest)
+    alias(libs.plugins.shadow)
 }
 
 // The universal tier: RCON, Query and log tailing, with no Minecraft dependency at all. Unlike the mod
@@ -8,15 +8,15 @@ plugins {
 dependencies {
     api(project(":core"))
 
-    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 // Mutation testing; see core/build.gradle.kts.
 pitest {
-    pitestVersion.set("1.30.1")
-    junit5PluginVersion.set("1.2.3")
+    pitestVersion.set(libs.versions.pitest.engine)
+    junit5PluginVersion.set(libs.versions.pitest.junit5.plugin)
     targetClasses.set(listOf("dev.aomarai.minecraftmcp.rcon.*"))
     targetTests.set(listOf("dev.aomarai.minecraftmcp.rcon.*"))
     mutators.set(listOf("STRONGER"))
