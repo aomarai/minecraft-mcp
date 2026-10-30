@@ -84,6 +84,20 @@ class McpCoreTest {
     }
 
     @Test
+    void closingTwiceIsHarmlessAndReleasesTheEventFeedOnce() throws Exception {
+        CountingFeed feed = new CountingFeed(new EventBuffer(10));
+        McpCore core = new McpCore("127.0.0.1", 0, ToolCatalog.defaults(),
+                (tool, arguments) -> null, "0123456789abcdef0123456789abcdef", java.util.Optional.of(feed));
+        core.start();
+        assertEquals(1, feed.listeners());
+
+        core.close();
+        core.close();
+
+        assertEquals(0, feed.listeners(), "the second close did not release the listener again");
+    }
+
+    @Test
     void closeShutsTheMcpTransportDownGracefully() throws Exception {
         McpCore core = new McpCore("127.0.0.1", 0);
         core.close();

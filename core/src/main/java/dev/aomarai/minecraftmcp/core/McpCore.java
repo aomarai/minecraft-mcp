@@ -18,6 +18,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Minimal Streamable HTTP bootstrap for the MCP core.
@@ -44,6 +45,7 @@ public final class McpCore implements AutoCloseable {
     private final Server jetty;
     private final ServerConnector connector;
     private final Optional<EventNotifier> notifier;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public McpCore() {
         this(DEFAULT_HOST, 0);
@@ -173,6 +175,10 @@ public final class McpCore implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        // Closing twice is harmless: a failed start() closes the core, and the caller's cleanup may close it again.
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
         try {
             notifier.ifPresent(EventNotifier::close);
             mcp.closeGracefully();
