@@ -13,17 +13,19 @@ final class LogCapture implements AutoCloseable {
     private final Logger root = Logger.getLogger("");
     private final Handler handler = new Handler() {
         @Override
-        public void publish(LogRecord record) {
-            Object[] params = record.getParameters();
-            lines.add(record.getMessage() + " " + (params == null ? "" : List.of(params)));
+        public void publish(LogRecord entry) {
+            Object[] params = entry.getParameters();
+            lines.add(entry.getMessage() + " " + (params == null ? "" : List.of(params)));
         }
 
         @Override
         public void flush() {
+            // Nothing is buffered: publish() stores each record at once.
         }
 
         @Override
         public void close() {
+            // Nothing to release; the capture removes the handler itself.
         }
     };
 

@@ -15,6 +15,7 @@ public record EntityQuery(String dimension, double x, double y, double z, double
 
     public EntityQuery {
         Objects.requireNonNull(dimension, "dimension");
+        // Written as the negation of "in range" on purpose: every comparison with NaN is false, so NaN is refused too.
         if (!(radius >= 1 && radius <= MAX_RADIUS)) {
             throw new IllegalArgumentException("radius must be between 1 and " + (int) MAX_RADIUS);
         }

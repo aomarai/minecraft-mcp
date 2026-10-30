@@ -73,16 +73,18 @@ class ToolCatalogGoldenTest {
         input.put("a", Map.of());
         input.put("c", List.of());
         input.put("d", null);
-        assertEquals("{\n"
-                + "  \"a\": {},\n"
-                + "  \"b\": [\n"
-                + "    1,\n"
-                + "    true,\n"
-                + "    \"x\\\"y\\n\\\\\"\n"
-                + "  ],\n"
-                + "  \"c\": [],\n"
-                + "  \"d\": null\n"
-                + "}\n", render(input));
+        assertEquals("""
+                {
+                  "a": {},
+                  "b": [
+                    1,
+                    true,
+                    "x\\"y\\n\\\\"
+                  ],
+                  "c": [],
+                  "d": null
+                }
+                """, render(input));
     }
 
     private static String normalize(String text) {

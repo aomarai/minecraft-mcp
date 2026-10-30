@@ -59,9 +59,11 @@ class LogTailerTest {
     @Test
     void chatJoinAndLeaveBecomeEvents() throws IOException {
         tailer.poll();
-        append("[10:00:01] [Server thread/INFO]: Steve joined the game\n"
-                + "[10:00:02] [Server thread/INFO]: <Steve> hello there\n"
-                + "[10:00:03] [Server thread/INFO]: Steve left the game\n");
+        append("""
+                [10:00:01] [Server thread/INFO]: Steve joined the game
+                [10:00:02] [Server thread/INFO]: <Steve> hello there
+                [10:00:03] [Server thread/INFO]: Steve left the game
+                """);
 
         tailer.poll();
 
@@ -72,9 +74,11 @@ class LogTailerTest {
     @Test
     void thePaperAndModdedLineFormatsAreUnderstood() throws IOException {
         tailer.poll();
-        append("[10:00:01] [Async Chat Thread - #0/INFO]: <Steve_1> from paper\n"
-                + "[10:00:02] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: <Alex> from forge\n"
-                + "[10:00:03] [Server thread/INFO]: [Not Secure] <Sam> unsigned\n");
+        append("""
+                [10:00:01] [Async Chat Thread - #0/INFO]: <Steve_1> from paper
+                [10:00:02] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: <Alex> from forge
+                [10:00:03] [Server thread/INFO]: [Not Secure] <Sam> unsigned
+                """);
 
         tailer.poll();
 
@@ -85,8 +89,10 @@ class LogTailerTest {
     @Test
     void theAddressInALoginLineIsNeverRead() throws IOException {
         tailer.poll();
-        append("[10:00:01] [Server thread/INFO]: Steve[/203.0.113.9:54321] logged in with entity id 5 at (0.0, 64.0, 0.0)\n"
-                + "[10:00:02] [Server thread/INFO]: Steve joined the game\n");
+        append("""
+                [10:00:01] [Server thread/INFO]: Steve[/203.0.113.9:54321] logged in with entity id 5 at (0.0, 64.0, 0.0)
+                [10:00:02] [Server thread/INFO]: Steve joined the game
+                """);
 
         tailer.poll();
 
@@ -97,10 +103,12 @@ class LogTailerTest {
     @Test
     void textThatLooksLikeAnEventInsideChatIsOnlyChat() throws IOException {
         tailer.poll();
-        append("[10:00:01] [Server thread/INFO]: <Mallory> Steve joined the game\n"
-                + "[10:00:02] [Server thread/INFO]: [Server] Steve left the game\n"
-                + "[10:00:03] [Server thread/INFO]: Steve joined the game and more\n"
-                + "[10:00:04] [Server thread/INFO]: not a player name joined the game\n");
+        append("""
+                [10:00:01] [Server thread/INFO]: <Mallory> Steve joined the game
+                [10:00:02] [Server thread/INFO]: [Server] Steve left the game
+                [10:00:03] [Server thread/INFO]: Steve joined the game and more
+                [10:00:04] [Server thread/INFO]: not a player name joined the game
+                """);
 
         tailer.poll();
 
@@ -110,9 +118,11 @@ class LogTailerTest {
     @Test
     void namesLongerThanSixteenCharactersOrWithOddCharactersAreNotPlayers() throws IOException {
         tailer.poll();
-        append("[10:00:01] [Server thread/INFO]: <ABCDEFGHIJKLMNOPQ> too long\n"
-                + "[10:00:02] [Server thread/INFO]: <ABCDEFGHIJKLMNOP> just right\n"
-                + "[10:00:03] [Server thread/INFO]: <a b> spaced\n");
+        append("""
+                [10:00:01] [Server thread/INFO]: <ABCDEFGHIJKLMNOPQ> too long
+                [10:00:02] [Server thread/INFO]: <ABCDEFGHIJKLMNOP> just right
+                [10:00:03] [Server thread/INFO]: <a b> spaced
+                """);
 
         tailer.poll();
 
@@ -180,8 +190,10 @@ class LogTailerTest {
                 "this file system does not identify files, so a replacement can only be seen by its size");
         Path old = dir.resolve("2026-10-25-1.log");
         Files.move(log, old);
-        Files.writeString(log, "[11:00:00] [Server thread/INFO]: <Alex> a replacement that is longer than the log it replaced\n"
-                + "[11:00:01] [Server thread/INFO]: <Alex> second\n");
+        Files.writeString(log, """
+                [11:00:00] [Server thread/INFO]: <Alex> a replacement that is longer than the log it replaced
+                [11:00:01] [Server thread/INFO]: <Alex> second
+                """);
 
         tailer.poll();
 
@@ -318,18 +330,15 @@ class LogTailerTest {
         })) {
             background.start(Duration.ofMillis(20));
             Thread.sleep(100);
-            append("[10:00:01] [Server thread/INFO]: <Steve> one\n[10:00:02] [Server thread/INFO]: <Steve> two\n"
-                    + "[10:00:03] [Server thread/INFO]: <Steve> three\n");
+            append("""
+                    [10:00:01] [Server thread/INFO]: <Steve> one
+                    [10:00:02] [Server thread/INFO]: <Steve> two
+                    [10:00:03] [Server thread/INFO]: <Steve> three
+                    """);
 
             assertTrue(twice.await(10, TimeUnit.SECONDS), "polling carries on after the sink failed");
         }
         assertEquals("one", got.get(0).text());
-    }
-
-    /** A log file that cannot be read: a directory of that name makes every read fail. */
-    private LogTailer tailerOfADirectoryNamed(Path path) throws IOException {
-        Files.createDirectories(path);
-        return new LogTailer(path, (type, player, text) -> seen.add(new Seen(type, player, text)));
     }
 
     @Test
@@ -462,8 +471,11 @@ class LogTailerTest {
             kept.add(text);
         });
         picky.poll();
-        append("[10:00:01] [Server thread/INFO]: <Steve> one\n[10:00:02] [Server thread/INFO]: <Steve> two\n"
-                + "[10:00:03] [Server thread/INFO]: <Steve> three\n");
+        append("""
+                [10:00:01] [Server thread/INFO]: <Steve> one
+                [10:00:02] [Server thread/INFO]: <Steve> two
+                [10:00:03] [Server thread/INFO]: <Steve> three
+                """);
 
         picky.poll();
 
