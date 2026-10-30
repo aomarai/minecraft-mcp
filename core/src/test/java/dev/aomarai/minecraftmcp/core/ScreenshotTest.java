@@ -67,4 +67,37 @@ class ScreenshotTest {
         System.arraycopy(FakeGame.png(), 0, justTheSignature, 0, 8);
         assertDoesNotThrow(() -> new Screenshot(justTheSignature, 1, 1));
     }
+
+    @Test
+    void framesWithTheSameBytesAndSizeAreEqualAndShareAHash() {
+        Screenshot first = new Screenshot(FakeGame.png(), 640, 360);
+        Screenshot second = new Screenshot(FakeGame.png(), 640, 360); // another array, same pixels
+
+        assertEquals(first, second);
+        assertEquals(second, first);
+        assertEquals(first.hashCode(), second.hashCode());
+        assertEquals(first, first);
+    }
+
+    @Test
+    void framesThatDifferInBytesWidthHeightOrTypeAreNotEqual() {
+        Screenshot shot = new Screenshot(FakeGame.png(), 640, 360);
+        byte[] other = FakeGame.png();
+        other[10] = 42;
+
+        assertNotEquals(shot, new Screenshot(other, 640, 360));
+        assertNotEquals(shot, new Screenshot(FakeGame.png(), 641, 360));
+        assertNotEquals(shot, new Screenshot(FakeGame.png(), 640, 361));
+        assertNotEquals(shot, null);
+        assertNotEquals(shot, "image/png 640x360, 11 bytes");
+        assertNotEquals(shot.hashCode(), new Screenshot(other, 640, 360).hashCode());
+        assertNotEquals(shot.hashCode(), new Screenshot(FakeGame.png(), 641, 360).hashCode());
+        assertNotEquals(shot.hashCode(), new Screenshot(FakeGame.png(), 640, 361).hashCode());
+    }
+
+    @Test
+    void toStringShowsTheSizeAndNeverTheBytesOrAnArrayIdentity() {
+        assertEquals("Screenshot[width=640, height=360, png=11 bytes]",
+                new Screenshot(FakeGame.png(), 640, 360).toString());
+    }
 }

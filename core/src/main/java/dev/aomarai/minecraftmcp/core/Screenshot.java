@@ -39,6 +39,24 @@ public record Screenshot(byte[] png, int width, int height) {
         return png.clone();
     }
 
+    /** Frames are equal when their pixels (bytes) and size are, not when they are the same array. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Screenshot that
+                && width == that.width && height == that.height && Arrays.equals(png, that.png);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * (31 * Arrays.hashCode(png) + width) + height;
+    }
+
+    /** The size, never the image: a frame in a log or a failed assertion must not print hundreds of kilobytes. */
+    @Override
+    public String toString() {
+        return "Screenshot[width=" + width + ", height=" + height + ", png=" + png.length + " bytes]";
+    }
+
     /** What the audit log records instead of the image itself. */
     public String describe() {
         return "image/png " + width + "x" + height + ", " + png.length + " bytes";
