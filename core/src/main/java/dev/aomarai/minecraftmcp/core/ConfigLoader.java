@@ -111,10 +111,7 @@ public final class ConfigLoader {
         effective.putAll(persisted);
         applyEnvironment(effective, env);
 
-        String token = text(effective, TOKEN);
-        if (token.length() < MIN_TOKEN_LENGTH) {
-            throw new ConfigException(TOKEN + " must be at least " + MIN_TOKEN_LENGTH + " characters");
-        }
+        String token = requiredToken(effective);
         McpConfig config = build(effective, file.toAbsolutePath().getParent());
         LOG.log(System.Logger.Level.INFO, "Loaded configuration from {0}", file);
         return new Loaded(config, token, created);
@@ -314,6 +311,19 @@ public final class ConfigLoader {
             throw new ConfigException(TLS_KEYSTORE_PASSWORD + " must be set when " + TLS_KEYSTORE + " is");
         }
         return Optional.of(new Tls(keystore, password));
+    }
+
+    /** The bearer token, which must be there and long enough: a clear {@link ConfigException}, never a null. */
+    static String requiredToken(Map<String, Object> values) {
+        String token = text(values, TOKEN);
+        if (token == null) {
+            throw new ConfigException(TOKEN + " is missing from the configuration; set it in the config file or "
+                    + "remove the file to get a generated one");
+        }
+        if (token.length() < MIN_TOKEN_LENGTH) {
+            throw new ConfigException(TOKEN + " must be at least " + MIN_TOKEN_LENGTH + " characters");
+        }
+        return token;
     }
 
     private static String text(Map<String, Object> values, String key) {
