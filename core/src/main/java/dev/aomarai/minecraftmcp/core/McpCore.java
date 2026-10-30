@@ -167,7 +167,7 @@ public final class McpCore implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        // Closing twice is harmless: a failed start() closes the core, and the caller's cleanup may close it again.
+        // Closing twice is harmless: cleanup code may close a core that was already closed.
         if (!closed.compareAndSet(false, true)) {
             return;
         }
