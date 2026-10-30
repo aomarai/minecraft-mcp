@@ -48,9 +48,9 @@ class JsonlAuditLogTest {
         });
         assertEquals(List.of(), prepared, "nothing is touched before the first entry");
 
-        log.record(entry(Map.of(), "one"));
-        log.record(entry(Map.of(), "two"));
-        log.record(entry(Map.of(), "three"));
+        log.append(entry(Map.of(), "one"));
+        log.append(entry(Map.of(), "two"));
+        log.append(entry(Map.of(), "three"));
 
         assertEquals(List.of(file), prepared);
         assertEquals(3, lines(file).size());
@@ -65,10 +65,10 @@ class JsonlAuditLogTest {
             prepared[0]++;
             OwnerOnlyFile.prepare(path);
         });
-        log.record(entry(Map.of(), "before"));
+        log.append(entry(Map.of(), "before"));
 
         Files.delete(file);
-        log.record(entry(Map.of(), "after"));
+        log.append(entry(Map.of(), "after"));
 
         assertEquals(2, prepared[0]);
         assertEquals(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(file));
@@ -87,9 +87,9 @@ class JsonlAuditLogTest {
         });
 
         var arg = entry(Map.of(), "first");
-        UncheckedIOException failure = assertThrows(UncheckedIOException.class, () -> log.record(arg));
+        UncheckedIOException failure = assertThrows(UncheckedIOException.class, () -> log.append(arg));
         assertTrue(failure.getMessage().startsWith("cannot write audit log"));
-        log.record(entry(Map.of(), "second"));
+        log.append(entry(Map.of(), "second"));
 
         assertEquals(2, attempts[0]);
         assertEquals(1, lines(file).size());
@@ -100,8 +100,8 @@ class JsonlAuditLogTest {
         Path file = dir.resolve("logs").resolve("audit.jsonl");
         JsonlAuditLog log = new JsonlAuditLog(file, List.of(TOKEN));
 
-        log.record(entry(Map.of("command", "say hi"), "ok"));
-        log.record(new AuditEntry(NOW, AuditEntry.PHASE_RESULT, "server_info", Map.of(), "deny", "nope"));
+        log.append(entry(Map.of("command", "say hi"), "ok"));
+        log.append(new AuditEntry(NOW, AuditEntry.PHASE_RESULT, "server_info", Map.of(), "deny", "nope"));
 
         List<Map<String, Object>> lines = lines(file);
         assertEquals(2, lines.size());
@@ -120,12 +120,12 @@ class JsonlAuditLogTest {
         Path file = dir.resolve("logs").resolve("audit.jsonl");
         JsonlAuditLog log = new JsonlAuditLog(file, List.of());
 
-        log.record(entry(Map.of(), "first"));
+        log.append(entry(Map.of(), "first"));
         assumeTrue(OwnerOnlyFileTest.posix());
         assertEquals("rw-------", OwnerOnlyFileTest.mode(file));
 
         Files.setPosixFilePermissions(file, java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
-        log.record(entry(Map.of(), "second"));
+        log.append(entry(Map.of(), "second"));
         assertEquals("rw-------", OwnerOnlyFileTest.mode(file));
         assertEquals(2, lines(file).size());
     }
@@ -133,15 +133,15 @@ class JsonlAuditLogTest {
     @Test
     void appendsToAnExistingFile() throws IOException {
         Path file = dir.resolve("audit.jsonl");
-        new JsonlAuditLog(file, List.of()).record(entry(Map.of(), "first"));
-        new JsonlAuditLog(file, List.of()).record(entry(Map.of(), "second"));
+        new JsonlAuditLog(file, List.of()).append(entry(Map.of(), "first"));
+        new JsonlAuditLog(file, List.of()).append(entry(Map.of(), "second"));
         assertEquals(2, lines(file).size());
     }
 
     @Test
     void newlinesInValuesDoNotBreakTheLineFormat() throws IOException {
         Path file = dir.resolve("audit.jsonl");
-        new JsonlAuditLog(file, List.of()).record(entry(Map.of("command", "a\nb\r\nc"), "x\ny"));
+        new JsonlAuditLog(file, List.of()).append(entry(Map.of("command", "a\nb\r\nc"), "x\ny"));
         assertEquals(1, Files.readAllLines(file).size());
         assertEquals("a\nb\r\nc", ((Map<?, ?>) lines(file).get(0).get("arguments")).get("command"));
     }
@@ -151,7 +151,7 @@ class JsonlAuditLogTest {
         Path file = dir.resolve("audit.jsonl");
         JsonlAuditLog log = new JsonlAuditLog(file, List.of(TOKEN, ""));
 
-        log.record(entry(Map.of(
+        log.append(entry(Map.of(
                 "command", "say " + TOKEN,
                 "nested", Map.of("inner", TOKEN + TOKEN),
                 "list", List.of(TOKEN, "fine"),
@@ -171,7 +171,7 @@ class JsonlAuditLogTest {
     @Test
     void emptySecretsAreIgnored() throws IOException {
         Path file = dir.resolve("audit.jsonl");
-        new JsonlAuditLog(file, List.of("")).record(entry(Map.of("command", "say hi"), "ok"));
+        new JsonlAuditLog(file, List.of("")).append(entry(Map.of("command", "say hi"), "ok"));
         assertEquals("say hi", ((Map<?, ?>) lines(file).get(0).get("arguments")).get("command"));
     }
 
@@ -180,7 +180,7 @@ class JsonlAuditLogTest {
         Path file = dir.resolve("audit.jsonl");
         String exactly = "x".repeat(JsonlAuditLog.MAX_STRING);
         String longer = "y".repeat(JsonlAuditLog.MAX_STRING + 1);
-        new JsonlAuditLog(file, List.of()).record(entry(Map.of("exact", exactly, "longer", longer), "ok"));
+        new JsonlAuditLog(file, List.of()).append(entry(Map.of("exact", exactly, "longer", longer), "ok"));
 
         Map<?, ?> args = (Map<?, ?>) lines(file).get(0).get("arguments");
         assertEquals(exactly, args.get("exact"));
@@ -194,13 +194,13 @@ class JsonlAuditLogTest {
         JsonlAuditLog log = new JsonlAuditLog(directory, List.of());
 
         var arg2 = entry(Map.of(), "ok");
-        UncheckedIOException e = assertThrows(UncheckedIOException.class, () -> log.record(arg2));
+        UncheckedIOException e = assertThrows(UncheckedIOException.class, () -> log.append(arg2));
         assertTrue(e.getMessage().contains("cannot write audit log"));
     }
 
     @Test
     void discardingLogAcceptsEntries() {
-        assertDoesNotThrow(() -> AuditLog.discarding().record(entry(Map.of(), "ok")));
+        assertDoesNotThrow(() -> AuditLog.discarding().append(entry(Map.of(), "ok")));
     }
 
     // ---- rotation ----
@@ -212,7 +212,7 @@ class JsonlAuditLogTest {
     /** How many bytes one entry with this detail takes in the file. */
     private long sizeOfOneEntry(String detail) throws IOException {
         Path probe = dir.resolve("probe.jsonl");
-        new JsonlAuditLog(probe, List.of()).record(entry(Map.of(), detail));
+        new JsonlAuditLog(probe, List.of()).append(entry(Map.of(), detail));
         return Files.size(probe);
     }
 
@@ -222,12 +222,12 @@ class JsonlAuditLogTest {
         Path file = dir.resolve("audit.jsonl");
         JsonlAuditLog log = rotating(file, 2 * one);
 
-        log.record(entry(Map.of(), "e1"));
-        log.record(entry(Map.of(), "e2"));
+        log.append(entry(Map.of(), "e1"));
+        log.append(entry(Map.of(), "e2"));
         assertEquals(2 * one, Files.size(file), "a file exactly at the limit is not rotated");
         assertFalse(Files.exists(dir.resolve("audit.jsonl.1")));
 
-        log.record(entry(Map.of(), "e3"));
+        log.append(entry(Map.of(), "e3"));
 
         assertEquals(List.of("e3"), lines(file).stream().map(l -> l.get("detail")).toList());
         assertEquals(List.of("e1", "e2"), lines(dir.resolve("audit.jsonl.1")).stream().map(l -> l.get("detail")).toList());
@@ -239,8 +239,8 @@ class JsonlAuditLogTest {
         Path file = dir.resolve("audit.jsonl");
         JsonlAuditLog log = rotating(file, 2 * one - 1);
 
-        log.record(entry(Map.of(), "e1"));
-        log.record(entry(Map.of(), "e2"));
+        log.append(entry(Map.of(), "e1"));
+        log.append(entry(Map.of(), "e2"));
 
         assertEquals(List.of("e2"), lines(file).stream().map(l -> l.get("detail")).toList());
         assertEquals(List.of("e1"), lines(dir.resolve("audit.jsonl.1")).stream().map(l -> l.get("detail")).toList());
@@ -251,8 +251,8 @@ class JsonlAuditLogTest {
         Path file = dir.resolve("audit.jsonl");
         JsonlAuditLog log = rotating(file, 10);
 
-        log.record(entry(Map.of(), "first"));
-        log.record(entry(Map.of(), "second"));
+        log.append(entry(Map.of(), "first"));
+        log.append(entry(Map.of(), "second"));
 
         assertEquals(List.of("second"), lines(file).stream().map(l -> l.get("detail")).toList());
         assertEquals(List.of("first"), lines(dir.resolve("audit.jsonl.1")).stream().map(l -> l.get("detail")).toList());
@@ -266,7 +266,7 @@ class JsonlAuditLogTest {
         JsonlAuditLog log = rotating(file, one);
 
         for (int i = 1; i <= JsonlAuditLog.KEPT + 3; i++) {
-            log.record(entry(Map.of(), "e" + i));
+            log.append(entry(Map.of(), "e" + i));
         }
 
         int newest = JsonlAuditLog.KEPT + 3;
@@ -285,8 +285,8 @@ class JsonlAuditLogTest {
         Path file = dir.resolve("audit.jsonl");
         JsonlAuditLog log = rotating(file, one);
 
-        log.record(entry(Map.of(), "e1"));
-        log.record(entry(Map.of(), "e2"));
+        log.append(entry(Map.of(), "e1"));
+        log.append(entry(Map.of(), "e2"));
 
         assertTrue(OwnerOnlyFile.holds(file));
         assertTrue(OwnerOnlyFile.holds(dir.resolve("audit.jsonl.1")));
@@ -297,7 +297,7 @@ class JsonlAuditLogTest {
         long one = sizeOfOneEntry("e1");
         Path file = dir.resolve("audit.jsonl");
         JsonlAuditLog log = rotating(file, one);
-        log.record(entry(Map.of(), "e1"));
+        log.append(entry(Map.of(), "e1"));
         // A directory where the first rotated file belongs and something inside it, so the move cannot happen.
         Files.createDirectories(dir.resolve("audit.jsonl.1").resolve("blocker"));
         Files.createDirectories(dir.resolve("audit.jsonl.2"));
@@ -306,7 +306,7 @@ class JsonlAuditLogTest {
         Files.writeString(dir.resolve("audit.jsonl.4").resolve("blocker"), "x");
 
         var arg3 = entry(Map.of(), "e2");
-        assertThrows(UncheckedIOException.class, () -> log.record(arg3));
+        assertThrows(UncheckedIOException.class, () -> log.append(arg3));
 
         assertEquals(List.of("e1"), lines(file).stream().map(l -> l.get("detail")).toList());
     }
