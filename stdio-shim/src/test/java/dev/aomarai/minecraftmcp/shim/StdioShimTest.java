@@ -241,6 +241,22 @@ class StdioShimTest {
         assertEquals(Boolean.TRUE, flag.get());
     }
 
+    @Test
+    void theMessageStreamKeepsTheInterruptFlagWhenItIsStopped() throws Exception {
+        HttpServer server = stub(new CopyOnWriteArrayList<>(), answer(405, "text/plain", ""));
+        StdioShim shim = shim(url(server), Duration.ofSeconds(5));
+
+        Thread.currentThread().interrupt();
+        try {
+            shim.follow("session", new Backoff(Duration.ofMillis(1), Duration.ofMillis(1)),
+                    new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8));
+
+            assertTrue(Thread.currentThread().isInterrupted(), "the flag is still set");
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
     // ---- HTTP status mapping ----
 
     @ParameterizedTest

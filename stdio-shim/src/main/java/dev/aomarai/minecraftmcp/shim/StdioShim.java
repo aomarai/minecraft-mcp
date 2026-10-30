@@ -228,13 +228,15 @@ public final class StdioShim {
     }
 
     /** Opens the stream, relays it, and opens it again after a pause, until told to stop or the server has none. */
-    private void follow(String session, Backoff backoff, PrintStream out) {
+    void follow(String session, Backoff backoff, PrintStream out) {
         try {
             while (openStream(session, backoff, out)) {
                 Thread.sleep(backoff.next().toMillis());
             }
         } catch (InterruptedException e) {
-            // stopStream() ended this stream: the host went away or initialized again.
+            // stopStream() ended this stream: the host went away or initialized again. The flag stays set, so
+            // whoever runs this thread can still tell that it was asked to stop.
+            Thread.currentThread().interrupt();
         }
     }
 

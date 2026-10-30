@@ -200,6 +200,33 @@ class UniversalMainTest {
     }
 
     @Test
+    void runLeavesTheInterruptFlagSetWhenItStopsBecauseOfAnInterrupt() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<Boolean> flag = new java.util.concurrent.atomic.AtomicReference<>();
+        Thread main = new Thread(() -> {
+            try {
+                UniversalMain.run(new String[]{dir.toString()}, dir, env(), out, hooks::add);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            flag.set(Thread.currentThread().isInterrupted());
+        });
+        main.start();
+        waitUntilListening();
+        // Interrupt only once the loop is asleep: the server may still be starting when it starts listening.
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (main.getState() != Thread.State.TIMED_WAITING && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+        }
+        assertEquals(Thread.State.TIMED_WAITING, main.getState());
+
+        main.interrupt();
+        main.join(TimeUnit.SECONDS.toMillis(20));
+
+        assertFalse(main.isAlive());
+        assertEquals(Boolean.TRUE, flag.get());
+    }
+
+    @Test
     void stoppingTheProcessRunsAShutdownHookThatClosesTheServer() throws Exception {
         Thread main = new Thread(() -> {
             try {
