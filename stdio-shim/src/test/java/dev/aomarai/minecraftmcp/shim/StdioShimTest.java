@@ -46,9 +46,12 @@ class StdioShimTest {
     private final ByteArrayOutputStream err = new ByteArrayOutputStream();
     private final PrintStream log = new PrintStream(err, true, StandardCharsets.UTF_8);
     private final List<HttpServer> servers = new ArrayList<>();
+    /** Held by the stub servers that answer slowly; released at the end of a test so none outlives it. */
+    private final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
 
     @AfterEach
     void stopServers() {
+        release.countDown();
         servers.forEach(server -> server.stop(0));
     }
 
@@ -193,7 +196,7 @@ class StdioShimTest {
     void aServerThatNeverAnswersTimesOut() throws Exception {
         HttpServer slow = stub(new CopyOnWriteArrayList<>(), exchange -> {
             try {
-                Thread.sleep(3_000);
+                release.await(3_000, java.util.concurrent.TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -209,9 +212,10 @@ class StdioShimTest {
 
     @Test
     void interruptionIsReportedAndTheFlagRestored() throws Exception {
-        HttpServer slow = stub(new CopyOnWriteArrayList<>(), exchange -> {
+        List<Seen> slowSeen = new CopyOnWriteArrayList<>();
+        HttpServer slow = stub(slowSeen, exchange -> {
             try {
-                Thread.sleep(5_000);
+                release.await(5_000, java.util.concurrent.TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -228,7 +232,7 @@ class StdioShimTest {
             flag.set(Thread.currentThread().isInterrupted());
         });
         worker.start();
-        Thread.sleep(300);
+        assertTrue(eventually(() -> !slowSeen.isEmpty()), "the request is in flight");
         worker.interrupt();
         worker.join(5_000);
 
@@ -332,7 +336,7 @@ class StdioShimTest {
 
         HttpServer slow = stub(new CopyOnWriteArrayList<>(), exchange -> {
             try {
-                Thread.sleep(2_000);
+                release.await(2_000, java.util.concurrent.TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -525,8 +529,9 @@ class StdioShimTest {
 
     @Test
     void runFailsFastWithoutAToken() {
-        assertEquals("MINECRAFT_MCP_TOKEN is not set", assertThrows(IllegalStateException.class,
-                () -> StdioShim.run(Map.of(), new ByteArrayInputStream(new byte[0]), new PrintStream(err), log))
+        var arg = new ByteArrayInputStream(new byte[0]);
+        var arg2 = new PrintStream(err);
+        assertEquals("MINECRAFT_MCP_TOKEN is not set", assertThrows(IllegalStateException.class, () -> StdioShim.run(Map.of(), arg, arg2, log))
                 .getMessage());
     }
 
@@ -585,11 +590,8 @@ class StdioShimTest {
         return () -> new Backoff(Duration.ofMillis(5), Duration.ofMillis(5));
     }
 
-    private static boolean eventually(java.util.function.BooleanSupplier condition) throws InterruptedException {
-        for (int i = 0; i < 500 && !condition.getAsBoolean(); i++) {
-            Thread.sleep(20);
-        }
-        return condition.getAsBoolean();
+    private static boolean eventually(java.util.function.BooleanSupplier condition) {
+        return Await.until(condition, Duration.ofSeconds(10));
     }
 
     /** A backoff that notes what the shim asks of it, and waits next to nothing. */

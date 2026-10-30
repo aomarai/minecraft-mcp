@@ -138,8 +138,8 @@ class UniversalMainTest {
 
     @Test
     void theCurrentDirectoryIsTheDefaultButAnExtraArgumentIsAnError() {
-        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
-                () -> UniversalMain.start(new String[]{"a", "b"}, dir, env(), out));
+        var arg = env();
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> UniversalMain.start(new String[]{"a", "b"}, dir, arg, out));
 
         assertEquals("usage: java -jar minecraft-mcp-universal.jar [config-directory]", failure.getMessage());
     }
@@ -149,8 +149,8 @@ class UniversalMainTest {
         Map<String, String> env = env();
         env.remove("MINECRAFT_MCP_RCON_PASSWORD");
 
-        ConfigException failure = assertThrows(ConfigException.class,
-                () -> UniversalMain.start(new String[]{dir.toString()}, dir, env, out));
+        var arg2 = new String[]{dir.toString()};
+        ConfigException failure = assertThrows(ConfigException.class, () -> UniversalMain.start(arg2, dir, env, out));
 
         assertTrue(failure.getMessage().startsWith("the RCON password is not set"));
     }
@@ -161,7 +161,8 @@ class UniversalMainTest {
         env.put("MINECRAFT_MCP_SERVER_DIRECTORY", dir.toString());
 
         try (ServerSocket taken = new ServerSocket(port)) {
-            assertThrows(Exception.class, () -> UniversalMain.start(new String[]{dir.toString()}, dir, env, out));
+            var arg3 = new String[]{dir.toString()};
+            assertThrows(Exception.class, () -> UniversalMain.start(arg3, dir, env, out));
         }
 
         // The log tailer is started as soon as the tier is, so its thread shows whether the tier was shut down again.
@@ -174,7 +175,7 @@ class UniversalMainTest {
 
         running.close();
 
-        assertThrows(ConnectException.class, () -> new Socket("127.0.0.1", port).close());
+        assertThrows(ConnectException.class, () -> connect(port));
     }
 
     @Test
@@ -188,13 +189,14 @@ class UniversalMainTest {
         });
         main.start();
         waitUntilListening();
-        Thread.sleep(1200); // long enough for the loop to wake up and go round again
+        // Real time has to pass here: the loop checks once a second, and the test wants it to have gone round again.
+        Thread.sleep(1200); // NOSONAR java:S2925
 
         main.interrupt();
         main.join(TimeUnit.SECONDS.toMillis(20));
 
         assertFalse(main.isAlive());
-        assertThrows(ConnectException.class, () -> new Socket("127.0.0.1", port).close());
+        assertThrows(ConnectException.class, () -> connect(port));
     }
 
     @Test
@@ -209,11 +211,12 @@ class UniversalMainTest {
         main.start();
         waitUntilListening();
 
-        assertEquals(1, hooks.size());
+        // The hook is registered just after the server starts listening, on the other thread.
+        assertTrue(Await.until(() -> hooks.size() == 1, java.time.Duration.ofSeconds(10)));
         assertEquals("minecraft-mcp-shutdown", hooks.get(0).getName());
         hooks.get(0).run();
 
-        assertThrows(ConnectException.class, () -> new Socket("127.0.0.1", port).close());
+        assertThrows(ConnectException.class, () -> connect(port));
         main.interrupt();
         main.join(TimeUnit.SECONDS.toMillis(20));
     }
@@ -269,23 +272,24 @@ class UniversalMainTest {
     }
 
     private void waitUntilListening() throws Exception {
-        for (int i = 0; i < 200; i++) {
+        assertTrue(Await.until(() -> {
             try (Socket probe = new Socket("127.0.0.1", port)) {
-                return;
+                return true;
             } catch (IOException notYet) {
-                Thread.sleep(50);
+                return false;
             }
-        }
-        fail("the server did not start listening");
+        }, java.time.Duration.ofSeconds(10)), "the server did not start listening");
     }
 
     private static boolean noLiveThreadNamed(String name) throws InterruptedException {
-        for (int i = 0; i < 100; i++) {
-            if (Thread.getAllStackTraces().keySet().stream().noneMatch(t -> t.getName().equals(name) && t.isAlive())) {
-                return true;
-            }
-            Thread.sleep(50);
+        return Await.until(() -> Thread.getAllStackTraces().keySet().stream()
+                .noneMatch(t -> t.getName().equals(name) && t.isAlive()), java.time.Duration.ofSeconds(5));
+    }
+
+    /** Opens and closes a connection to the local port: it only succeeds while something is listening. */
+    private static void connect(int port) throws java.io.IOException {
+        try (Socket ignored = new Socket("127.0.0.1", port)) {
+            ignored.isConnected();
         }
-        return false;
     }
 }

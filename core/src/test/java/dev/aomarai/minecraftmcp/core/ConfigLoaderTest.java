@@ -200,6 +200,15 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void generatedTokensKeepTheirStrengthAndAlphabet() {
+        for (int i = 0; i < 20; i++) {
+            String token = ConfigLoader.generateToken();
+            assertEquals(43, token.length(), "32 random bytes, URL-safe Base64 without padding");
+            assertTrue(token.matches("[A-Za-z0-9_-]{43}"), token);
+        }
+    }
+
+    @Test
     void newFileIsOwnerOnlyOnPosix() throws IOException {
         assumeTrue(posix());
         ConfigLoader.load(file(), Map.of());
@@ -424,7 +433,8 @@ class ConfigLoaderTest {
         assertEquals("universal must be an object", failure(file(), Map.of()).getMessage());
         writeConfig("{\"token\":\"" + TOKEN + "\",\"universal\":\"text\"}");
         assertEquals("universal must be an object", failure(file(), Map.of()).getMessage());
-        assertThrows(ConfigException.class, () -> ConfigLoader.universalSection(file()));
+        var arg = file();
+        assertThrows(ConfigException.class, () -> ConfigLoader.universalSection(arg));
     }
 
     @Test
@@ -478,5 +488,25 @@ class ConfigLoaderTest {
         Throwable cause = new RuntimeException("x");
         assertSame(cause, new ConfigException("m", cause).getCause());
         assertEquals("m", new ConfigException("m").getMessage());
+    }
+
+    @Test
+    void anAbsentTokenIsAConfigExceptionNotANullPointer() {
+        ConfigException absent = assertThrows(ConfigException.class, () -> ConfigLoader.requiredToken(Map.of()));
+        assertEquals("token is missing from the configuration; set it in the config file or remove the file to get "
+                + "a generated one", absent.getMessage());
+        java.util.Map<String, Object> nulled = new java.util.HashMap<>();
+        nulled.put("token", null);
+        assertEquals(absent.getMessage(),
+                assertThrows(ConfigException.class, () -> ConfigLoader.requiredToken(nulled)).getMessage());
+    }
+
+    @Test
+    void anEmptyOrShortTokenIsAConfigException() {
+        for (String token : new String[]{"", " ", "x".repeat(ConfigLoader.MIN_TOKEN_LENGTH - 1)}) {
+            assertEquals("token must be at least 16 characters", assertThrows(ConfigException.class,
+                    () -> ConfigLoader.requiredToken(Map.of("token", token))).getMessage(), "[" + token + "]");
+        }
+        assertEquals("x".repeat(16), ConfigLoader.requiredToken(Map.of("token", "x".repeat(16))));
     }
 }

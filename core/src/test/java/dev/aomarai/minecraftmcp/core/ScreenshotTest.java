@@ -35,23 +35,26 @@ class ScreenshotTest {
 
     @Test
     void widthAndHeightAreBoundedAtBothEnds() {
-        assertDoesNotThrow(() -> new Screenshot(FakeGame.png(), 1, 1));
-        assertDoesNotThrow(() -> new Screenshot(FakeGame.png(), Screenshot.MAX_WIDTH, Screenshot.MAX_HEIGHT));
+        byte[] image = FakeGame.png();
+        assertDoesNotThrow(() -> new Screenshot(image, 1, 1));
+        assertDoesNotThrow(() -> new Screenshot(image, Screenshot.MAX_WIDTH, Screenshot.MAX_HEIGHT));
         assertEquals("width must be 1-1280, got 0",
-                assertThrows(IllegalArgumentException.class, () -> new Screenshot(FakeGame.png(), 0, 1)).getMessage());
+                assertThrows(IllegalArgumentException.class, () -> new Screenshot(image, 0, 1)).getMessage());
         assertEquals("width must be 1-1280, got 1281",
-                assertThrows(IllegalArgumentException.class, () -> new Screenshot(FakeGame.png(), 1281, 1)).getMessage());
+                assertThrows(IllegalArgumentException.class, () -> new Screenshot(image, 1281, 1)).getMessage());
         assertEquals("height must be 1-720, got 0",
-                assertThrows(IllegalArgumentException.class, () -> new Screenshot(FakeGame.png(), 1, 0)).getMessage());
+                assertThrows(IllegalArgumentException.class, () -> new Screenshot(image, 1, 0)).getMessage());
         assertEquals("height must be 1-720, got 721",
-                assertThrows(IllegalArgumentException.class, () -> new Screenshot(FakeGame.png(), 1, 721)).getMessage());
+                assertThrows(IllegalArgumentException.class, () -> new Screenshot(image, 1, 721)).getMessage());
     }
 
     @Test
     void sizeIsBounded() {
-        assertDoesNotThrow(() -> new Screenshot(png(Screenshot.MAX_BYTES), 1, 1));
+        byte[] largest = png(Screenshot.MAX_BYTES);
+        byte[] tooLarge = png(Screenshot.MAX_BYTES + 1);
+        assertDoesNotThrow(() -> new Screenshot(largest, 1, 1));
         assertEquals("png must be at most 2097152 bytes, got 2097153",
-                assertThrows(IllegalArgumentException.class, () -> new Screenshot(png(Screenshot.MAX_BYTES + 1), 1, 1)).getMessage());
+                assertThrows(IllegalArgumentException.class, () -> new Screenshot(tooLarge, 1, 1)).getMessage());
     }
 
     @Test

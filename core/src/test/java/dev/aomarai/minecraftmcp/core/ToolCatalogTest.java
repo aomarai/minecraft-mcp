@@ -224,13 +224,15 @@ class ToolCatalogTest {
     @Test
     void rejectsDuplicateNames() {
         ToolDescriptor a = new ToolDescriptor("dup", "T", "D", ToolPolicy.Scope.OBSERVE, Capability.WORLD, Side.SERVER, EMPTY);
-        assertThrows(IllegalArgumentException.class, () -> new ToolCatalog(List.of(a, a)));
+        var arg = List.of(a, a);
+        assertThrows(IllegalArgumentException.class, () -> new ToolCatalog(arg));
     }
 
     @Test
     void catalogIsImmutable() {
         ToolCatalog catalog = ToolCatalog.defaults();
-        assertThrows(UnsupportedOperationException.class, () -> catalog.tools().clear());
+        var tools2 = catalog.tools();
+        assertThrows(UnsupportedOperationException.class, () -> tools2.clear());
     }
 
     @Test

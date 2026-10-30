@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -329,16 +330,18 @@ class LogTailerTest {
             twice.countDown();
         })) {
             background.start(Duration.ofMillis(20));
-            Thread.sleep(100);
-            append("""
-                    [10:00:01] [Server thread/INFO]: <Steve> one
-                    [10:00:02] [Server thread/INFO]: <Steve> two
-                    [10:00:03] [Server thread/INFO]: <Steve> three
-                    """);
-
-            assertTrue(twice.await(10, TimeUnit.SECONDS), "polling carries on after the sink failed");
+            // The first poll only finds the end of the file, so keep writing until lines are followed: the first
+            // one the sink refuses, and polling must carry on to deliver the next two.
+            assertTrue(Await.until(() -> {
+                try {
+                    append("[10:00:01] [Server thread/INFO]: <Steve> again\n");
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+                return twice.getCount() == 0;
+            }, Duration.ofSeconds(10)), "polling carries on after the sink failed");
         }
-        assertEquals("one", got.get(0).text());
+        assertTrue(got.size() >= 3, "the refused event and the two after it");
     }
 
     @Test
@@ -486,8 +489,9 @@ class LogTailerTest {
     void theBackgroundThreadIsADaemon() throws Exception {
         try (LogTailer background = new LogTailer(log, (type, player, text) -> { })) {
             background.start(Duration.ofMillis(20));
-            Thread.sleep(100);
 
+            assertTrue(Await.until(() -> Thread.getAllStackTraces().keySet().stream()
+                    .anyMatch(t -> t.getName().equals("minecraft-mcp-log-tail")), Duration.ofSeconds(10)));
             Thread poller = Thread.getAllStackTraces().keySet().stream()
                     .filter(t -> t.getName().equals("minecraft-mcp-log-tail")).findFirst().orElseThrow();
             assertTrue(poller.isDaemon());

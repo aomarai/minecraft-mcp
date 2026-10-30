@@ -52,7 +52,8 @@ class QueryRecordsTest {
         source.add("minecraft:dirt");
 
         assertEquals(List.of("minecraft:stone"), page.ids());
-        assertThrows(UnsupportedOperationException.class, () -> page.ids().add("x"));
+        var ids2 = page.ids();
+        assertThrows(UnsupportedOperationException.class, () -> ids2.add("x"));
     }
 
     // ---- EntityQuery ----
@@ -114,7 +115,8 @@ class QueryRecordsTest {
         source.put("late", "3");
 
         assertEquals(List.of("alpha", "zeta"), List.copyOf(state.gameRules().keySet()));
-        assertThrows(UnsupportedOperationException.class, () -> state.gameRules().put("x", "y"));
+        var gameRules2 = state.gameRules();
+        assertThrows(UnsupportedOperationException.class, () -> gameRules2.put("x", "y"));
         assertEquals(1L, state.gameTime());
         assertEquals(2L, state.dayTime());
         assertFalse(state.raining());
@@ -133,8 +135,10 @@ class QueryRecordsTest {
         assertEquals(1, permissions.operators().size());
         assertEquals(1, permissions.whitelist().size());
         assertTrue(permissions.whitelistEnabled());
-        assertThrows(UnsupportedOperationException.class, () -> permissions.operators().clear());
-        assertThrows(UnsupportedOperationException.class, () -> permissions.whitelist().clear());
+        var operators2 = permissions.operators();
+        assertThrows(UnsupportedOperationException.class, () -> operators2.clear());
+        var whitelist2 = permissions.whitelist();
+        assertThrows(UnsupportedOperationException.class, () -> whitelist2.clear());
     }
 
     @Test
@@ -145,7 +149,8 @@ class QueryRecordsTest {
 
         assertEquals("Steve", inventory.player());
         assertEquals(List.of(new Inventory.Stack(0, "minecraft:stone", 3)), inventory.stacks());
-        assertThrows(UnsupportedOperationException.class, () -> inventory.stacks().clear());
+        var stacks2 = inventory.stacks();
+        assertThrows(UnsupportedOperationException.class, () -> stacks2.clear());
     }
 
     private static String entityName(String name) {
@@ -172,6 +177,7 @@ class QueryRecordsTest {
 
         assertEquals(1, list.entities().size());
         assertEquals("minecraft:pig", list.entities().get(0).type());
-        assertThrows(UnsupportedOperationException.class, () -> list.entities().clear());
+        var entities2 = list.entities();
+        assertThrows(UnsupportedOperationException.class, () -> entities2.clear());
     }
 }

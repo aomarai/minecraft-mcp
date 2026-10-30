@@ -214,8 +214,8 @@ class BearerAuthFilterTest {
     void rejectsWeakOrMissingTokensAndNullHost() {
         assertThrows(NullPointerException.class, () -> new BearerAuthFilter(null, "127.0.0.1", () -> PORT));
         assertThrows(IllegalArgumentException.class, () -> new BearerAuthFilter("short", "127.0.0.1", () -> PORT));
-        assertThrows(IllegalArgumentException.class,
-                () -> new BearerAuthFilter("x".repeat(15), "127.0.0.1", () -> PORT));
+        String fifteen = "x".repeat(15);
+        assertThrows(IllegalArgumentException.class, () -> new BearerAuthFilter(fifteen, "127.0.0.1", () -> PORT));
         assertDoesNotThrow(() -> new BearerAuthFilter("x".repeat(16), "127.0.0.1", () -> PORT));
         assertThrows(NullPointerException.class, () -> new BearerAuthFilter(TOKEN, null, () -> PORT));
     }

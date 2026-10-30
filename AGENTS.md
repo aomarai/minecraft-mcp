@@ -75,6 +75,8 @@ check to get green; add a test that pins real behavior instead.
 - Adding a dependency needs a reason in the PR. Prefer what the MCP SDK already provides
   (for example its `McpJsonMapper`) over a new library.
 - Pin exact versions. Do not use dynamic versions or `latest`.
+- Versions live in `gradle/libs.versions.toml` and the build scripts refer to them as `libs.<alias>`; do not
+  write a version literal in a module's build script.
 
 ## Conventions
 

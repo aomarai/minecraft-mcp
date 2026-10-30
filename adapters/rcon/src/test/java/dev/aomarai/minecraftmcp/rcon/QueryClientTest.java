@@ -99,14 +99,16 @@ class QueryClientTest {
     void theReturnedInfoCannotBeChangedByTheCaller() throws IOException {
         QueryClient.QueryInfo info = client.query(PATIENT);
 
-        assertThrows(UnsupportedOperationException.class, () -> info.players().clear());
+        var players2 = info.players();
+        assertThrows(UnsupportedOperationException.class, () -> players2.clear());
     }
 
     @Test
     void aSilentServerIsAnErrorThatSuggestsEnablingQuery() {
         server.silent = true;
 
-        IOException failure = assertThrows(IOException.class, () -> client.query(Duration.ofMillis(300)));
+        var arg = Duration.ofMillis(300);
+        IOException failure = assertThrows(IOException.class, () -> client.query(arg));
 
         assertEquals("the server did not answer the query within 300 ms (is enable-query on?)", failure.getMessage());
     }
@@ -255,6 +257,7 @@ class QueryClientTest {
         }
         QueryClient nobody = new QueryClient("127.0.0.1", closed);
 
-        assertThrows(IOException.class, () -> nobody.query(Duration.ofMillis(500)));
+        var arg2 = Duration.ofMillis(500);
+        assertThrows(IOException.class, () -> nobody.query(arg2));
     }
 }

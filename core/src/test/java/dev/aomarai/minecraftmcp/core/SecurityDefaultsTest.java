@@ -103,12 +103,14 @@ class SecurityDefaultsTest {
 
     @Test
     void aNonLoopbackBindIsRejectedByDefaultInTheConfigurationAndInTheLoader() throws Exception {
-        assertThrows(IllegalArgumentException.class, () -> new McpConfig("0.0.0.0", 25599, false, false, 32768, Duration.ofSeconds(1)));
+        var arg = Duration.ofSeconds(1);
+        assertThrows(IllegalArgumentException.class, () -> new McpConfig("0.0.0.0", 25599, false, false, 32768, arg));
         Path file = dir.resolve("minecraft-mcp.json");
         Files.writeString(file, "{\"host\": \"0.0.0.0\", \"token\": \"" + TOKEN + "\"}");
 
         assertThrows(ConfigException.class, () -> ConfigLoader.load(file, Map.of()));
-        assertThrows(ConfigException.class, () -> ConfigLoader.load(file, Map.of("MINECRAFT_MCP_HOST", "192.168.1.5")));
+        var arg2 = Map.of("MINECRAFT_MCP_HOST", "192.168.1.5");
+        assertThrows(ConfigException.class, () -> ConfigLoader.load(file, arg2));
     }
 
     @Test
@@ -134,7 +136,7 @@ class SecurityDefaultsTest {
         }
         assertEquals(0, game.totalCalls(), "the game was never touched: " + game.commands);
         assertEquals(tools(ToolPolicy.Scope.ACT, ToolPolicy.Scope.ADMIN).size(), audit.size(), "one entry per denied call");
-        assertTrue(audit.stream().allMatch(entry -> entry.decision().equals("deny") && entry.phase().equals(AuditEntry.DECISION)),
+        assertTrue(audit.stream().allMatch(entry -> entry.decision().equals("deny") && entry.phase().equals(AuditEntry.PHASE_DECISION)),
                 audit.toString());
     }
 

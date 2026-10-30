@@ -25,7 +25,7 @@ class JsonlAuditLogTest {
     Path dir;
 
     private static AuditEntry entry(Map<String, Object> args, String detail) {
-        return new AuditEntry(NOW, AuditEntry.DECISION, "run_command", args, "allow", detail);
+        return new AuditEntry(NOW, AuditEntry.PHASE_DECISION, "run_command", args, "allow", detail);
     }
 
     private List<Map<String, Object>> lines(Path file) throws IOException {
@@ -86,7 +86,8 @@ class JsonlAuditLogTest {
             OwnerOnlyFile.prepare(path);
         });
 
-        UncheckedIOException failure = assertThrows(UncheckedIOException.class, () -> log.record(entry(Map.of(), "first")));
+        var arg = entry(Map.of(), "first");
+        UncheckedIOException failure = assertThrows(UncheckedIOException.class, () -> log.record(arg));
         assertTrue(failure.getMessage().startsWith("cannot write audit log"));
         log.record(entry(Map.of(), "second"));
 
@@ -100,7 +101,7 @@ class JsonlAuditLogTest {
         JsonlAuditLog log = new JsonlAuditLog(file, List.of(TOKEN));
 
         log.record(entry(Map.of("command", "say hi"), "ok"));
-        log.record(new AuditEntry(NOW, AuditEntry.RESULT, "server_info", Map.of(), "deny", "nope"));
+        log.record(new AuditEntry(NOW, AuditEntry.PHASE_RESULT, "server_info", Map.of(), "deny", "nope"));
 
         List<Map<String, Object>> lines = lines(file);
         assertEquals(2, lines.size());
@@ -192,7 +193,8 @@ class JsonlAuditLogTest {
         Files.createDirectories(directory);
         JsonlAuditLog log = new JsonlAuditLog(directory, List.of());
 
-        UncheckedIOException e = assertThrows(UncheckedIOException.class, () -> log.record(entry(Map.of(), "ok")));
+        var arg2 = entry(Map.of(), "ok");
+        UncheckedIOException e = assertThrows(UncheckedIOException.class, () -> log.record(arg2));
         assertTrue(e.getMessage().contains("cannot write audit log"));
     }
 
@@ -303,7 +305,8 @@ class JsonlAuditLogTest {
         Files.createDirectories(dir.resolve("audit.jsonl.4"));
         Files.writeString(dir.resolve("audit.jsonl.4").resolve("blocker"), "x");
 
-        assertThrows(UncheckedIOException.class, () -> log.record(entry(Map.of(), "e2")));
+        var arg3 = entry(Map.of(), "e2");
+        assertThrows(UncheckedIOException.class, () -> log.record(arg3));
 
         assertEquals(List.of("e1"), lines(file).stream().map(l -> l.get("detail")).toList());
     }

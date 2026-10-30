@@ -151,7 +151,8 @@ class UniversalPlayerReaderTest {
             throw new IOException("the server did not answer the query");
         });
 
-        ExecutionException failure = assertThrows(ExecutionException.class, () -> failing.listPlayers().get(10, TimeUnit.SECONDS));
+        var listPlayers2 = failing.listPlayers();
+        ExecutionException failure = assertThrows(ExecutionException.class, () -> listPlayers2.get(10, TimeUnit.SECONDS));
 
         assertTrue(failure.getCause() instanceof java.io.UncheckedIOException);
         assertEquals("the server did not answer the query", failure.getCause().getCause().getMessage());
@@ -161,8 +162,8 @@ class UniversalPlayerReaderTest {
     void anUnreadableOperatorListFailsTheList() throws Exception {
         Files.writeString(dir.resolve("ops.json"), "not json");
 
-        ExecutionException failure = assertThrows(ExecutionException.class,
-                () -> reader(() -> List.of("Steve")).listPlayers().get(10, TimeUnit.SECONDS));
+        var pending = reader(() -> List.of("Steve")).listPlayers();
+        ExecutionException failure = assertThrows(ExecutionException.class, () -> pending.get(10, TimeUnit.SECONDS));
 
         assertTrue(failure.getCause() instanceof java.io.UncheckedIOException);
     }
@@ -173,8 +174,8 @@ class UniversalPlayerReaderTest {
         answers.put("data get entity Steve Dimension", "Steve has the following entity data: \"minecraft:overworld\"");
         answers.put("data get entity Steve UUID", "Steve has the following entity data: [I; 0, 0, 0, 1]");
 
-        ExecutionException failure = assertThrows(ExecutionException.class,
-                () -> reader(() -> List.of("Steve")).listPlayers().get(10, TimeUnit.SECONDS));
+        var pending = reader(() -> List.of("Steve")).listPlayers();
+        ExecutionException failure = assertThrows(ExecutionException.class, () -> pending.get(10, TimeUnit.SECONDS));
 
         assertTrue(failure.getCause().getCause().getMessage().startsWith("unexpected reply from the server"));
     }
@@ -184,7 +185,8 @@ class UniversalPlayerReaderTest {
         UniversalPlayerReader silent = new UniversalPlayerReader(() -> List.of("Steve"),
                 (command, timeout) -> new CompletableFuture<>(), dir.resolve("ops.json"), Duration.ofMillis(100), Runnable::run);
 
-        ExecutionException failure = assertThrows(ExecutionException.class, () -> silent.listPlayers().get(10, TimeUnit.SECONDS));
+        var listPlayers3 = silent.listPlayers();
+        ExecutionException failure = assertThrows(ExecutionException.class, () -> listPlayers3.get(10, TimeUnit.SECONDS));
 
         assertEquals("the server did not answer 'data get entity Steve Pos'", failure.getCause().getCause().getMessage());
     }
@@ -221,8 +223,8 @@ class UniversalPlayerReaderTest {
     void theListingIsGivenTheCallsTimeInTotalAndAskedNothingOnceItIsSpent() {
         playerIs("Steve", "[1.0d, 2.0d, 3.0d]", "\"minecraft:overworld\"", "[I; 0, 0, 0, 1]");
 
-        ExecutionException failure = assertThrows(ExecutionException.class,
-                () -> readerWithClock(clockThatJumpsTo(100_000_000L)).listPlayers().get(10, TimeUnit.SECONDS));
+        var listPlayers4 = readerWithClock(clockThatJumpsTo(100_000_000L)).listPlayers();
+        ExecutionException failure = assertThrows(ExecutionException.class, () -> listPlayers4.get(10, TimeUnit.SECONDS));
 
         assertEquals("stopped listing the players: the call was cancelled or took longer than 100 ms", failure.getCause().getCause().getMessage());
         assertEquals(List.of(), asked);
@@ -313,7 +315,8 @@ class UniversalPlayerReaderTest {
                 (command, timeout) -> CompletableFuture.failedFuture(new IllegalStateException("boom")),
                 dir.resolve("ops.json"), TIMEOUT, Runnable::run);
 
-        ExecutionException failure = assertThrows(ExecutionException.class, () -> broken.listPlayers().get(10, TimeUnit.SECONDS));
+        var listPlayers5 = broken.listPlayers();
+        ExecutionException failure = assertThrows(ExecutionException.class, () -> listPlayers5.get(10, TimeUnit.SECONDS));
 
         assertEquals("the server did not answer 'data get entity Steve Pos'", failure.getCause().getCause().getMessage());
     }
@@ -325,8 +328,8 @@ class UniversalPlayerReaderTest {
         Thread.currentThread().interrupt();
 
         try {
-            ExecutionException failure = assertThrows(ExecutionException.class,
-                    () -> waiting.listPlayers().get(10, TimeUnit.SECONDS));
+            var listPlayers6 = waiting.listPlayers();
+            ExecutionException failure = assertThrows(ExecutionException.class, () -> listPlayers6.get(10, TimeUnit.SECONDS));
             assertEquals("interrupted while asking the server", failure.getCause().getCause().getMessage());
             assertTrue(Thread.currentThread().isInterrupted());
         } finally {

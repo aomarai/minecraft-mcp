@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -89,7 +90,9 @@ class CallAwaiterTest {
         assertEquals("timed out after 100 ms; it was already running on the game thread, so it may still have taken effect",
                 write.getMessage());
 
+        CountDownLatch started = new CountDownLatch(1);
         MainThread.Call<String> slowRead = MainThread.call(gameThread, () -> {
+            started.countDown();
             try {
                 release.await();
             } catch (InterruptedException e) {
@@ -97,7 +100,7 @@ class CallAwaiterTest {
             }
             return "late";
         });
-        Thread.sleep(50);
+        assertTrue(started.await(5, TimeUnit.SECONDS), "the read is running on the game thread");
         TimeoutException read = assertThrows(TimeoutException.class, () -> CallAwaiter.await(slowRead, BUDGET, false));
         assertEquals("timed out after 100 ms; it was already running on the game thread and will finish", read.getMessage());
         release.countDown();
@@ -117,8 +120,8 @@ class CallAwaiterTest {
 
     @Test
     void aFailureThatArrivesAtTheDeadlineIsReported() {
-        IllegalStateException e = assertThrows(IllegalStateException.class, () ->
-                CallAwaiter.await(new FinishesAtTheDeadline(new IllegalArgumentException("bad")), BUDGET, true));
+        var arg = new FinishesAtTheDeadline(new IllegalArgumentException("bad"));
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> CallAwaiter.await(arg, BUDGET, true));
         assertEquals("bad", e.getMessage());
         assertInstanceOf(IllegalArgumentException.class, e.getCause());
     }
@@ -126,16 +129,16 @@ class CallAwaiterTest {
     @Test
     void aFailedFutureIsReportedWithItsMessageAndCause() {
         Throwable cause = new IllegalArgumentException("boom");
-        IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> CallAwaiter.await(CompletableFuture.failedFuture(cause), BUDGET, false));
+        var arg2 = CompletableFuture.failedFuture(cause);
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> CallAwaiter.await(arg2, BUDGET, false));
         assertEquals("boom", e.getMessage());
         assertSame(cause, e.getCause());
     }
 
     @Test
     void aFailureWithoutAMessageIsNamedByItsClass() {
-        IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> CallAwaiter.await(CompletableFuture.failedFuture(new UnsupportedOperationException()), BUDGET, false));
+        var arg3 = CompletableFuture.failedFuture(new UnsupportedOperationException());
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> CallAwaiter.await(arg3, BUDGET, false));
         assertEquals("UnsupportedOperationException", e.getMessage());
     }
 
@@ -159,7 +162,8 @@ class CallAwaiterTest {
             flag.set(Thread.currentThread().isInterrupted());
         });
         worker.start();
-        Thread.sleep(50);
+        assertTrue(Await.until(() -> worker.getState() == Thread.State.TIMED_WAITING
+                || worker.getState() == Thread.State.WAITING, Duration.ofSeconds(5)), "the worker is waiting");
         worker.interrupt();
         worker.join(5_000);
 
@@ -180,10 +184,10 @@ class CallAwaiterTest {
 
     @Test
     void executionExceptionIsNeverLeakedToCallers() {
-        assertThrows(IllegalStateException.class,
-                () -> CallAwaiter.await(CompletableFuture.failedFuture(new RuntimeException("x")), BUDGET, false));
-        assertFalse(ExecutionException.class.isInstance(
-                assertThrows(Exception.class,
-                        () -> CallAwaiter.await(CompletableFuture.failedFuture(new RuntimeException("x")), BUDGET, false))));
+        var arg4 = CompletableFuture.failedFuture(new RuntimeException("x"));
+        assertThrows(IllegalStateException.class, () -> CallAwaiter.await(arg4, BUDGET, false));
+        var failed = CompletableFuture.failedFuture(new RuntimeException("x"));
+        Exception thrown = assertThrows(Exception.class, () -> CallAwaiter.await(failed, BUDGET, false));
+        assertFalse(ExecutionException.class.isInstance(thrown));
     }
 }

@@ -203,9 +203,7 @@ class ToolDispatcherTest {
             caller.start();
             callers.add(caller);
         }
-        for (int i = 0; i < 500 && game.entityQueries.size() < ToolDispatcher.MAX_IN_FLIGHT; i++) {
-            Thread.sleep(20);
-        }
+        Await.until(() -> game.entityQueries.size() >= ToolDispatcher.MAX_IN_FLIGHT, Duration.ofSeconds(10));
         assertEquals(ToolDispatcher.MAX_IN_FLIGHT, game.entityQueries.size(), "every slot is taken by a call in the game");
         return callers;
     }
@@ -942,9 +940,7 @@ class ToolDispatcherTest {
             flag.set(Thread.currentThread().isInterrupted());
         });
         worker.start();
-        while (game.commands.isEmpty()) {
-            Thread.sleep(5);
-        }
+        assertTrue(Await.until(() -> !game.commands.isEmpty(), Duration.ofSeconds(10)), "the command reached the game");
         worker.interrupt();
         worker.join(5_000);
 
@@ -975,7 +971,7 @@ class ToolDispatcherTest {
         List<AuditEntry> seen = new ArrayList<>();
         AuditLog failsOnResult = entry -> {
             seen.add(entry);
-            if (entry.phase().equals(AuditEntry.RESULT)) {
+            if (entry.phase().equals(AuditEntry.PHASE_RESULT)) {
                 throw new IllegalStateException("disk full");
             }
         };

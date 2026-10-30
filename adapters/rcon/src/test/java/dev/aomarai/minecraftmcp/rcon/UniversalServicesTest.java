@@ -10,6 +10,8 @@ import dev.aomarai.minecraftmcp.core.ToolDescriptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -133,13 +135,17 @@ class UniversalServicesTest {
         Files.writeString(log, "[10:00:00] [Server thread/INFO]: Done (1.0s)!\n");
         try (UniversalServices universal = services(OptionalInt.empty(), Optional.of(dir))) {
             EventFeed feed = universal.services().find(EventFeed.class).orElseThrow();
-            Thread.sleep(200);
-            Files.writeString(log, "[10:00:01] [Server thread/INFO]: <Steve> hello\n", java.nio.file.StandardOpenOption.APPEND);
-
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-            while (feed.read(-1, 10).events().isEmpty() && System.nanoTime() < deadline) {
-                Thread.sleep(50);
-            }
+            // The tailer's first poll only finds the end of the file, so a line written before it is history.
+            // Keep writing until one is followed.
+            assertTrue(Await.until(() -> {
+                try {
+                    Files.writeString(log, "[10:00:01] [Server thread/INFO]: <Steve> hello\n",
+                            java.nio.file.StandardOpenOption.APPEND);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+                return !feed.read(-1, 10).events().isEmpty();
+            }, java.time.Duration.ofSeconds(10)), "the log line became an event");
 
             assertEquals("hello", feed.read(-1, 10).events().get(0).text());
         }
@@ -181,13 +187,8 @@ class UniversalServicesTest {
     }
 
     private static boolean noLiveThreadNamed(String name) throws InterruptedException {
-        for (int i = 0; i < 100; i++) {
-            if (Thread.getAllStackTraces().keySet().stream().noneMatch(t -> t.getName().equals(name) && t.isAlive())) {
-                return true;
-            }
-            Thread.sleep(50);
-        }
-        return false;
+        return Await.until(() -> Thread.getAllStackTraces().keySet().stream()
+                .noneMatch(t -> t.getName().equals(name) && t.isAlive()), java.time.Duration.ofSeconds(5));
     }
 
     @Test
@@ -198,14 +199,13 @@ class UniversalServicesTest {
         UniversalServices universal = services(OptionalInt.empty(), Optional.of(dir));
         EventFeed feed = universal.services().find(EventFeed.class).orElseThrow();
         var commands = universal.services().find(dev.aomarai.minecraftmcp.core.CommandRunner.class).orElseThrow();
-        Thread.sleep(200);
 
         universal.close();
 
         assertEquals(List.of("the RCON client is closed"),
                 commands.runCommand("list", TIMEOUT).get(10, TimeUnit.SECONDS).feedback());
+        assertTrue(noLiveThreadNamed("minecraft-mcp-log-tail"), "the tailer's thread is gone, so it follows nothing");
         Files.writeString(log, "[10:00:01] [Server thread/INFO]: <Steve> too late\n", java.nio.file.StandardOpenOption.APPEND);
-        Thread.sleep(1200);
         assertEquals(List.of(), feed.read(-1, 10).events(), "a closed tailer follows nothing");
     }
 
