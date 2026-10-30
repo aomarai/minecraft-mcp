@@ -118,3 +118,29 @@ jobs:
           -Dorg.gradle.jvmargs="-Xmx1024m -XX:MaxMetaspaceSize=384m -Dfile.encoding=UTF-8"
           --no-parallel --max-workers=2
           --info
+
+      # Read-only: prints what the analysis above found, so the result can be read from this log without the
+      # SonarQube UI (the server is only reachable from inside the cluster). It never fails the job.
+      - name: Report what the scan found
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: aomarai_minecraft-mcp_f6130f7f-7b1b-4688-9c1f-23c464302442
+        run: |
+          set -u
+          task_file="$(find . -name report-task.txt -path '*sonar*' | head -n 1)"
+          echo "report-task file: ${task_file:-none}"
+          task_url="$(sed -n 's/^ceTaskUrl=//p' "$task_file")"
+          for i in $(seq 1 60); do
+            task="$(curl -fsS -u "$SONAR_TOKEN:" "$task_url" || true)"
+            case "$task" in *'"status":"SUCCESS"'*|*'"status":"FAILED"'*|*'"status":"CANCELED"'*) break ;; esac
+            sleep 5
+          done
+          echo "analysis task: $(printf '%s' "$task" | grep -o '"status":"[A-Z_]*"' | head -n 1)"
+          echo "== quality gate"
+          curl -fsS -u "$SONAR_TOKEN:" "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=$SONAR_PROJECT_KEY" || true
+          echo
+          echo "== open issues (all, not only new code)"
+          issues="$(curl -fsS -u "$SONAR_TOKEN:" "$SONAR_HOST_URL/api/issues/search?componentKeys=$SONAR_PROJECT_KEY&resolved=false&ps=500" || true)"
+          echo "total: $(printf '%s' "$issues" | grep -o '"total":[0-9]*' | head -n 1)"
+          printf '%s' "$issues" | sed 's/},{"key"/}\n{"key"/g' | grep -o '"rule":"[^"]*"\|"component":"[^"]*"\|"line":[0-9]*\|"message":"[^"]*"' | paste -sd' ' | sed 's/"rule"/\n"rule"/g' | head -n 600
