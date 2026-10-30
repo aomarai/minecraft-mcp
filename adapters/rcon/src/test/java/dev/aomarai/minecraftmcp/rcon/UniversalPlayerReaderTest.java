@@ -319,7 +319,7 @@ class UniversalPlayerReaderTest {
     }
 
     @Test
-    void anInterruptedWaitStopsTheListAndKeepsTheInterrupt() throws Exception {
+    void anInterruptedWaitStopsTheListAndKeepsTheInterrupt() {
         UniversalPlayerReader waiting = new UniversalPlayerReader(() -> List.of("Steve"),
                 (command, timeout) -> new CompletableFuture<>(), dir.resolve("ops.json"), Duration.ofSeconds(30), Runnable::run);
         Thread.currentThread().interrupt();

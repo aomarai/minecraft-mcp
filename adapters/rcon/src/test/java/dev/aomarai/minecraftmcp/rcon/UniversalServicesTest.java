@@ -10,7 +10,6 @@ import dev.aomarai.minecraftmcp.core.ToolDescriptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -211,7 +210,7 @@ class UniversalServicesTest {
     }
 
     @Test
-    void thePublicStartUsesTheSameConfigAndCloses() throws IOException {
+    void thePublicStartUsesTheSameConfigAndCloses() {
         UniversalServices universal = UniversalServices.start(
                 new UniversalConfig(rcon(), OptionalInt.empty(), Optional.empty()), TIMEOUT);
 
