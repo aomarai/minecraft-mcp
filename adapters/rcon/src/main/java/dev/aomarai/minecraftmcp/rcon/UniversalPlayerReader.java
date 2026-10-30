@@ -36,6 +36,8 @@ import java.util.regex.Pattern;
  */
 final class UniversalPlayerReader implements PlayerReader {
 
+    private static final String DATA_GET_ENTITY = "data get entity ";
+
     /** The names of the players online now. */
     @FunctionalInterface
     interface OnlinePlayers {
@@ -98,9 +100,9 @@ final class UniversalPlayerReader implements PlayerReader {
     /** Empty when the player is gone by the time the game is asked. */
     private java.util.Optional<PlayerInfo> describe(String name, boolean operator, CompletableFuture<?> wanted,
                                                     long deadline) throws IOException {
-        CommandResult position = run("data get entity " + name + " Pos", wanted, deadline);
-        CommandResult dimension = run("data get entity " + name + " Dimension", wanted, deadline);
-        CommandResult uuid = run("data get entity " + name + " UUID", wanted, deadline);
+        CommandResult position = run(DATA_GET_ENTITY + name + " Pos", wanted, deadline);
+        CommandResult dimension = run(DATA_GET_ENTITY + name + " Dimension", wanted, deadline);
+        CommandResult uuid = run(DATA_GET_ENTITY + name + " UUID", wanted, deadline);
         if (!position.success() || !dimension.success() || !uuid.success()) {
             return java.util.Optional.empty();
         }
