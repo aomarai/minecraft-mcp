@@ -82,7 +82,7 @@ public final class ToolDispatcher implements ToolInvoker {
     /** Refused without waiting or touching the game; the refusal is audited, and is refused all the same if it cannot be. */
     private McpSchema.CallToolResult refuseBusy(ToolDescriptor tool, Map<String, Object> arguments) {
         try {
-            append(AuditEntry.PHASE_DECISION, tool, arguments, "deny", BUSY);
+            writeEntry(AuditEntry.PHASE_DECISION, tool, arguments, "deny", BUSY);
         } catch (RuntimeException e) {
             LOG.log(System.Logger.Level.WARNING, "cannot audit a call refused as busy: {0}", e.toString());
         }
@@ -94,7 +94,7 @@ public final class ToolDispatcher implements ToolInvoker {
         String verdict = verdict(decision);
 
         try {
-            append(AuditEntry.PHASE_DECISION, tool, args, verdict, decision.reason());
+            writeEntry(AuditEntry.PHASE_DECISION, tool, args, verdict, decision.reason());
         } catch (RuntimeException e) {
             return error("audit log unavailable; call refused");
         }
@@ -123,7 +123,7 @@ public final class ToolDispatcher implements ToolInvoker {
                     tool.name(), took.mainThreadNanos() / 1_000_000, CallTiming.BUDGET.toMillis());
         }
         try {
-            audit.record(new AuditEntry(clock.instant(), AuditEntry.PHASE_RESULT, tool.name(), args, "allow",
+            audit.append(new AuditEntry(clock.instant(), AuditEntry.PHASE_RESULT, tool.name(), args, "allow",
                     (failed ? "error: " : "ok: ") + output, took));
         } catch (RuntimeException e) {
             return error("audit log unavailable after the call ran; result: " + output);
@@ -166,9 +166,9 @@ public final class ToolDispatcher implements ToolInvoker {
         return args.get(COMMAND) instanceof String text ? text : null;
     }
 
-    private void append(String phase, ToolDescriptor tool, Map<String, Object> args, String decision,
+    private void writeEntry(String phase, ToolDescriptor tool, Map<String, Object> args, String decision,
                         String detail) {
-        audit.record(new AuditEntry(clock.instant(), phase, tool.name(), args, decision, detail));
+        audit.append(new AuditEntry(clock.instant(), phase, tool.name(), args, decision, detail));
     }
 
     /** What a handler produced: text, or an image with the text the audit log keeps in its place. */

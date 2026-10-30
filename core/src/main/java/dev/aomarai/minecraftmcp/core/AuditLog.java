@@ -9,7 +9,7 @@ package dev.aomarai.minecraftmcp.core;
  */
 public interface AuditLog {
 
-    void record(AuditEntry entry);
+    void append(AuditEntry entry);
 
     /** An audit log that keeps nothing. For tests and for setups without a log file. */
     static AuditLog discarding() {

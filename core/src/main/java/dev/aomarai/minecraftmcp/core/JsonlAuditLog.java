@@ -67,7 +67,7 @@ public final class JsonlAuditLog implements AuditLog {
     }
 
     @Override
-    public synchronized void record(AuditEntry entry) {
+    public synchronized void append(AuditEntry entry) {
         Map<String, Object> line = new LinkedHashMap<>();
         line.put("ts", entry.time().toString());
         line.put("phase", entry.phase());
