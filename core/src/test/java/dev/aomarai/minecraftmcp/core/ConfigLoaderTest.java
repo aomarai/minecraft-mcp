@@ -479,4 +479,24 @@ class ConfigLoaderTest {
         assertSame(cause, new ConfigException("m", cause).getCause());
         assertEquals("m", new ConfigException("m").getMessage());
     }
+
+    @Test
+    void anAbsentTokenIsAConfigExceptionNotANullPointer() {
+        ConfigException absent = assertThrows(ConfigException.class, () -> ConfigLoader.requiredToken(Map.of()));
+        assertEquals("token is missing from the configuration; set it in the config file or remove the file to get "
+                + "a generated one", absent.getMessage());
+        java.util.Map<String, Object> nulled = new java.util.HashMap<>();
+        nulled.put("token", null);
+        assertEquals(absent.getMessage(),
+                assertThrows(ConfigException.class, () -> ConfigLoader.requiredToken(nulled)).getMessage());
+    }
+
+    @Test
+    void anEmptyOrShortTokenIsAConfigException() {
+        for (String token : new String[]{"", " ", "x".repeat(ConfigLoader.MIN_TOKEN_LENGTH - 1)}) {
+            assertEquals("token must be at least 16 characters", assertThrows(ConfigException.class,
+                    () -> ConfigLoader.requiredToken(Map.of("token", token))).getMessage(), "[" + token + "]");
+        }
+        assertEquals("x".repeat(16), ConfigLoader.requiredToken(Map.of("token", "x".repeat(16))));
+    }
 }
