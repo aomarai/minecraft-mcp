@@ -51,20 +51,24 @@ public final class McpService implements AutoCloseable {
                                    Map<String, String> env) throws Exception {
         ConfigLoader.Loaded loaded = ConfigLoader.load(configFile, env);
         McpConfig config = loaded.config();
-        if (config.tls().isPresent()) {
-            LOG.log(System.Logger.Level.INFO, "Serving HTTPS on {0} with the certificate in {1}", config.host(),
-                    config.tls().get().keystore());
-        } else if (!McpConfig.isLoopback(config.host())) {
-            LOG.log(System.Logger.Level.WARNING, "Listening on {0}, which other machines can reach, over plain HTTP. "
-                    + "Serve HTTPS with tlsKeystore or put a TLS proxy in front, and keep the port firewalled "
-                    + "(docs/remote-access.md).", config.host());
-        }
+        config.tls().ifPresentOrElse(
+                tls -> LOG.log(System.Logger.Level.INFO, "Serving HTTPS on {0} with the certificate in {1}",
+                        config.host(), tls.keystore()),
+                () -> {
+                    if (!McpConfig.isLoopback(config.host())) {
+                        LOG.log(System.Logger.Level.WARNING, "Listening on {0}, which other machines can reach, over "
+                                + "plain HTTP. Serve HTTPS with tlsKeystore or put a TLS proxy in front, and keep the "
+                                + "port firewalled (docs/remote-access.md).", config.host());
+                    }
+                });
         GameServices ports = services.apply(config);
         ToolDispatcher dispatcher = new ToolDispatcher(config, ports,
                 new JsonlAuditLog(auditFile, secrets(loaded.token(), config)));
         ToolCatalog catalog = ToolCatalog.defaults().availableFor(ports);
         McpCore core = new McpCore(config.host(), config.port(), catalog, dispatcher, loaded.token(),
                 ports.find(EventFeed.class), config.exposure());
+        // start() closes the core itself when it fails, and close() is not meant to run twice (it would release the
+        // event feed's listener a second time), so there is deliberately no second close here.
         core.start();
         return new McpService(core, new Status(config.host(), core.port(), config.allowWrites(),
                 config.allowAdmin(), catalog.tools().size()));
