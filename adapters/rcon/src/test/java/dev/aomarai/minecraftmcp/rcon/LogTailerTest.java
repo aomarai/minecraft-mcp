@@ -58,6 +58,66 @@ class LogTailerTest {
     }
 
     @Test
+    void aVeryLongHostilePrefixNeitherThrowsNorHangsAndTheNextLineStillWorks() throws IOException {
+        tailer.poll();
+        String endless = "[a]".repeat(100_000); // 300 KB of brackets, no colon
+        String unclosed = "[".repeat(200_000);
+        String noMessage = "[a] ".repeat(50_000) + ": ";
+        append(endless + "\n" + unclosed + "\n" + noMessage + "\n"
+                + "[10:00:01] [Server thread/INFO]: Steve joined the game\n");
+
+        assertTimeoutPreemptively(Duration.ofSeconds(10), () -> tailer.poll());
+
+        assertEquals(List.of(new Seen(EventType.JOIN, "Steve", "")), seen);
+    }
+
+    @Test
+    void prefixesAreRecognisedExactlyAsBefore() {
+        assertEquals(33, LogTailer.prefixEnd("[10:00:01] [Server thread/INFO]: x"));
+        assertEquals(9, LogTailer.prefixEnd("[a]\t[b]:\tx"), "any whitespace may follow a bracket and the colon");
+        assertEquals(7, LogTailer.prefixEnd("[a[b]: x"), "an opening bracket inside brackets is text");
+        assertEquals(4, LogTailer.prefixEnd("[]:\nx"));
+        assertEquals(-1, LogTailer.prefixEnd(""), "empty");
+        assertEquals(-1, LogTailer.prefixEnd(": x"), "no bracket first");
+        assertEquals(-1, LogTailer.prefixEnd("[a]"), "nothing after the bracket");
+        assertEquals(-1, LogTailer.prefixEnd("[a] "), "no colon");
+        assertEquals(-1, LogTailer.prefixEnd("[a]x: y"), "something other than whitespace between");
+        assertEquals(-1, LogTailer.prefixEnd("[a]:"), "nothing after the colon");
+        assertEquals(-1, LogTailer.prefixEnd("[a]:x"), "no whitespace after the colon");
+        assertEquals(-1, LogTailer.prefixEnd("[a"), "unclosed");
+        assertEquals(-1, LogTailer.prefixEnd("x[a]: y"), "must start with a bracket");
+    }
+
+    @Test
+    void isSpaceIsExactlyTheRegexClass() {
+        java.util.regex.Pattern space = java.util.regex.Pattern.compile("\\s");
+        for (int c = 0; c <= Character.MAX_VALUE; c++) {
+            assertEquals(space.matcher(String.valueOf((char) c)).matches(), LogTailer.isSpace((char) c), "char " + c);
+        }
+    }
+
+    @Test
+    void prefixEndAgreesWithTheOriginalRegexOnEveryShortLine() {
+        java.util.regex.Pattern original = java.util.regex.Pattern.compile("^(?:\\[[^\\]]*\\]\\s*)+:\\s");
+        String alphabet = "[]: \tx";
+        int checked = 0;
+        for (int length = 0; length <= 7; length++) {
+            int total = (int) Math.pow(alphabet.length(), length);
+            for (int n = 0; n < total; n++) {
+                StringBuilder line = new StringBuilder();
+                for (int k = 0, rest = n; k < length; k++, rest /= alphabet.length()) {
+                    line.append(alphabet.charAt(rest % alphabet.length()));
+                }
+                java.util.regex.Matcher matcher = original.matcher(line);
+                int expected = matcher.find() ? matcher.end() : -1;
+                assertEquals(expected, LogTailer.prefixEnd(line.toString()), "[" + line + "]");
+                checked++;
+            }
+        }
+        assertTrue(checked > 100_000);
+    }
+
+    @Test
     void chatJoinAndLeaveBecomeEvents() throws IOException {
         tailer.poll();
         append("[10:00:01] [Server thread/INFO]: Steve joined the game\n"
