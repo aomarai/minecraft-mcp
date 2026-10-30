@@ -210,6 +210,12 @@ class UniversalMainTest {
         });
         main.start();
         waitUntilListening();
+        // Interrupt only once the loop is asleep: the server may still be starting when it starts listening.
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (main.getState() != Thread.State.TIMED_WAITING && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+        }
+        assertEquals(Thread.State.TIMED_WAITING, main.getState());
 
         main.interrupt();
         main.join(TimeUnit.SECONDS.toMillis(20));
