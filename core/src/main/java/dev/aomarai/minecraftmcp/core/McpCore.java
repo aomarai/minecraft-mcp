@@ -18,6 +18,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Minimal Streamable HTTP bootstrap for the MCP core.
@@ -44,6 +45,7 @@ public final class McpCore implements AutoCloseable {
     private final Server jetty;
     private final ServerConnector connector;
     private final Optional<EventNotifier> notifier;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public McpCore() {
         this(DEFAULT_HOST, 0);
@@ -131,19 +133,11 @@ public final class McpCore implements AutoCloseable {
 
     /**
      * Starts the HTTP listener. Call before connecting a client. If it cannot start (the port is in use, the keystore
-     * is bad) the core is closed again and the failure is thrown: the constructor already subscribed to
-     * the event feed, which outlives this core.
+     * is bad) the failure is thrown and the core is left half-open: the constructor already subscribed to the event
+     * feed, which outlives this core, so the caller must {@link #close()} it ({@link McpService#start} does).
      */
     public void start() throws Exception {
-        boolean started = false;
-        try {
-            jetty.start();
-            started = true;
-        } finally {
-            if (!started) {
-                close();
-            }
-        }
+        jetty.start();
     }
 
     /** The bearer token clients must present. A secret: for tests and the code that created the core. */
@@ -173,6 +167,10 @@ public final class McpCore implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        // Closing twice is harmless: cleanup code may close a core that was already closed.
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
         try {
             notifier.ifPresent(EventNotifier::close);
             mcp.closeGracefully();

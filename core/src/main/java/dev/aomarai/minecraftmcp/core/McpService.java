@@ -67,9 +67,17 @@ public final class McpService implements AutoCloseable {
         ToolCatalog catalog = ToolCatalog.defaults().availableFor(ports);
         McpCore core = new McpCore(config.host(), config.port(), catalog, dispatcher, loaded.token(),
                 ports.find(EventFeed.class), config.exposure());
-        // start() closes the core itself when it fails, and close() is not meant to run twice (it would release the
-        // event feed's listener a second time), so there is deliberately no second close here.
-        core.start();
+        boolean started = false;
+        try {
+            core.start();
+            started = true;
+        } finally {
+            // A core that did not start is half-open (it already listens to the event feed): close it, and let the
+            // failure reach the caller unchanged.
+            if (!started) {
+                core.close();
+            }
+        }
         return new McpService(core, new Status(config.host(), core.port(), config.allowWrites(),
                 config.allowAdmin(), catalog.tools().size()));
     }
