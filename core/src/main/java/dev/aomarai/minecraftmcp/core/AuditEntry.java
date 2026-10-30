@@ -29,6 +29,6 @@ public record AuditEntry(
         this(time, phase, tool, arguments, decision, detail, CallTiming.Result.NONE);
     }
 
-    public static final String DECISION = "decision";
-    public static final String RESULT = "result";
+    public static final String PHASE_DECISION = "decision";
+    public static final String PHASE_RESULT = "result";
 }

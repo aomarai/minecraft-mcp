@@ -29,7 +29,7 @@ public record ToolDescriptor(
         Side side,
         McpSchema.JsonSchema inputSchema) {
 
-    private static final Pattern NAME = Pattern.compile("[a-z][a-z0-9_]*");
+    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z][a-z0-9_]*");
 
     public ToolDescriptor {
         Objects.requireNonNull(name, "name");
@@ -52,7 +52,7 @@ public record ToolDescriptor(
     }
 
     private static void requireName(String what, String value) {
-        if (!NAME.matcher(value).matches()) {
+        if (!NAME_PATTERN.matcher(value).matches()) {
             throw new IllegalArgumentException(what + " must be snake_case: " + value);
         }
     }
