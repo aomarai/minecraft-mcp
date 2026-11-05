@@ -4,7 +4,7 @@
 [versions]
 mcp-sdk = "2.1.0"
 # The MCP SDK pulls an older Jackson with open advisories (docs/security.md, "Dependency advisories").
-jackson = "3.1.7"
+jackson = "3.2.4"
 jetty = "12.1.14"
 junit = "5.11.4"
 slf4j = "2.0.20"
