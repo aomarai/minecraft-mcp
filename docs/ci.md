@@ -56,3 +56,12 @@ settings, and preparing Minecraft for a NeoForge node runs in a JVM of its own (
 take turns, see `build.gradle.kts`), so none of those is covered by these numbers. Before this the metaspace had
 no cap; its exhaustion in `:adapters:fabric:shadowJar` is what broke the SonarQube job (#80), which is why that job
 keeps its own limits.
+
+## Download retries
+
+Two jobs on `main` failed on 2026-11-05 for a reason that had nothing to do with the code: the 26.3 client smoke job
+lost its connection to `maven.fabricmc.net` while Gradle fetched `mercury-0.4.3.jar`, and a CodeQL build got a 403 from
+Maven Central for a SonarQube plugin POM. Both clear up within seconds. Gradle's defaults (3 attempts, 125 ms start-up
+delay) are too short to outlast them, so `gradle.properties` sets `org.gradle.internal.repository.max.retries=6` and
+`org.gradle.internal.repository.initial.backoff=1000` (1, 2, 4, ... seconds between attempts). If a job still fails on a
+download, rerun it before looking for a code cause: the log names the URL and "Connection reset" or the status code.
