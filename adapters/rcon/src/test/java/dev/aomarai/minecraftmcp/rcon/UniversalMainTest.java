@@ -212,12 +212,11 @@ class UniversalMainTest {
         });
         main.start();
         waitUntilListening();
-        // Interrupt only once the loop is asleep: the server may still be starting when it starts listening.
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        while (main.getState() != Thread.State.TIMED_WAITING && System.nanoTime() < deadline) {
-            Thread.onSpinWait();
-        }
-        assertEquals(Thread.State.TIMED_WAITING, main.getState());
+        // Interrupt only once the loop is asleep: the server may still be starting when it starts listening, and
+        // that startup work can outlast a short wait on a busy runner. The wait parks between polls, because a hot
+        // spin competes for the CPU with the very thread it is waiting for on a small runner.
+        assertTrue(Await.until(() -> main.getState() == Thread.State.TIMED_WAITING,
+                java.time.Duration.ofSeconds(30)), () -> "the run loop never went to sleep; it was " + main.getState());
 
         main.interrupt();
         main.join(TimeUnit.SECONDS.toMillis(20));
